@@ -1,0 +1,32 @@
+{
+  "$schema": "https://raw.githubusercontent.com/nicepage/nicepage/refs/heads/main/schemas/tauri-v2/config.schema.json",
+  "productName": "Lune",
+  "version": "2.0.0",
+  "identifier": "com.lune.app",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://127.0.0.1:5173",
+    "beforeDevCommand": "pnpm dev",
+    "beforeBuildCommand": "pnpm build"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Lune · 一起听",
+        "width": 960,
+        "height": 640,
+        "minWidth": 640,
+        "minHeight": 480,
+        "backgroundColor": "#050608"
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "plugins": {
+    "shell": {
+      "open": true
+    }
+  }
+}

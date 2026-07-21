@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="zh-CN" style="background:#050608">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#050608" />
+    <title>Lune · 一起听</title>
+    <style>
+      html,
+      body,
+      #root {
+        min-height: 100%;
+        margin: 0;
+        background: #050608;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root">
+      <!-- 首屏 loading 占位:HTML 解析完立即显示,React 挂载后被 createRoot().render() 自动替换 -->
+      <div id="lune-boot" style="position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:#050608;color:#a5beeb;font-family:Inter,-apple-system,BlinkMacSystemFont,'SF Pro Display','Noto Sans SC','Microsoft YaHei',sans-serif">
+        <div style="font-size:20px;font-weight:600;letter-spacing:0.5em;padding-left:0.5em">LUNE</div>
+        <div style="display:flex;gap:6px">
+          <span style="width:5px;height:5px;border-radius:999px;background:#a5beeb;opacity:0.4;animation:lune-boot-pulse 1.2s ease-in-out infinite"></span>
+          <span style="width:5px;height:5px;border-radius:999px;background:#a5beeb;opacity:0.4;animation:lune-boot-pulse 1.2s ease-in-out 0.2s infinite"></span>
+          <span style="width:5px;height:5px;border-radius:999px;background:#a5beeb;opacity:0.4;animation:lune-boot-pulse 1.2s ease-in-out 0.4s infinite"></span>
+        </div>
+      </div>
+      <style>
+        @keyframes lune-boot-pulse {
+          0%, 100% { opacity: 0.2; transform: scale(0.85); }
+          50% { opacity: 1; transform: scale(1.1); }
+        }
+      </style>
+    </div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

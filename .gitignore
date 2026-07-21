@@ -1,0 +1,116 @@
+# =========================
+# Dependencies
+# =========================
+node_modules/
+.pnpm-store/
+
+# =========================
+# Build outputs
+# =========================
+dist/
+build/
+out/
+*.tsbuildinfo
+
+# Vite / bundler caches
+.vite/
+.cache/
+.turbo/
+
+# Coverage / test artifacts
+coverage/
+.nyc_output/
+
+# =========================
+# Accidental tsc emit next to sources
+# (client has no outDir; Vite consumes .ts/.tsx directly)
+# =========================
+apps/client/src/**/*.js
+apps/client/vite.config.js
+apps/shared/src/**/*.js
+
+# =========================
+# Rust / Tauri
+# =========================
+apps/client/src-tauri/target/
+apps/client/src-tauri/gen/*
+!apps/client/src-tauri/gen/android/.gitkeep
+
+# Tauri / Windows packaging leftovers
+*.pdb
+WixTools/
+*.wixpdb
+*.msi
+*.nsis.zip
+*.app
+*.dmg
+*.AppImage
+*.deb
+*.rpm
+
+# =========================
+# Prisma (if reintroduced)
+# =========================
+server/src/prisma/generated/
+
+# =========================
+# Environment / secrets
+# Keep *.example templates tracked
+# =========================
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# =========================
+# Deploy packages (source + README stay; zips do not)
+# =========================
+*.zip
+*.7z
+*.tar
+*.tar.gz
+*.tgz
+
+# =========================
+# Logs
+# =========================
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# =========================
+# IDE / editors
+# =========================
+.vscode/
+.idea/
+.vs/
+*.swp
+*.swo
+*~
+*.sublime-project
+*.sublime-workspace
+
+# =========================
+# AI / local tooling caches
+# =========================
+.serena/
+.codex/
+.claude/
+.agents/
+.cursor/
+
+# =========================
+# OS junk
+# =========================
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.stackdump

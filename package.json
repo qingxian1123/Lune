@@ -1,0 +1,22 @@
+{
+  "name": "lune",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev:client": "pnpm --filter @lune/client dev",
+    "dev:server": "pnpm --filter @lune/server dev",
+    "build": "pnpm -r --filter=!@lune/shared run build",
+    "build:client": "pnpm --filter @lune/client build",
+    "build:server": "pnpm --filter @lune/server build",
+    "typecheck": "pnpm -r run typecheck",
+    "tauri": "pnpm --filter @lune/client tauri"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=9.0.0"
+  }
+}
