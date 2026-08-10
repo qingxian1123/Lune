@@ -13,7 +13,7 @@ export default function MemberList({ members, ownerId }: MemberListProps) {
   return (
     <section className="terminal-pane">
       <div className="pane-heading">
-        <div><span>此刻在房间</span><strong>一起听的人</strong></div>
+        <div><strong>房间成员</strong></div>
         <small>{members.length} 人在线</small>
       </div>
       <ul className="member-terminal-list">
@@ -31,7 +31,7 @@ export default function MemberList({ members, ownerId }: MemberListProps) {
               </span>
               <span className="member-copy">
                 <strong>{member.nickname}</strong>
-                <small>{owner ? '房主' : '同步收听中'}</small>
+                <small>{owner ? '房主' : '在线'}</small>
               </span>
               {owner && (
                 <span className="member-role">房主</span>

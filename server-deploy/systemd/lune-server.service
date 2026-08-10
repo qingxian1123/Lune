@@ -1,0 +1,44 @@
+[Unit]
+Description=Lune music synchronization server
+Documentation=file:///opt/lune/current/README.md
+Wants=network-online.target
+After=network-online.target
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=lune
+Group=lune
+WorkingDirectory=/opt/lune/current
+Environment=NODE_ENV=production
+EnvironmentFile=/etc/lune/lune.env
+ExecStartPre=/usr/local/bin/node /opt/lune/current/dist/providers/interfaces/cli/provider-cli.js config validate --json
+ExecStart=/usr/local/bin/node /opt/lune/current/dist/main.js
+Restart=always
+RestartSec=5
+TimeoutStartSec=30
+TimeoutStopSec=20
+KillSignal=SIGTERM
+UMask=0077
+LimitNOFILE=65535
+
+# 运行时只允许写 Provider 加密凭据目录。
+StateDirectory=lune
+StateDirectoryMode=0700
+ReadWritePaths=/var/lib/lune
+
+# 基础沙箱；Node 和第三方音乐 API 仍可访问网络。
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target

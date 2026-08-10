@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "defaultProvider": "netease",
+  "providers": {
+    "netease": {
+      "enabled": true,
+      "requestTimeoutMs": 10000,
+      "healthCheckIntervalMs": 1800000
+    },
+    "kugou": {
+      "enabled": true,
+      "requestTimeoutMs": 10000,
+      "healthCheckIntervalMs": 1800000,
+      "refreshIntervalMs": 21600000
+    }
+  },
+  "routing": {
+    "failureThreshold": 3,
+    "circuitOpenMs": 30000
+  }
+}

@@ -1,12 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { createRoom, joinRoom } from '../lib/api';
-import { AudioEngine } from '../audio/AudioEngine';
-import { getUiErrorMessage } from '../lib/uiError';
+import SettingsPanel from '../features/settings/SettingsPanel';
+import { useAccessController } from '../features/access/useAccessController';
 
-type AccessMode = 'create' | 'join';
-type AccessError = { field?: 'nickname' | 'roomCode'; message: string };
 type ParticleStyle = CSSProperties & {
   '--particle-x': string;
   '--particle-y': string;
@@ -32,50 +27,7 @@ const particles: ParticleStyle[] = [
 ];
 
 export default function Home() {
-  const navigate = useNavigate();
-  const [mode, setMode] = useState<AccessMode>('create');
-  const [nickname, setNickname] = useState('');
-  const [roomCode, setRoomCode] = useState('');
-  const [error, setError] = useState<AccessError | null>(null);
-  const [busy, setBusy] = useState(false);
-  const roomCodeRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (mode === 'join') roomCodeRef.current?.focus();
-  }, [mode]);
-
-  const enterRoom = async () => {
-    if (!nickname.trim()) {
-      setError({ field: 'nickname', message: '请先输入你的昵称' });
-      return;
-    }
-    if (mode === 'join' && !roomCode.trim()) {
-      setError({ field: 'roomCode', message: '请输入房主分享的房间码' });
-      return;
-    }
-
-    setBusy(true);
-    setError(null);
-    try {
-      await AudioEngine.instance().resume();
-      const response =
-        mode === 'create'
-          ? await createRoom(nickname.trim())
-          : await joinRoom(roomCode.trim().toUpperCase(), nickname.trim());
-      navigate(`/room/${response.code}`, {
-        state: { token: response.token, memberId: response.member.id },
-      });
-    } catch (error) {
-      setError({ message: getUiErrorMessage(error, '暂时无法进入房间，请稍后再试') });
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const switchMode = (nextMode: AccessMode) => {
-    setMode(nextMode);
-    setError(null);
-  };
+  const access = useAccessController();
 
   return (
     <div className="access-shell">
@@ -87,9 +39,13 @@ export default function Home() {
       <header className="access-header">
         <div className="brand-lockup">
           <span className="brand-mark">LUNE</span>
-          <span className="brand-divider" />
-          <span className="brand-caption">一起听</span>
         </div>
+        <button type="button" className="settings-trigger" onClick={access.settings.openSettings}>
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 7h10M18 7h2M4 17h2M10 17h10M14 4v6M7 14v6" />
+          </svg>
+          <span>设置</span>
+        </button>
       </header>
 
       <main className="access-main">
@@ -103,7 +59,7 @@ export default function Home() {
         <section className="access-terminal" aria-label="进入音乐房间">
           <div className="terminal-heading">
             <div>
-              <strong>今晚想一起听什么？</strong>
+              <strong>进入房间</strong>
             </div>
           </div>
 
@@ -111,18 +67,18 @@ export default function Home() {
             <button
               type="button"
               role="tab"
-              aria-selected={mode === 'create'}
-              className={mode === 'create' ? 'is-active' : undefined}
-              onClick={() => switchMode('create')}
+              aria-selected={access.mode === 'create'}
+              className={access.mode === 'create' ? 'is-active' : undefined}
+              onClick={() => access.switchMode('create')}
             >
               创建房间
             </button>
             <button
               type="button"
               role="tab"
-              aria-selected={mode === 'join'}
-              className={mode === 'join' ? 'is-active' : undefined}
-              onClick={() => switchMode('join')}
+              aria-selected={access.mode === 'join'}
+              className={access.mode === 'join' ? 'is-active' : undefined}
+              onClick={() => access.switchMode('join')}
             >
               加入房间
             </button>
@@ -130,58 +86,49 @@ export default function Home() {
 
           <div className="access-fields">
             <label className="terminal-field">
-              <span>你的昵称</span>
+              <span>昵称</span>
               <input
-                value={nickname}
-                onChange={(event) => {
-                  setNickname(event.target.value);
-                  if (error?.field === 'nickname') setError(null);
-                }}
-                onKeyDown={(event) => event.key === 'Enter' && enterRoom()}
-                placeholder="输入你的昵称"
+                value={access.nickname}
+                onChange={(event) => access.setNickname(event.target.value)}
+                onKeyDown={(event) => event.key === 'Enter' && void access.enterRoom()}
+                placeholder="例如，小林"
                 maxLength={32}
                 autoComplete="nickname"
               />
-              {error?.field === 'nickname' && <small className="field-error">{error.message}</small>}
+              {access.error?.field === 'nickname' && <small className="field-error">{access.error.message}</small>}
             </label>
 
-            {mode === 'join' && (
+            {access.mode === 'join' && (
               <label className="terminal-field">
-                <span>房间代码</span>
+                <span>房间码</span>
                 <input
-                  ref={roomCodeRef}
-                  value={roomCode}
-                  onChange={(event) => {
-                    setRoomCode(event.target.value.toUpperCase().slice(0, 6));
-                    if (error?.field === 'roomCode') setError(null);
-                  }}
-                  onKeyDown={(event) => event.key === 'Enter' && enterRoom()}
-                  placeholder="输入六位房间码"
+                  ref={access.roomCodeInputRef}
+                  value={access.roomCode}
+                  onChange={(event) => access.setRoomCode(event.target.value)}
+                  onKeyDown={(event) => event.key === 'Enter' && void access.enterRoom()}
+                  placeholder="例如 ABC123"
                   maxLength={6}
                   autoCapitalize="characters"
                   className="room-code-input"
                 />
-                {error?.field === 'roomCode' && <small className="field-error">{error.message}</small>}
+                {access.error?.field === 'roomCode' && <small className="field-error">{access.error.message}</small>}
               </label>
             )}
 
-            <div className={`access-message ${error && !error.field ? 'is-error' : ''}`} aria-live="polite">
-              {error && !error.field
-                ? error.message
-                : mode === 'create'
-                  ? '创建后即可邀请朋友加入'
-                  : '使用房主分享的房间码加入'}
+            <div className={`access-message ${access.error && !access.error.field ? 'is-error' : ''}`} aria-live="polite">
+              {access.error && !access.error.field ? access.error.message : null}
             </div>
 
-            <button type="button" className="access-submit" onClick={enterRoom} disabled={busy}>
-              <span>{busy ? '正在进入房间' : mode === 'create' ? '创建房间' : '加入房间'}</span>
-              <span aria-hidden="true">→</span>
+            <button type="button" className="access-submit" onClick={() => void access.enterRoom()} disabled={access.busy}>
+              <span>{access.busy ? '正在进入房间' : access.mode === 'create' ? '创建房间' : '加入房间'}</span>
             </button>
           </div>
 
 
         </section>
       </main>
+
+      <SettingsPanel controller={access.settings} />
     </div>
   );
 }

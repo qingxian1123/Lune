@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import NeteaseCloudMusicApi from 'NeteaseCloudMusicApi';
 import type {
   LyricLine,
@@ -9,6 +9,7 @@ import type {
   ProviderSearchResult,
   Track,
 } from '@lune/shared';
+import { EncryptedCredentialStore } from '../infrastructure/credentials/encrypted-credential.store';
 
 const { cloudsearch, song_url_v1, song_detail, playlist_detail, lyric } = NeteaseCloudMusicApi;
 
@@ -27,8 +28,14 @@ export class NeteaseProvider implements MusicProvider {
   readonly id = 'netease';
   private readonly logger = new Logger(NeteaseProvider.name);
 
+  constructor(
+    @Optional()
+    @Inject(EncryptedCredentialStore)
+    private readonly credentials?: EncryptedCredentialStore,
+  ) {}
+
   private get cookie(): string {
-    return process.env.MUSIC_COOKIE || '';
+    return this.credentials?.getCookieString(this.id, process.env.MUSIC_COOKIE || '') || '';
   }
 
   private withCookie(extra?: Record<string, unknown>): Record<string, unknown> {
@@ -55,6 +62,7 @@ export class NeteaseProvider implements MusicProvider {
       );
       const songs = (result.body?.result?.songs || []).map((s: any): Track => ({
         id: String(s.id),
+        provider: this.id,
         name: s.name,
         artists: (s.ar || []).map((a: any) => a.name).join('/'),
         album: s.al?.name || '',
@@ -78,6 +86,7 @@ export class NeteaseProvider implements MusicProvider {
       if (!song) return fallback;
       const track: Track = {
         id: String(song.id),
+        provider: this.id,
         name: song.name,
         artists: (song.ar || []).map((a: any) => a.name).join('/'),
         album: song.al?.name || '',
@@ -131,6 +140,7 @@ export class NeteaseProvider implements MusicProvider {
       if (!playlist) return [];
       return (playlist.tracks || []).map((t: any): Track => ({
         id: String(t.id),
+        provider: this.id,
         name: t.name,
         artists: (t.ar || []).map((a: any) => a.name).join('/'),
         album: t.al?.name || '',
@@ -147,6 +157,7 @@ export class NeteaseProvider implements MusicProvider {
       // cloudsearch type=1000 返回 result.body.result.playlists[](字段名以实测为准)
       const playlists = (result.body?.result?.playlists || []).map((p: any) => ({
         id: String(p.id),
+        provider: this.id,
         name: p.name || '',
         coverUrl: p.coverImgUrl || p.picUrl || '',
         trackCount: p.trackCount || 0,
@@ -177,6 +188,6 @@ export class NeteaseProvider implements MusicProvider {
   }
 
   private emptyTrack(id: string): Track {
-    return { id, name: '', artists: '', album: '', coverUrl: '', duration: 0 };
+    return { id, provider: this.id, name: '', artists: '', album: '', coverUrl: '', duration: 0 };
   }
 }

@@ -1,13 +1,13 @@
 # Lune · 一起听
 
-Lune 是一个自托管的"一起听歌"应用，支持房间同步播放、多音乐源接入。本仓库为 v2 重构版本，采用 pnpm monorepo 结构。
+Lune 是一个自托管的“一起听歌”系统壳子，支持房间同步播放和 Provider 插件式音源接入。本仓库不提供公共服务器、预置账号或固定音源登录态：使用者自行部署服务端，在客户端首次启动时添加服务器地址，并在自己的服务器上配置音源账号。
 
 ## 技术栈
 
 - **桌面端** (`apps/client`)：Tauri 2 + React 18 + TypeScript + Vite + Tailwind CSS,状态管理 Zustand,服务端状态 TanStack Query,音频 Web Audio API,实时 native WebSocket
 - **服务端** (`server`)：NestJS 10 + Prisma (SQLite 默认 / MySQL 可切) + `@nestjs/websockets` + `ws` adapter + JWT 房间邀请码
 - **共享类型** (`apps/shared`)：前后端协议、DTO
-- **音乐源**：Provider 插件式 (`server/src/providers/`),默认含网易云 (`NeteaseCloudMusicApi`)
+- **音乐源**：Provider 插件式 (`server/src/providers/`)，当前提供网易云、酷狗基准实现，账号由服务端使用者自行登录
 
 ## 目录结构
 
@@ -50,7 +50,13 @@ pnpm tauri build
 
 ## 部署
 
-服务端不走 Docker/CI。本地构建后手动将 `server/dist` 产物移植到远程机运行。网易云 VIP 密钥通过 `server/.env` 的 `MUSIC_COOKIE` 注入（沿用 v1 约定）。
+使用白名单脚本生成不含 `.env`、Cookie、Token 和凭据文件的服务端发布包：
+
+```bash
+npm run deploy:server:clean
+```
+
+完整的 Ubuntu、全新二维码登录与 systemd 持久化说明见 `docs/UBUNTU_NEW_LOGIN_DEPLOY.md`。客户端发行包默认不固化服务器地址；首次启动时填写自建服务地址并通过健康检查后，地址只保存在当前设备。
 
 ## 阶段路线
 

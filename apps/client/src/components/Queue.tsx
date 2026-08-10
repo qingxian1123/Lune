@@ -111,7 +111,7 @@ export default function Queue({
   const entries = useMemo<QueueEntry[]>(
     () =>
       queue.map((track, index) => ({
-        id: `${track.id}:${index}`,
+        id: `${track.provider || ''}:${track.id}:${index}`,
         index,
         track,
       })),
@@ -126,13 +126,13 @@ export default function Queue({
     return (
       <section className="terminal-pane empty-pane">
         <div className="pane-heading">
-          <div><span>接下来播放</span><strong>待播队列</strong></div>
+          <div><strong>播放队列</strong></div>
           <small>0 首</small>
         </div>
         <div className="terminal-empty">
           <span>＋</span>
-          <strong>还没有下一首</strong>
-          <small>去搜索一首喜欢的歌吧</small>
+          <strong>队列为空</strong>
+          <small>从搜索中添加歌曲</small>
         </div>
       </section>
     );
@@ -149,11 +149,11 @@ export default function Queue({
   return (
     <section className="terminal-pane">
       <div className="pane-heading">
-        <div><span>接下来播放</span><strong>待播队列</strong></div>
+        <div><strong>播放队列</strong></div>
         <small>{queue.length} 首 · 拖动排序</small>
       </div>
       <DndContext
-        key={queue.map((track) => track.id).join('|')}
+        key={queue.map((track) => `${track.provider || ''}:${track.id}`).join('|')}
         sensors={sensors}
         collisionDetection={closestCenter}
         onDragEnd={handleDragEnd}

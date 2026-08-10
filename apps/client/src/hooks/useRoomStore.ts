@@ -16,6 +16,7 @@ interface RoomState {
   setConnected: (b: boolean) => void;
   applySnapshot: (snapshot: RoomSnapshot) => void;
   applyServerMessage: (msg: ServerMessage) => void;
+  clearError: () => void;
   reset: () => void;
 }
 
@@ -84,6 +85,7 @@ export const useRoomStore = create<RoomState>((set) => ({
         break;
     }
   },
+  clearError: () => set({ lastError: null }),
   reset: () =>
     set({
       memberId: null,

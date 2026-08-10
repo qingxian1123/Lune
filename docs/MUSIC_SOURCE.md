@@ -1,6 +1,6 @@
 # 音乐源 Provider 插件开发指南
 
-Lune 的音乐源以插件方式接入。默认提供网易云（`netease`）provider，由 `NeteaseCloudMusicApi` 这个 node 库实现。本文说明如何实现并注册自定义 provider。
+Lune 的音乐源以插件方式接入。当前提供网易云（`netease`）与酷狗（`kugou`）provider。两者都作为 Node.js 依赖在 Lune 服务端进程内运行：网易云使用 `NeteaseCloudMusicApi`，酷狗使用固定版本的 `MakcRe/KuGouMusicApi`。
 
 ## 接口约定
 
@@ -67,7 +67,7 @@ MUSIC_PROVIDERS=netease,qq
 
 ## HTTP API
 
-客户端无需知道源细节，统一通过以下路由访问（默认使用激活列表第一个 provider，可用 `?provider=<id>` 指定）：
+客户端统一通过以下路由访问。默认使用激活列表第一个 provider，也可用 `?provider=<id>` 指定；显式指定的 provider 仍必须出现在 `MUSIC_PROVIDERS` 中：
 
 | 路由 | 说明 |
 |---|---|
@@ -79,4 +79,24 @@ MUSIC_PROVIDERS=netease,qq
 
 ## 网易云 VIP/登录态
 
-网易云 provider 通过 `server/.env` 的 `MUSIC_COOKIE` 注入，值即浏览器登录后的 `MUSIC_U=...` cookie 字符串。生产移植到服务器时务必设置此项。此文件不提交 git。
+新版本通过 Provider CLI 或受保护管理 API 发起网易云二维码登录，服务端自动轮询授权状态、校验账号并把 Cookie 加密保存到 `LUNE_DATA_DIR`。推荐执行：
+
+```bash
+npm run provider -- login netease
+```
+
+`MUSIC_COOKIE` 仅作为旧部署兼容迁移入口：加密凭据库没有网易云记录时，启动过程会自动解析并迁移；迁移成功后应从 `.env` 删除旧 Cookie。
+
+## 酷狗第三方 API
+
+酷狗 provider 对接 [MakcRe/KuGouMusicApi](https://github.com/MakcRe/KuGouMusicApi)，不复制酷狗签名逻辑，也不需要另外启动该项目的 HTTP 服务。依赖固定到 `v1.5.1`，由 Lune 服务端直接调用其 `main.js` 导出的程序化 API。
+
+```bash
+npm run provider -- login kugou
+```
+
+默认源和启用状态由 `config/providers.json` 管理；没有该文件时才回退到 `MUSIC_PROVIDERS`，其中第一个值为默认源。前端会读取已激活列表并显示音乐源选择器。
+
+上游搜索通常要求酷狗认证信息，否则可能返回 `error_code: 152`。Lune 从加密凭据库读取结构化 Cookie，并支持通过 `login_token` 定时校验和刷新；`KUGOU_COOKIE` 只保留为旧部署迁移入口。登录态不会放入 URL。播放 URL 受会员、版权和地区限制，不可播放时 provider 返回 `unplayable: true`。
+
+酷狗的歌曲 hash、专辑 ID、音频 ID及歌曲时长会编码到不透明的 `Track.id`；业务代码不应解析该 ID。`Track.provider` 会随队列和房间播放状态同步，确保酷狗歌曲始终由酷狗解析播放地址与歌词。旧房间数据没有 `provider` 时仍回落到默认源。

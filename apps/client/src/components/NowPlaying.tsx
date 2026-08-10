@@ -24,11 +24,10 @@ export default function NowPlaying({
 }: NowPlayingProps) {
   return (
     <section className="now-playing-stage" aria-label="正在播放">
-      <header className="stage-heading">
-        <div>
-          <span className="stage-kicker">正在播放</span>
-          <strong>{track ? '与房间保持同步' : '选择一首歌开始'}</strong>
-        </div>
+        <header className="stage-heading">
+          <div>
+            <strong>{track ? '同步播放' : '选择音乐'}</strong>
+          </div>
         <div className="stage-status">
           <span className={track ? 'is-live' : ''} />
           {isBuffering ? '正在缓冲' : `${membersCount} 人正在听`}
@@ -42,18 +41,16 @@ export default function NowPlaying({
               {track?.coverUrl ? (
                 <img src={track.coverUrl} alt={`${track.album} 专辑封面`} />
               ) : (
-                <div className="cover-placeholder">
-                  <span>LUNE</span>
-                  <small>等待音乐</small>
-                </div>
+              <div className="cover-placeholder">
+                <span>LUNE</span>
+              </div>
               )}
             </div>
           </div>
 
           <div className="track-identity">
-            <div className="track-number">{track ? '正在播放' : '音乐尚未开始'}</div>
-            <h2>{track?.name || '等待播放'}</h2>
-            <p>{track?.artists || '房主选择歌曲后将自动开始同步'}</p>
+          <h2>{track?.name || '还没有音乐'}</h2>
+          <p>{track?.artists || '从音乐库添加歌曲'}</p>
             {track?.album && <span>{track.album}</span>}
           </div>
         </div>
@@ -62,14 +59,13 @@ export default function NowPlaying({
           {isLoadingLyrics ? (
             <div className="lyric-empty">
               <span className="loading-dots"><i /><i /><i /></span>
-              <strong>正在载入歌词</strong>
-              <small>稍等片刻</small>
+            <strong>正在载入歌词</strong>
             </div>
           ) : lines.length === 0 ? (
             <div className="lyric-empty">
               <span className="empty-line" />
-              <strong>{track ? '暂无歌词' : '等待音乐开始'}</strong>
-              <small>{track ? '这首歌暂时没有歌词' : '播放开始后，歌词将在这里同步出现'}</small>
+            <strong>{track ? '暂无歌词' : '等待音乐'}</strong>
+            {!track && <small>播放后显示歌词</small>}
             </div>
           ) : (
             <LyricScroller

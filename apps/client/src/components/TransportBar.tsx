@@ -67,16 +67,16 @@ export default function TransportBar({
           {track?.coverUrl ? <img src={track.coverUrl} alt="" /> : <span>L</span>}
         </div>
         <div className="transport-copy">
-          <span>{isBuffering ? '正在缓冲' : track ? '正在播放' : '尚未播放'}</span>
-          <strong>{track?.name || '等待播放'}</strong>
-          <small>{track?.artists || 'Lune 共听房间'}</small>
+          <span>{isBuffering ? '正在缓冲' : track ? '正在播放' : '未播放'}</span>
+          <strong>{track?.name || '还没有音乐'}</strong>
+          {track?.artists && <small>{track.artists}</small>}
         </div>
       </div>
 
       <div className="transport-sync">
         <span className={`sync-state-dot ${track ? 'is-active' : ''}`} />
         <div>
-          <strong>{isOwner ? '由你控制播放' : '与房主同步'}</strong>
+          <strong>同步播放</strong>
           <small>{membersCount} 人正在听</small>
         </div>
       </div>

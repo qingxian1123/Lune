@@ -1,9 +1,13 @@
-import { Controller, Get, NotFoundException, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Inject,
+  NotFoundException,
+  Query,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { ProviderRegistry } from './provider.registry';
 import { IsOptional, IsString, MinLength } from 'class-validator';
-
-const activeIds = (registry: ProviderRegistry): string[] =>
-  registry.listActive().map((p) => p.id);
 
 class SearchQueryDto {
   @IsString()
@@ -63,12 +67,21 @@ class PlaylistSearchQueryDto {
 
 @Controller('providers')
 export class ProvidersController {
-  constructor(private readonly registry: ProviderRegistry) {}
+  constructor(@Inject(ProviderRegistry) private readonly registry: ProviderRegistry) {}
 
   /** 列出已激活 provider */
   @Get()
   list() {
-    return { providers: activeIds(this.registry) };
+    const details = this.registry.listActiveDetails().map(({ descriptor, status }) => ({
+      ...descriptor,
+      status: status.status,
+    }));
+    return {
+      // 保留旧字段，避免当前客户端升级前发生不兼容。
+      providers: details.map((provider) => provider.id),
+      details,
+      defaultProvider: this.registry.getDefaultId() || null,
+    };
   }
 
   /** 搜索 */
@@ -111,9 +124,27 @@ export class ProvidersController {
   }
 
   private pick(explicit?: string) {
-    const provider = explicit ? this.registry.get(explicit) : this.registry.getActive();
+    const providerId = explicit || this.registry.getDefaultId();
+    const provider = explicit ? this.registry.getActiveById(explicit) : this.registry.getActive();
     if (!provider) {
       throw new NotFoundException('无可用音乐源或指定的 provider 未激活');
+    }
+    const status = this.registry.getRuntimeStatus(providerId!);
+    if (status.status === 'auth-required') {
+      throw new ServiceUnavailableException({
+        code: 'PROVIDER_AUTH_REQUIRED',
+        message: '音乐源需要重新登录',
+        provider: providerId,
+        retryable: false,
+      });
+    }
+    if (status.status === 'unavailable' || status.status === 'starting') {
+      throw new ServiceUnavailableException({
+        code: 'PROVIDER_UNAVAILABLE',
+        message: '音乐源当前不可用',
+        provider: providerId,
+        retryable: true,
+      });
     }
     return provider;
   }

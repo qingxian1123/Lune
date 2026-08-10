@@ -417,6 +417,34 @@ Executor: Codex
 
 ---
 
+## Kugou Music Provider
+
+Date: 2026-07-25
+Executor: Codex
+
+### Scope
+
+- Added the `kugou` provider backed by the in-process programmatic API exported by `MakcRe/KuGouMusicApi` v1.5.1.
+- Added song search, playable URL resolution, LRC lyrics, playlist search, and playlist import mappings.
+- Added optional `provider` affinity to shared tracks and playlists so room queue, playback, and lyrics use the originating source.
+- Added an active-provider selector to the client while keeping the first `MUSIC_PROVIDERS` entry as the default.
+- Added a typed adapter around the upstream CommonJS API and forwards the Kugou cookie only as an in-process call parameter.
+
+### Local Verification
+
+- `pnpm --filter @lune/shared build`: passed.
+- `pnpm --filter @lune/server typecheck`: passed.
+- `pnpm --filter @lune/client typecheck`: passed.
+- `pnpm --filter @lune/server build`: passed.
+- `pnpm --filter @lune/server test:kugou`: passed against a deterministic programmatic-API adapter test.
+- `pnpm --filter @lune/client build`: passed.
+
+### Remaining Deployment Check
+
+- A real upstream smoke test still requires a valid `KUGOU_COOKIE`; the upstream project documents that search may return `error_code: 152` without authentication.
+
+---
+
 ## UI Correction: Flat Editorial Player
 
 Date: 2026-07-04

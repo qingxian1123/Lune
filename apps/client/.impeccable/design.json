@@ -1,0 +1,236 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-10T12:05:00+08:00",
+  "title": "Design System: Lune",
+  "extensions": {
+    "colorMeta": {
+      "night-black": {
+        "role": "neutral",
+        "displayName": "静夜黑",
+        "canonical": "rgb(11 11 12)",
+        "tonalRamp": ["oklch(15% 0.004 285)", "oklch(26% 0.004 285)", "oklch(38% 0.004 285)", "oklch(50% 0.004 285)", "oklch(62% 0.004 285)", "oklch(74% 0.004 285)", "oklch(86% 0.004 285)", "oklch(95% 0.004 285)"]
+      },
+      "night-black-soft": {
+        "role": "neutral",
+        "displayName": "柔夜黑",
+        "canonical": "rgb(15 15 16)",
+        "tonalRamp": ["oklch(15% 0.004 285)", "oklch(26% 0.004 285)", "oklch(38% 0.004 285)", "oklch(50% 0.004 285)", "oklch(62% 0.004 285)", "oklch(74% 0.004 285)", "oklch(86% 0.004 285)", "oklch(95% 0.004 285)"]
+      },
+      "night-surface": {
+        "role": "neutral",
+        "displayName": "夜色表面",
+        "canonical": "rgb(21 21 22)",
+        "tonalRamp": ["oklch(15% 0.004 285)", "oklch(26% 0.004 285)", "oklch(38% 0.004 285)", "oklch(50% 0.004 285)", "oklch(62% 0.004 285)", "oklch(74% 0.004 285)", "oklch(86% 0.004 285)", "oklch(95% 0.004 285)"]
+      },
+      "night-surface-high": {
+        "role": "neutral",
+        "displayName": "高夜表面",
+        "canonical": "rgb(27 27 28)",
+        "tonalRamp": ["oklch(15% 0.004 285)", "oklch(26% 0.004 285)", "oklch(38% 0.004 285)", "oklch(50% 0.004 285)", "oklch(62% 0.004 285)", "oklch(74% 0.004 285)", "oklch(86% 0.004 285)", "oklch(95% 0.004 285)"]
+      },
+      "moonlight-white": {
+        "role": "neutral",
+        "displayName": "柔光象牙",
+        "canonical": "rgb(240 239 235)",
+        "tonalRamp": ["oklch(15% 0.008 90)", "oklch(26% 0.008 90)", "oklch(38% 0.008 90)", "oklch(50% 0.008 90)", "oklch(62% 0.008 90)", "oklch(74% 0.008 90)", "oklch(86% 0.008 90)", "oklch(95% 0.008 90)"]
+      },
+      "muted-stone": {
+        "role": "neutral",
+        "displayName": "静默石灰",
+        "canonical": "rgb(142 141 136)",
+        "tonalRamp": ["oklch(15% 0.008 90)", "oklch(26% 0.008 90)", "oklch(38% 0.008 90)", "oklch(50% 0.008 90)", "oklch(62% 0.008 90)", "oklch(74% 0.008 90)", "oklch(86% 0.008 90)", "oklch(95% 0.008 90)"]
+      },
+      "lavender-moonlight": {
+        "role": "primary",
+        "displayName": "薰衣月光",
+        "canonical": "rgb(184 176 216)",
+        "tonalRamp": ["oklch(15% 0.05 295)", "oklch(26% 0.05 295)", "oklch(38% 0.05 295)", "oklch(50% 0.05 295)", "oklch(62% 0.05 295)", "oklch(74% 0.05 295)", "oklch(86% 0.05 295)", "oklch(95% 0.05 295)"]
+      },
+      "lavender-soft": {
+        "role": "primary",
+        "displayName": "月光余辉",
+        "canonical": "rgb(118 112 139)",
+        "tonalRamp": ["oklch(15% 0.04 295)", "oklch(26% 0.04 295)", "oklch(38% 0.04 295)", "oklch(50% 0.04 295)", "oklch(62% 0.04 295)", "oklch(74% 0.04 295)", "oklch(86% 0.04 295)", "oklch(95% 0.04 295)"]
+      },
+      "lavender-highlight": {
+        "role": "primary",
+        "displayName": "月光高光",
+        "canonical": "#c7c0de",
+        "tonalRamp": ["oklch(15% 0.045 295)", "oklch(26% 0.045 295)", "oklch(38% 0.045 295)", "oklch(50% 0.045 295)", "oklch(62% 0.045 295)", "oklch(74% 0.045 295)", "oklch(86% 0.045 295)", "oklch(95% 0.045 295)"]
+      },
+      "success-soft": {
+        "role": "secondary",
+        "displayName": "柔绿回声",
+        "canonical": "#91b8a0",
+        "tonalRamp": ["oklch(15% 0.05 155)", "oklch(26% 0.05 155)", "oklch(38% 0.05 155)", "oklch(50% 0.05 155)", "oklch(62% 0.05 155)", "oklch(74% 0.05 155)", "oklch(86% 0.05 155)", "oklch(95% 0.05 155)"]
+      },
+      "error-soft": {
+        "role": "secondary",
+        "displayName": "雾粉警示",
+        "canonical": "#d9a3a8",
+        "tonalRamp": ["oklch(15% 0.05 15)", "oklch(26% 0.05 15)", "oklch(38% 0.05 15)", "oklch(50% 0.05 15)", "oklch(62% 0.05 15)", "oklch(74% 0.05 15)", "oklch(86% 0.05 15)", "oklch(95% 0.05 15)"]
+      },
+      "favorite-pink": {
+        "role": "tertiary",
+        "displayName": "心动粉",
+        "canonical": "#e8a0b4",
+        "tonalRamp": ["oklch(15% 0.07 350)", "oklch(26% 0.07 350)", "oklch(38% 0.07 350)", "oklch(50% 0.07 350)", "oklch(62% 0.07 350)", "oklch(74% 0.07 350)", "oklch(86% 0.07 350)", "oklch(95% 0.07 350)"]
+      },
+      "danger-deep": {
+        "role": "tertiary",
+        "displayName": "深红离场",
+        "canonical": "rgb(146 58 72)",
+        "tonalRamp": ["oklch(15% 0.1 20)", "oklch(26% 0.1 20)", "oklch(38% 0.1 20)", "oklch(50% 0.1 20)", "oklch(62% 0.1 20)", "oklch(74% 0.1 20)", "oklch(86% 0.1 20)", "oklch(95% 0.1 20)"]
+      },
+      "danger-text": {
+        "role": "tertiary",
+        "displayName": "离场柔粉",
+        "canonical": "#f4dfe3",
+        "tonalRamp": ["oklch(15% 0.025 15)", "oklch(26% 0.025 15)", "oklch(38% 0.025 15)", "oklch(50% 0.025 15)", "oklch(62% 0.025 15)", "oklch(74% 0.025 15)", "oklch(86% 0.025 15)", "oklch(95% 0.025 15)"]
+      },
+      "selection-wash": {
+        "role": "neutral",
+        "displayName": "柔光洗色",
+        "canonical": "rgb(255 255 255 / 0.07)",
+        "tonalRamp": ["oklch(15% 0 0 / 0.07)", "oklch(26% 0 0 / 0.07)", "oklch(38% 0 0 / 0.07)", "oklch(50% 0 0 / 0.07)", "oklch(62% 0 0 / 0.07)", "oklch(74% 0 0 / 0.07)", "oklch(86% 0 0 / 0.07)", "oklch(95% 0 0 / 0.07)"]
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Windows 情绪标题", "purpose": "首页宽屏英文主标题。" },
+      "mobile-display": { "displayName": "Android 情绪标题", "purpose": "窄屏首页英文主标题。" },
+      "heading": { "displayName": "曲目与歌词标题", "purpose": "当前曲目、活动歌词与移动主标题。" },
+      "title": { "displayName": "面板标题", "purpose": "面板、曲目与关键状态。" },
+      "body": { "displayName": "中文正文", "purpose": "说明、输入与房间内容。" },
+      "control": { "displayName": "操作文字", "purpose": "主按钮和高优先级控制。" },
+      "label": { "displayName": "静默标签", "purpose": "字段名、状态、时间与元信息。" },
+      "editorial-kicker": { "displayName": "编辑注脚", "purpose": "少量英文提示和编号。" },
+      "brand": { "displayName": "LUNE 字标", "purpose": "品牌锁定组合中的英文名称。" }
+    },
+    "shadows": [
+      { "name": "entry-ambient", "value": "0 0 0 1px rgb(var(--lune-border) / 0.03), 0 24px 48px -28px rgb(0 0 0 / 0.55)", "purpose": "仅用于创建或加入房间的入口卡。" },
+      { "name": "sheet-ambient", "value": "0 -24px 60px -20px rgb(0 0 0 / 0.7)", "purpose": "Android 底部面板跨越当前内容层时使用。" },
+      { "name": "dialog-ambient", "value": "0 30px 70px -24px rgb(0 0 0 / 0.8)", "purpose": "必须中断流程的确认对话框。" },
+      { "name": "action-moonlight", "value": "0 16px 34px -14px rgb(var(--lune-accent) / 0.5)", "purpose": "Android 主要“下一首”动作的月光余辉。" },
+      { "name": "focus-ring", "value": "0 0 0 3px rgb(var(--lune-brand) / 0.1)", "purpose": "输入和控件焦点，不表达悬浮。" }
+    ],
+    "motion": [
+      { "name": "state-standard", "value": "160ms ease", "purpose": "颜色、边框和背景状态切换。" },
+      { "name": "press-quick", "value": "120ms ease", "purpose": "Android 按压缩放反馈。" },
+      { "name": "sheet-enter", "value": "300ms cubic-bezier(0.3, 0.9, 0.3, 1)", "purpose": "Android 底部面板进入和退出。" },
+      { "name": "atmosphere-slow", "value": "600ms ease", "purpose": "曲目色彩驱动的房间氛围光变化。" }
+    ],
+    "breakpoints": [
+      { "name": "wide-compression", "value": "1200px" },
+      { "name": "desktop-compact", "value": "900px" },
+      { "name": "narrow-layout", "value": "760px" },
+      { "name": "browser-mobile-switch", "value": "767px" },
+      { "name": "small-phone", "value": "520px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "创建房间等当前流程唯一的主要动作。",
+      "html": "<button class=\"ds-btn-primary\"><span>创建房间</span><span aria-hidden=\"true\">→</span></button>",
+      "css": ".ds-btn-primary { display:flex; align-items:center; justify-content:space-between; width:100%; height:48px; padding:0 18px; border:1px solid rgb(var(--lune-brand) / .88); border-radius:12px; font:560 13px/1.5 \"Space Grotesk Variable\",\"Space Grotesk\",sans-serif; letter-spacing:.02em; color:rgb(var(--lune-bg)); background:rgb(var(--lune-brand)); cursor:pointer; transition:background 160ms ease,color 160ms ease,border-color 160ms ease,box-shadow 160ms ease,transform 120ms ease; } .ds-btn-primary:hover { color:rgb(var(--lune-brand)); background:transparent; box-shadow:0 0 0 1px rgb(var(--lune-brand) / .18); } .ds-btn-primary:focus-visible { outline:1px solid rgb(var(--lune-brand)); outline-offset:3px; } .ds-btn-primary:active { transform:scale(.98); }"
+    },
+    {
+      "name": "Segmented Control",
+      "kind": "nav",
+      "refersTo": "segmented-active",
+      "description": "创建/加入、搜索类型和侧栏工具的共享切换模式。",
+      "html": "<div class=\"ds-segmented\" role=\"tablist\"><button class=\"ds-segmented-active\" role=\"tab\" aria-selected=\"true\">创建房间</button><button role=\"tab\" aria-selected=\"false\">加入房间</button></div>",
+      "css": ".ds-segmented { display:grid; grid-template-columns:1fr 1fr; gap:4px; padding:4px; border-radius:12px; background:rgb(var(--lune-surface)); } .ds-segmented button { height:40px; border:0; border-radius:10px; font:500 12px/1.5 \"Space Grotesk Variable\",\"Space Grotesk\",sans-serif; color:rgb(var(--lune-muted)); background:transparent; cursor:pointer; transition:color 160ms ease,background 160ms ease; } .ds-segmented button:hover { color:rgb(var(--lune-text) / .82); } .ds-segmented button:focus-visible { outline:1px solid rgb(var(--lune-brand)); outline-offset:2px; } .ds-segmented .ds-segmented-active { color:rgb(var(--lune-text)); background:rgb(var(--lune-border) / .07); box-shadow:0 1px 0 rgb(var(--lune-border) / .04); }"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input-default",
+      "description": "服务器地址、昵称和房间码等夜间表单输入。",
+      "html": "<label class=\"ds-field\"><span>你的昵称</span><input placeholder=\"输入你的昵称\" /></label>",
+      "css": ".ds-field { display:block; color:rgb(var(--lune-text)); font-family:\"Segoe UI Variable Text\",\"Segoe UI\",\"Noto Sans CJK SC\",\"Noto Sans SC\",\"Microsoft YaHei\",system-ui,sans-serif; } .ds-field span { display:block; margin-bottom:9px; font-size:11px; letter-spacing:.08em; color:rgb(var(--lune-muted)); } .ds-field input { width:100%; height:46px; padding:0 14px; border:1px solid rgb(var(--lune-border) / .14); border-radius:12px; font:400 14px/1.55 inherit; color:rgb(var(--lune-text)); background:rgb(var(--lune-surface)); transition:border-color 160ms ease,background 160ms ease,box-shadow 160ms ease; } .ds-field input::placeholder { color:rgb(var(--lune-muted) / .42); } .ds-field input:hover { border-color:rgb(var(--lune-border) / .24); } .ds-field input:focus { border-color:rgb(var(--lune-brand) / .72); outline:0; background:rgb(var(--lune-surface-2)); box-shadow:0 0 0 3px rgb(var(--lune-brand) / .1); }"
+    },
+    {
+      "name": "Access Card",
+      "kind": "card",
+      "refersTo": "card-access-desktop",
+      "description": "首页创建或加入房间的入口容器。",
+      "html": "<section class=\"ds-access-card\"><small>tonight, together</small><strong>今晚想一起听什么？</strong><p>创建一个房间，把房间码分享给朋友。</p></section>",
+      "css": ".ds-access-card { width:min(100%,400px); padding:24px; border:1px solid rgb(var(--lune-border) / .1); border-radius:18px; color:rgb(var(--lune-text)); background:rgb(var(--lune-bg-soft) / .94); box-shadow:0 0 0 1px rgb(var(--lune-border) / .03),0 24px 48px -28px rgb(0 0 0 / .55); } .ds-access-card small { display:block; margin-bottom:7px; font:italic 11px Georgia,\"Times New Roman\",serif; letter-spacing:.08em; color:rgb(var(--lune-muted) / .78); } .ds-access-card strong { display:block; font:620 18px/1.4 \"Space Grotesk Variable\",\"Space Grotesk\",sans-serif; letter-spacing:-.02em; } .ds-access-card p { margin:10px 0 0; font:400 14px/1.8 \"Segoe UI Variable Text\",\"Segoe UI\",\"Noto Sans CJK SC\",\"Noto Sans SC\",\"Microsoft YaHei\",system-ui,sans-serif; color:rgb(var(--lune-muted)); } .ds-access-card:focus-within { border-color:rgb(var(--lune-brand) / .35); }"
+    },
+    {
+      "name": "Room Code Chip",
+      "kind": "chip",
+      "refersTo": "room-code-chip",
+      "description": "复制和分享房间身份的紧凑状态控件。",
+      "html": "<button class=\"ds-room-code\"><span>房间</span><strong>LUNE42</strong><small>复制</small></button>",
+      "css": ".ds-room-code { display:flex; align-items:center; gap:8px; height:30px; padding:0 10px; border:1px solid rgb(var(--lune-border) / .12); border-radius:9px; color:rgb(var(--lune-text)); background:rgb(var(--lune-surface) / .55); cursor:pointer; transition:border-color 160ms ease,background 160ms ease,transform 120ms ease; } .ds-room-code span,.ds-room-code small { font-size:9px; letter-spacing:.06em; color:rgb(var(--lune-muted)); } .ds-room-code strong { font:560 11px/1 \"Space Grotesk Variable\",\"Space Grotesk\",sans-serif; letter-spacing:.14em; } .ds-room-code small { color:rgb(var(--lune-brand)); } .ds-room-code:hover { border-color:rgb(var(--lune-brand) / .42); background:rgb(var(--lune-surface)); } .ds-room-code:focus-visible { outline:1px solid rgb(var(--lune-brand)); outline-offset:3px; } .ds-room-code:active { transform:scale(.97); }"
+    },
+    {
+      "name": "Track List Row",
+      "kind": "custom",
+      "description": "搜索结果和播放队列的共享内容行。",
+      "html": "<button class=\"ds-track-row\"><span class=\"ds-track-cover\">L</span><span class=\"ds-track-copy\"><strong>月光下的歌</strong><small>朋友分享 · Lune</small></span><span class=\"ds-track-action\">加入</span></button>",
+      "css": ".ds-track-row { display:flex; align-items:center; gap:10px; width:100%; min-height:56px; padding:4px 8px; border:0; border-radius:10px; text-align:left; color:rgb(var(--lune-text)); background:transparent; cursor:pointer; transition:background 160ms ease,transform 120ms ease; } .ds-track-row:hover { background:rgb(var(--lune-border) / .045); } .ds-track-row:focus-visible { outline:1px solid rgb(var(--lune-brand)); outline-offset:2px; } .ds-track-row:active { transform:scale(.99); } .ds-track-cover { display:grid; width:44px; height:44px; flex:0 0 auto; place-items:center; border-radius:8px; font:620 13px \"Space Grotesk Variable\",sans-serif; color:rgb(var(--lune-brand)); background:rgb(var(--lune-surface)); } .ds-track-copy { display:flex; min-width:0; flex:1; flex-direction:column; } .ds-track-copy strong { overflow:hidden; font:560 13px/1.4 \"Space Grotesk Variable\",sans-serif; text-overflow:ellipsis; white-space:nowrap; } .ds-track-copy small { margin-top:3px; overflow:hidden; font:400 11px/1.5 \"Segoe UI Variable Text\",\"Segoe UI\",\"Noto Sans CJK SC\",\"Noto Sans SC\",\"Microsoft YaHei\",system-ui,sans-serif; color:rgb(var(--lune-muted)); text-overflow:ellipsis; white-space:nowrap; } .ds-track-action { padding:6px 9px; border-radius:7px; font-size:11px; color:rgb(var(--lune-brand)); background:rgb(var(--lune-brand) / .12); }"
+    },
+    {
+      "name": "Mobile Next Button",
+      "kind": "button",
+      "refersTo": "mobile-next",
+      "description": "无暂停模型下 Android 播放页最重要的推进动作。",
+      "html": "<button class=\"ds-mobile-next\"><span>下一首</span><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><polygon points=\"5 4 15 12 5 20 5 4\" fill=\"currentColor\"/><rect x=\"17.5\" y=\"4\" width=\"2.4\" height=\"16\" rx=\"1.2\" fill=\"currentColor\"/></svg></button>",
+      "css": ".ds-mobile-next { display:flex; align-items:center; gap:10px; height:60px; padding:0 34px; border:1px solid rgb(var(--lune-accent) / .85); border-radius:30px; font:620 16px/1.5 \"Segoe UI Variable Text\",\"Segoe UI\",\"Noto Sans CJK SC\",\"Noto Sans SC\",\"Microsoft YaHei\",system-ui,sans-serif; color:rgb(var(--lune-bg)); background:rgb(var(--lune-accent)); box-shadow:0 16px 34px -14px rgb(var(--lune-accent) / .5); cursor:pointer; transition:transform 120ms ease,opacity 160ms ease; } .ds-mobile-next svg { width:21px; height:21px; } .ds-mobile-next:hover { opacity:.92; } .ds-mobile-next:focus-visible { outline:1px solid rgb(var(--lune-brand)); outline-offset:3px; } .ds-mobile-next:active { transform:scale(.97); }"
+    },
+    {
+      "name": "Mobile Navigation Dock",
+      "kind": "nav",
+      "description": "Android 房间页搜索、队列和成员的三个稳定目的地。",
+      "html": "<nav class=\"ds-mobile-dock\" aria-label=\"房间音乐库\"><button class=\"ds-active\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><circle cx=\"11\" cy=\"11\" r=\"7\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\"/><line x1=\"21\" y1=\"21\" x2=\"16.5\" y2=\"16.5\" stroke=\"currentColor\" stroke-width=\"1.8\"/></svg><b>搜索</b></button><button><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M4 6h16M4 12h16M4 18h9\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\"/></svg><b>队列 <span>3</span></b></button><button><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><circle cx=\"9\" cy=\"8\" r=\"3.5\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\"/><path d=\"M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\"/></svg><b>成员 <span>4</span></b></button></nav>",
+      "css": ".ds-mobile-dock { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; padding:5px; border:1px solid rgb(var(--lune-border) / .09); border-radius:15px; background:rgb(var(--lune-bg-soft) / .9); } .ds-mobile-dock button { display:flex; align-items:center; justify-content:center; gap:7px; min-height:44px; padding:10px 0; border:0; border-radius:11px; font:400 11px/1 \"Segoe UI Variable Text\",\"Segoe UI\",\"Noto Sans CJK SC\",\"Noto Sans SC\",\"Microsoft YaHei\",system-ui,sans-serif; letter-spacing:.04em; color:rgb(var(--lune-muted)); background:transparent; cursor:pointer; transition:background 160ms ease,color 160ms ease,transform 120ms ease; } .ds-mobile-dock button:hover,.ds-mobile-dock .ds-active { color:rgb(var(--lune-text)); background:rgb(var(--lune-border) / .06); } .ds-mobile-dock button:focus-visible { outline:1px solid rgb(var(--lune-brand)); outline-offset:2px; } .ds-mobile-dock button:active { transform:scale(.96); } .ds-mobile-dock svg { width:16px; height:16px; } .ds-mobile-dock b { font-weight:500; } .ds-mobile-dock b span { color:rgb(var(--lune-accent)); }"
+    },
+    {
+      "name": "Bottom Sheet",
+      "kind": "card",
+      "refersTo": "bottom-sheet",
+      "description": "Android 搜索、队列、成员和音量的共享浮层容器。",
+      "html": "<section class=\"ds-sheet\" role=\"dialog\" aria-label=\"房间成员\"><div class=\"ds-sheet-grab\"></div><header><small>listening together</small><strong>房间成员 · 4</strong></header><div class=\"ds-sheet-body\">朋友在这里一起听歌</div></section>",
+      "css": ".ds-sheet { width:100%; max-width:390px; overflow:hidden; border:1px solid rgb(var(--lune-border) / .1); border-bottom:0; border-radius:26px 26px 0 0; color:rgb(var(--lune-text)); background:rgb(var(--lune-bg-soft)); box-shadow:0 -24px 60px -20px rgb(0 0 0 / .7); transition:transform 300ms cubic-bezier(.3,.9,.3,1); } .ds-sheet:hover { transform:translateY(-2px); } .ds-sheet:focus-within { border-color:rgb(var(--lune-brand) / .25); } .ds-sheet-grab { width:36px; height:4px; margin:10px auto 2px; border-radius:4px; background:rgb(var(--lune-border) / .18); } .ds-sheet header { padding:12px 22px 4px; } .ds-sheet header small { display:block; font:italic 11px Georgia,\"Times New Roman\",serif; letter-spacing:.08em; color:rgb(var(--lune-muted) / .78); } .ds-sheet header strong { display:block; margin-top:6px; font:620 16px/1.5 \"Space Grotesk Variable\",sans-serif; letter-spacing:-.01em; } .ds-sheet-body { padding:16px 20px 28px; font:400 14px/1.6 \"Segoe UI Variable Text\",\"Segoe UI\",\"Noto Sans CJK SC\",\"Noto Sans SC\",\"Microsoft YaHei\",system-ui,sans-serif; color:rgb(var(--lune-muted)); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "午夜月室",
+    "overview": "Lune 像一间只在深夜亮起的共听房：静夜黑构成几乎无干扰的空间，薰衣月光只在关键操作、同步状态与情绪焦点处出现，柔光象牙承载清晰而不刺眼的内容。气质私密、安静、梦幻、浪漫且柔和，界面应让朋友感觉正在共享一段夜晚，而不是操作一套音乐后台。\n\n视觉结构精致轻盈、近乎无边界。层次首先来自极小的深色明度差和低透明度细边框；阴影只保留给必须从当前层级脱离的入口卡片、移动底部面板和确认对话框。Windows 采用编辑式舞台与工具区并置，Android 将同一语言转化为触控优先的单列舞台、底部导航与底部面板。",
+    "keyCharacteristics": [
+      "静夜黑上的低对比深色分层",
+      "稀少而明确的薰衣月光焦点",
+      "Space Grotesk 的现代编辑感与中文系统字体的清晰度",
+      "月相、微粒、氛围光和歌词遮罩形成的克制梦境",
+      "Windows 紧凑操作密度与 Android 触控尺度的同源适配"
+    ],
+    "rules": [
+      { "name": "The One Moonlight Rule", "body": "薰衣月光只服务于当前行动、同步状态和情绪焦点；同一局部不要出现第二种竞争性强调色。", "section": "colors" },
+      { "name": "The Dark Is Not Black Rule", "body": "用相邻的夜色表面建立结构，不用纯黑卡片堆在纯黑背景上，也不用高对比分割线切碎空间。", "section": "colors" },
+      { "name": "The Whispered Serif Rule", "body": "衬线字体只作为低声的编辑注脚；标题、按钮、表单与长文始终使用无衬线体系。", "section": "typography" },
+      { "name": "The Two-Weight Headline Rule", "body": "大标题通过细字重与半粗重形成情绪转折，不叠加描边、发光或彩色渐变。", "section": "typography" },
+      { "name": "The Shared World, Native Posture Rule", "body": "两端共享颜色、字体和情绪，但不共享僵硬的页面构图；Windows 服务于并行扫描，Android 服务于单手触控和系统级返回。", "section": "layout" },
+      { "name": "The Near-Flat Rule", "body": "默认表面保持平整；先用色阶与细边框解决层级，只有跨越交互层的组件才允许使用环境阴影。", "section": "elevation" },
+      { "name": "The Soft Geometry Rule", "body": "交互控件使用柔和圆角，内容容器保持可读的矩形骨架；胶囊只属于状态、紧凑筛选和单一高优先级动作。", "section": "shapes" }
+    ],
+    "dos": [
+      "**Do** 用静夜黑、柔夜黑和夜色表面的微小色阶组织结构。",
+      "**Do** 让薰衣月光保持稀少，只标记当前行动、同步状态和情绪重音。",
+      "**Do** 在 Windows 保留并行扫描效率，在 Android 使用安全区、触控热区、底部面板与系统返回。",
+      "**Do** 为按键焦点、错误、加载、断线和减少动态效果提供完整状态。",
+      "**Do** 让专辑封面、歌词、成员状态和播放进度成为房间中的主要信息层。"
+    ],
+    "donts": [
+      "**Don't** 使用高饱和赛博霓虹、主流音乐应用式彩色渐变或可爱卡通化表达。",
+      "**Don't** 为普通卡片、列表行和导航增加新的投影；优先使用色阶与细边框。",
+      "**Don't** 把所有容器做成胶囊，也不要用厚重边框切碎夜间空间。",
+      "**Don't** 用衬线字体承担按钮、输入、长正文或高频操作。",
+      "**Don't** 为 Android 直接缩放桌面布局；必须保留触控尺度、安全区、底部面板和系统返回语义。"
+    ]
+  }
+}

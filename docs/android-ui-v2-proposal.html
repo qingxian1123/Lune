@@ -1,0 +1,1338 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lune Android · UI v2 升级方案</title>
+<style>:root{--lune-bg:11 11 12;--lune-bg-soft:15 15 16;--lune-surface:21 21 22;--lune-surface-2:27 27 28;
+--lune-text:240 239 235;--lune-muted:142 141 136;--lune-border:255 255 255;--lune-brand:184 176 216;
+--lune-accent:184 176 216;--lune-accent-soft:118 112 139;--lune-bg-accent:11 11 12;color-scheme:dark}
+body{background:#070708;color:rgb(var(--lune-text));font-family:Inter,"Noto Sans SC","Microsoft YaHei",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+button{font:inherit;color:inherit}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+.gallery{max-width:1280px;margin:0 auto;padding:40px 32px 80px}
+.g-head{border-bottom:1px solid rgb(255 255 255/.1);padding-bottom:22px;margin-bottom:26px}
+.g-brand{display:flex;align-items:center;gap:12px;font-size:14px;font-weight:720;letter-spacing:.3em}
+.g-brand small{font-size:10px;font-weight:400;letter-spacing:.12em;color:rgb(var(--lune-muted))}
+.g-head h1{font-size:26px;font-weight:620;letter-spacing:-.02em;margin:14px 0 0}
+.g-head p{font-size:12px;color:rgb(var(--lune-muted));margin:8px 0 0;line-height:1.8}
+.switcher{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 28px}
+.switcher button{height:36px;padding:0 15px;border-radius:10px;border:1px solid rgb(255 255 255/.12);background:rgb(21 21 22/.6);color:rgb(var(--lune-muted));font-size:12px;cursor:pointer}
+.switcher button.on{color:rgb(11 11 12);background:rgb(var(--lune-brand));border-color:rgb(var(--lune-brand));font-weight:560}
+.stage{display:flex;gap:44px;align-items:flex-start;justify-content:center;flex-wrap:wrap}
+.notes{width:330px;flex-shrink:0;display:flex;flex-direction:column;gap:12px}
+.note{border:1px solid rgb(255 255 255/.09);border-radius:14px;background:rgb(15 15 16/.92);padding:15px 17px}
+.note h3{font-size:12px;font-weight:620;margin:0;display:flex;align-items:center;gap:8px}
+.note h3 em{font-style:normal;font-size:9.5px;letter-spacing:.08em;color:rgb(var(--lune-brand));border:1px solid rgb(var(--lune-brand)/.4);border-radius:6px;padding:2px 7px}
+.note p{font-size:11px;line-height:1.85;color:rgb(var(--lune-muted));margin:8px 0 0}
+.note p b{color:rgb(var(--lune-text)/.85);font-weight:560}
+.phone{width:393px;flex-shrink:0;border-radius:44px;border:1px solid rgb(255 255 255/.14);background:#000;padding:10px;box-shadow:0 40px 90px -40px rgb(0 0 0/.8)}
+.screen{position:relative;width:373px;height:812px;border-radius:36px;overflow:hidden;background:rgb(var(--lune-bg))}
+.scr{position:absolute;inset:0;display:none}
+.scr.on{display:block}
+.scr .m-room-shell{height:100%}
+@media (max-width:820px){.notes{width:100%;order:2}}
+/* ============================================================
+   Lune 移动端样式(Android / 窄视口)
+   延续桌面版设计 token(--lune-*),仅新增 m- 前缀的布局层。
+   ============================================================ */
+
+/* ---------- 首页 ---------- */
+.m-access-shell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  overflow: hidden;
+  padding: env(safe-area-inset-top) 26px calc(30px + env(safe-area-inset-bottom));
+  background: rgb(var(--lune-bg));
+}
+
+.m-moon {
+  position: absolute;
+  bottom: -110px;
+  left: -70px;
+  z-index: 0;
+  width: 270px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  box-shadow: inset -70px 16px 0 rgb(var(--lune-brand) / 0.9);
+  opacity: 0.07;
+  pointer-events: none;
+  transform: rotate(-12deg);
+}
+
+.m-particles {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.m-particles i {
+  position: absolute;
+  top: var(--particle-y);
+  left: var(--particle-x);
+  width: var(--particle-size);
+  height: var(--particle-size);
+  border-radius: 50%;
+  background: rgb(var(--lune-text) / 0.15);
+  animation: mParticleDrift var(--particle-duration) ease-in-out var(--particle-delay) infinite alternate;
+}
+
+@keyframes mParticleDrift {
+  from { transform: translateY(0); }
+  to { transform: translateY(-14px); }
+}
+
+.m-topline {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 56px;
+  border-bottom: 1px solid rgb(var(--lune-border) / 0.1);
+}
+
+.m-access-main {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.m-hero {
+  margin-top: 44px;
+}
+
+.m-hero h1 {
+  margin: 0;
+  font-family: "Space Grotesk Variable", "Space Grotesk", sans-serif;
+  font-size: clamp(2.2rem, 10.5vw, 2.7rem);
+  line-height: 1.05;
+  letter-spacing: -0.045em;
+}
+
+.m-hero-l1 {
+  display: block;
+  font-weight: 300;
+  color: rgb(var(--lune-text));
+}
+
+.m-hero-l2 {
+  display: block;
+  margin-top: 0.14em;
+  font-weight: 620;
+  color: #c7c0de;
+}
+
+.m-hero p {
+  margin: 16px 0 0;
+  font-size: 12.5px;
+  line-height: 1.95;
+  color: rgb(var(--lune-muted));
+}
+
+.m-access-card {
+  margin-top: auto;
+  overflow: hidden;
+  border: 1px solid rgb(var(--lune-border) / 0.1);
+  border-radius: 20px;
+  background: rgb(var(--lune-bg-soft) / 0.94);
+  box-shadow: 0 24px 48px -28px rgb(0 0 0 / 0.55);
+}
+
+.m-card-head {
+  padding: 20px 20px 14px;
+}
+
+.m-card-head strong {
+  display: block;
+  margin-top: 7px;
+  font-family: "Space Grotesk Variable", "Space Grotesk", sans-serif;
+  font-size: 17px;
+  font-weight: 620;
+  letter-spacing: -0.02em;
+  color: rgb(var(--lune-text));
+}
+
+.m-access-card .access-tabs {
+  margin: 0 16px;
+}
+
+.m-access-fields {
+  padding: 18px 20px 22px;
+}
+
+/* ---------- 通用 ---------- */
+.m-serif-kicker {
+  display: block;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 9.5px;
+  font-style: italic;
+  letter-spacing: 0.08em;
+  color: rgb(var(--lune-muted) / 0.78);
+}
+
+.m-kicker {
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  color: rgb(var(--lune-muted));
+}
+
+.m-dot {
+  width: 5px;
+  height: 5px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: rgb(var(--lune-muted) / 0.4);
+}
+
+.m-dot.is-on {
+  background: rgb(var(--lune-accent));
+  animation: mDotPulse 2.4s ease-in-out infinite;
+}
+
+@keyframes mDotPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.m-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: rgb(var(--lune-muted));
+  white-space: nowrap;
+}
+
+.m-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border: 1px solid rgb(var(--lune-border) / 0.12);
+  border-radius: 10px;
+  font-size: 16px;
+  color: rgb(var(--lune-muted));
+  background: rgb(var(--lune-surface) / 0.4);
+  cursor: pointer;
+  transition: transform 120ms ease, color 160ms ease;
+}
+
+.m-icon-btn:active {
+  transform: scale(0.94);
+  color: rgb(var(--lune-text));
+}
+
+/* ---------- 房间壳 ---------- */
+.m-room-shell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  overflow: hidden;
+  color: rgb(var(--lune-text));
+  background: rgb(var(--lune-bg));
+}
+
+.m-room-glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(90% 46% at 50% 28%, rgb(var(--lune-accent) / 0.12), transparent 70%);
+  transition: background 600ms ease;
+}
+
+.m-room-top {
+  position: relative;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: calc(8px + env(safe-area-inset-top)) 18px 10px;
+  border-bottom: 1px solid rgb(var(--lune-border) / 0.08);
+}
+
+.m-top-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.m-top-track {
+  min-width: 0;
+  flex: 1;
+  text-align: center;
+}
+
+.m-top-track strong {
+  display: block;
+  overflow: hidden;
+  font-size: 12.5px;
+  font-weight: 560;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.m-top-track small {
+  display: block;
+  margin-top: 3px;
+  overflow: hidden;
+  font-size: 10px;
+  color: rgb(var(--lune-muted));
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.m-code-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 11px;
+  border: 1px solid rgb(var(--lune-border) / 0.12);
+  border-radius: 9px;
+  color: rgb(var(--lune-text));
+  background: rgb(var(--lune-surface) / 0.55);
+  cursor: pointer;
+  transition: border-color 160ms ease;
+}
+
+.m-code-chip:active {
+  border-color: rgb(var(--lune-accent) / 0.42);
+}
+
+.m-code-chip span,
+.m-code-chip small {
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  color: rgb(var(--lune-muted));
+}
+
+.m-code-chip strong {
+  font-family: "Space Grotesk Variable", "Space Grotesk", sans-serif;
+  font-size: 11.5px;
+  font-weight: 560;
+  letter-spacing: 0.14em;
+}
+
+.m-code-chip small {
+  color: rgb(var(--lune-accent));
+}
+
+.m-room-error {
+  position: relative;
+  z-index: 5;
+  margin: 10px 18px 0;
+  padding: 9px 13px;
+  border: 1px solid rgb(217 163 168 / 0.32);
+  border-radius: 11px;
+  font-size: 11.5px;
+  color: #d9a3a8;
+  background: rgb(76 35 41 / 0.34);
+}
+
+/* ---------- 播放主区 ---------- */
+.m-player-main {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  padding: 8px 28px 0;
+  overflow: hidden;
+}
+
+.m-cover-zone {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  padding: 10px 0;
+}
+
+.m-cover-wrap {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.m-cover {
+  position: relative;
+  width: min(60vw, 36dvh, 250px);
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: 24px;
+  background: rgb(var(--lune-surface));
+  box-shadow:
+    0 34px 70px -24px rgb(0 0 0 / 0.78),
+    0 0 0 1px rgb(var(--lune-border) / 0.08);
+}
+
+.m-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.m-cover-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  height: 100%;
+}
+
+.m-cover-placeholder span {
+  font-family: "Space Grotesk Variable", "Space Grotesk", sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.34em;
+  color: rgb(var(--lune-text) / 0.6);
+}
+
+.m-cover-placeholder small {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: rgb(var(--lune-muted) / 0.6);
+}
+
+.m-track-id {
+  flex-shrink: 0;
+  text-align: center;
+}
+
+.m-track-id h2 {
+  margin: 0;
+  overflow: hidden;
+  font-family: "Space Grotesk Variable", "Space Grotesk", sans-serif;
+  font-size: 22px;
+  font-weight: 620;
+  letter-spacing: -0.02em;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.m-track-id p {
+  margin: 8px 0 0;
+  overflow: hidden;
+  font-size: 13px;
+  color: rgb(var(--lune-muted));
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.m-lyric-peek {
+  flex-shrink: 0;
+  display: block;
+  width: 100%;
+  margin: 12px 0 4px;
+  padding: 12px 8px;
+  border: 0;
+  border-radius: 14px;
+  text-align: center;
+  background: transparent;
+  cursor: pointer;
+  transition: background 160ms ease;
+}
+
+.m-lyric-peek:active:not(:disabled) {
+  background: rgb(var(--lune-border) / 0.05);
+}
+
+.m-lyric-peek:disabled {
+  cursor: default;
+}
+
+.m-peek-cur {
+  display: block;
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 560;
+  line-height: 1.7;
+  color: rgb(var(--lune-accent));
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.m-peek-cur.is-muted {
+  font-weight: 400;
+  color: rgb(var(--lune-muted) / 0.55);
+}
+
+/* ---------- 进度与控制 ---------- */
+.m-player-bottom {
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+  padding: 4px 28px 0;
+}
+
+.m-progress {
+  position: relative;
+  display: block;
+  height: 32px;
+}
+
+.m-progress input {
+  width: 100%;
+  height: 32px;
+  margin: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.m-progress.is-locked input {
+  cursor: default;
+}
+
+.m-progress input::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 4px;
+  background: linear-gradient(
+    to right,
+    rgb(var(--lune-accent)) var(--m-progress, 0%),
+    rgb(var(--lune-border) / 0.12) var(--m-progress, 0%)
+  );
+}
+
+.m-progress input::-webkit-slider-thumb {
+  width: 14px;
+  height: 14px;
+  margin-top: -5px;
+  appearance: none;
+  -webkit-appearance: none;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(var(--lune-text));
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.5);
+}
+
+.m-progress.is-locked input::-webkit-slider-thumb {
+  opacity: 0;
+}
+
+.m-progress input::-moz-range-track {
+  height: 4px;
+  border-radius: 4px;
+  background: rgb(var(--lune-border) / 0.12);
+}
+
+.m-progress input::-moz-range-progress {
+  height: 4px;
+  border-radius: 4px;
+  background: rgb(var(--lune-accent));
+}
+
+.m-progress input::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(var(--lune-text));
+}
+
+.m-times {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  color: rgb(var(--lune-muted) / 0.7);
+}
+
+.m-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 16px;
+  padding: 0 4px;
+}
+
+.m-ctl {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border: 0;
+  font-size: 24px;
+  color: rgb(var(--lune-muted));
+  background: transparent;
+  cursor: pointer;
+  transition: transform 120ms ease, color 160ms ease;
+}
+
+.m-ctl:active:not(:disabled) {
+  transform: scale(0.92);
+}
+
+.m-ctl:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.m-ctl svg {
+  width: 23px;
+  height: 23px;
+}
+
+.m-heart.is-on {
+  color: #e8a0b4;
+}
+
+.m-next {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 60px;
+  padding: 0 34px;
+  border: 1px solid rgb(var(--lune-accent) / 0.85);
+  border-radius: 30px;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 620;
+  color: rgb(var(--lune-bg));
+  background: rgb(var(--lune-accent));
+  box-shadow: 0 16px 34px -14px rgb(var(--lune-accent) / 0.5);
+  cursor: pointer;
+  transition: transform 120ms ease, opacity 160ms ease;
+}
+
+.m-next:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.m-next:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.m-next svg {
+  width: 21px;
+  height: 21px;
+}
+
+.m-follow-pill {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  height: 50px;
+  padding: 0 26px;
+  border: 1px solid rgb(var(--lune-border) / 0.14);
+  border-radius: 26px;
+  font-size: 13px;
+  color: rgb(var(--lune-muted));
+  background: rgb(var(--lune-surface) / 0.5);
+}
+
+/* ---------- Dock ---------- */
+.m-dock {
+  position: relative;
+  z-index: 5;
+  display: grid;
+  flex-shrink: 0;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+  margin: 12px 20px calc(10px + env(safe-area-inset-bottom));
+  padding: 5px;
+  border: 1px solid rgb(var(--lune-border) / 0.09);
+  border-radius: 15px;
+  background: rgb(var(--lune-bg-soft) / 0.9);
+}
+
+.m-dock button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 10px 0;
+  border: 0;
+  border-radius: 11px;
+  font-family: inherit;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: rgb(var(--lune-muted));
+  background: transparent;
+  cursor: pointer;
+  transition: background 160ms ease;
+}
+
+.m-dock button:active {
+  background: rgb(var(--lune-border) / 0.06);
+}
+
+.m-dock button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.m-dock button b {
+  font-weight: 500;
+}
+
+.m-cnt {
+  color: rgb(var(--lune-accent));
+}
+
+/* ---------- 歌词全屏 ---------- */
+.m-lyric-full {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-height: 0;
+  padding: 8px 10px 0;
+}
+
+.m-lyric-full .lyric-scroller {
+  height: 100%;
+}
+
+/* 歌词在手机上整体居中(桌面版为左对齐编辑排版),并加大行距字号 */
+.m-lyric-full .lyric-list {
+  align-items: center;
+}
+
+.m-lyric-full .lyric-item {
+  align-items: center;
+  padding: 12px 8px;
+  text-align: center;
+}
+
+.m-lyric-full .lyric-item-text {
+  max-width: 100%;
+  font-size: 16px;
+  line-height: 1.65;
+}
+
+.m-lyric-full .lyric-item[data-role="active"] .lyric-item-text {
+  max-width: 100%;
+  font-size: 21px;
+  line-height: 1.55;
+}
+
+.m-lyric-full .lyric-item-trans {
+  text-align: center;
+}
+
+/* 触屏没有 hover,隐藏悬停时间戳 */
+.m-lyric-full .lyric-item-time {
+  display: none;
+}
+
+.m-lyric-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 100%;
+}
+
+.m-lyric-empty strong {
+  font-size: 14px;
+  font-weight: 560;
+  color: rgb(var(--lune-text) / 0.82);
+}
+
+.m-lyric-empty small {
+  font-size: 11px;
+  color: rgb(var(--lune-muted) / 0.6);
+}
+
+.m-lyric-bottom {
+  position: relative;
+  z-index: 1;
+  padding: 0 18px calc(14px + env(safe-area-inset-bottom));
+}
+
+.m-lyric-bottom .m-progress,
+.m-lyric-bottom .m-times {
+  padding: 0 12px;
+}
+
+.m-mini-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid rgb(var(--lune-border) / 0.09);
+  border-radius: 16px;
+  text-align: left;
+  background: rgb(var(--lune-bg-soft) / 0.92);
+  cursor: pointer;
+  transition: border-color 160ms ease;
+}
+
+.m-mini-bar:active {
+  border-color: rgb(var(--lune-accent) / 0.3);
+}
+
+.m-mini-cover {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  overflow: hidden;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: rgb(var(--lune-muted));
+  background: rgb(var(--lune-surface));
+}
+
+.m-mini-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.m-mini-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.m-mini-copy strong {
+  display: block;
+  overflow: hidden;
+  font-size: 12.5px;
+  font-weight: 560;
+  color: rgb(var(--lune-text));
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.m-mini-copy small {
+  display: block;
+  margin-top: 3px;
+  overflow: hidden;
+  font-size: 10.5px;
+  color: rgb(var(--lune-muted));
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.m-eq {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 14px;
+  flex-shrink: 0;
+  margin-right: 2px;
+}
+
+.m-eq i {
+  width: 2.5px;
+  border-radius: 2px;
+  background: rgb(var(--lune-accent));
+  animation: mEq 1s ease-in-out infinite;
+}
+
+.m-eq i:nth-child(1) { height: 60%; }
+.m-eq i:nth-child(2) { height: 100%; animation-delay: 0.2s; }
+.m-eq i:nth-child(3) { height: 40%; animation-delay: 0.4s; }
+
+@keyframes mEq {
+  0%, 100% { transform: scaleY(1); }
+  50% { transform: scaleY(0.4); }
+}
+
+/* ---------- 底部面板 ---------- */
+.m-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgb(0 0 0 / 0.55);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 250ms ease;
+}
+
+.m-scrim.is-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.m-sheet {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 70;
+  display: flex;
+  flex-direction: column;
+  max-height: 84dvh;
+  border: 1px solid rgb(var(--lune-border) / 0.1);
+  border-bottom: 0;
+  border-radius: 26px 26px 0 0;
+  background: rgb(var(--lune-bg-soft));
+  box-shadow: 0 -24px 60px -20px rgb(0 0 0 / 0.7);
+  transform: translateY(105%);
+  transition: transform 300ms cubic-bezier(0.3, 0.9, 0.3, 1);
+}
+
+.m-sheet.is-open {
+  transform: translateY(0);
+}
+
+.m-grab {
+  width: 36px;
+  height: 4px;
+  flex-shrink: 0;
+  margin: 10px auto 2px;
+  border-radius: 4px;
+  background: rgb(var(--lune-border) / 0.18);
+}
+
+.m-sheet-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-shrink: 0;
+  padding: 12px 22px 4px;
+}
+
+.m-sheet-head strong {
+  display: block;
+  margin-top: 6px;
+  font-family: "Space Grotesk Variable", "Space Grotesk", sans-serif;
+  font-size: 16.5px;
+  font-weight: 620;
+  letter-spacing: -0.01em;
+}
+
+.m-sheet-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px 20px calc(28px + env(safe-area-inset-bottom));
+  scrollbar-width: none;
+}
+
+.m-sheet-body::-webkit-scrollbar {
+  display: none;
+}
+
+/* 复用桌面面板组件时的移动端适配 */
+.m-sheet-body .terminal-pane {
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+
+/* 面板标题由 sheet 头部提供;保留 pane-heading 里的功能控件(如音乐源切换) */
+.m-sheet-body .pane-heading > div:first-child,
+.m-sheet-body .pane-heading > small {
+  display: none;
+}
+
+.m-sheet-body .pane-heading {
+  justify-content: flex-end;
+  margin-bottom: 10px;
+}
+
+.m-sheet-body .lune-scrollbar {
+  max-height: none;
+  overflow: visible;
+  padding-right: 0;
+}
+
+/* 列表行:加高触控目标、放大字号(覆盖桌面版紧凑密度) */
+.m-sheet-body .lune-item {
+  gap: 14px;
+  padding: 13px 8px;
+  border-radius: 14px;
+}
+
+.m-sheet-body .lune-item .text-sm {
+  font-size: 14.5px;
+}
+
+.m-sheet-body .lune-item .text-xs {
+  font-size: 12px;
+}
+
+.m-sheet-body .lune-item .h-10 {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+}
+
+/* 手机上没有 hover,「加入/查看」角标始终可见 */
+.m-sheet-body .lune-item .opacity-0 {
+  opacity: 1;
+  padding: 7px 12px;
+  font-size: 12px;
+}
+
+/* 搜索输入与按钮加高 */
+.m-sheet-body .lune-input,
+.m-sheet-body .lune-control {
+  min-height: 46px;
+  font-size: 14px;
+}
+
+.m-sheet-body select.lune-control {
+  min-height: 38px;
+}
+
+.m-sheet-body .search-mode-tabs button {
+  padding: 10px 14px;
+  font-size: 13.5px;
+}
+
+/* 队列行加高 */
+.m-sheet-body .terminal-track {
+  gap: 12px;
+  padding: 13px 8px;
+}
+
+.m-sheet-body .terminal-track strong {
+  font-size: 14.5px;
+}
+
+.m-sheet-body .terminal-track small {
+  font-size: 12px;
+}
+
+.m-sheet-body .terminal-track-cover {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+}
+
+.m-sheet-body .queue-drag-handle {
+  width: 40px;
+  height: 40px;
+  font-size: 16px;
+}
+
+/* 成员行加高 */
+.m-sheet-body .terminal-member {
+  gap: 14px;
+  padding: 13px 8px;
+}
+
+.m-sheet-body .member-avatar {
+  width: 46px;
+  height: 46px;
+  font-size: 16px;
+}
+
+.m-sheet-body .terminal-member strong {
+  font-size: 14.5px;
+}
+
+/* ---------- 音量面板 ---------- */
+.m-vol-body {
+  padding: 8px 12px 16px;
+}
+
+.m-vol-caption {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 2px;
+  font-size: 10.5px;
+  color: rgb(var(--lune-muted) / 0.7);
+}
+
+/* ============================================================
+   ↓↓↓ v2 升级提案新增/覆盖(实施时并入 mobile.css) ↓↓↓
+   ============================================================ */
+
+/* U1 · 封面月光辉光:弥补取色移除后的氛围损失(静态品牌色,无 JS) */
+.v2 .m-cover-zone { position: relative; }
+.v2 .m-cover-halo {
+  position: absolute; left: 50%; top: 50%;
+  width: min(78vw, 46dvh, 330px); aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgb(var(--lune-brand) / 0.16), transparent 72%);
+  pointer-events: none;
+}
+.v2 .m-cover {
+  box-shadow:
+    0 40px 80px -30px rgb(0 0 0 / 0.85),
+    0 10px 28px -12px rgb(var(--lune-brand) / 0.22),
+    inset 0 0 0 1px rgb(var(--lune-border) / 0.1);
+}
+
+/* U2 · Up-Next 行:曲名下方展示下一首,点击直达队列 */
+.v2 .m-upnext {
+  display: inline-flex; align-items: center; gap: 7px;
+  max-width: 100%; margin-top: 10px; padding: 6px 12px;
+  border: 0; border-radius: 999px;
+  font-size: 11px; color: rgb(var(--lune-muted) / 0.75);
+  background: rgb(var(--lune-border) / 0.05);
+  cursor: pointer;
+}
+.v2 .m-upnext strong { font-weight: 560; color: rgb(var(--lune-text) / 0.8); }
+.v2 .m-upnext span,
+.v2 .m-upnext strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.v2 .m-track-id { display: flex; flex-direction: column; align-items: center; }
+
+/* U3 · 缓冲态:进度条微脉动替代文字提示 */
+.v2 .m-progress.is-buffering input::-webkit-slider-runnable-track {
+  animation: v2buffer 1.2s ease-in-out infinite;
+}
+@keyframes v2buffer { 0%,100% { opacity: 1; } 50% { opacity: 0.45; } }
+
+/* U4 · Dock 当前面板高亮态 */
+.v2 .m-dock button.is-active {
+  color: rgb(var(--lune-accent));
+  background: rgb(var(--lune-accent) / 0.08);
+}
+
+/* U5 · 断线重连横幅(connected=false 时渲染) */
+.v2 .m-reconnect {
+  position: relative; z-index: 6;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 7px 12px;
+  font-size: 11px; letter-spacing: 0.04em;
+  color: rgb(var(--lune-bg));
+  background: rgb(var(--lune-brand) / 0.92);
+}
+.v2 .m-reconnect i {
+  width: 10px; height: 10px; border-radius: 50%;
+  border: 1.5px solid rgb(var(--lune-bg) / 0.4);
+  border-top-color: rgb(var(--lune-bg));
+  animation: v2spin 0.9s linear infinite;
+}
+@keyframes v2spin { to { transform: rotate(360deg); } }
+
+/* U6 · 空态升级:月牙插画 + 直达搜索 CTA */
+.v2 .m-empty-stage {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+}
+.v2 .m-empty-moon {
+  width: 74px; aspect-ratio: 1; border-radius: 50%;
+  box-shadow: inset -20px 6px 0 rgb(var(--lune-brand) / 0.85);
+  opacity: 0.5; margin-bottom: 18px;
+  transform: rotate(-14deg);
+}
+.v2 .m-empty-cta {
+  display: inline-flex; align-items: center; gap: 8px;
+  margin-top: 20px; height: 44px; padding: 0 22px;
+  border: 1px solid rgb(var(--lune-brand) / 0.5); border-radius: 22px;
+  font-size: 13px; font-weight: 560;
+  color: rgb(var(--lune-brand)); background: rgb(var(--lune-brand) / 0.08);
+  cursor: pointer;
+}
+
+/* U7 · 歌词页:行距与遮罩微调 + 底部渐隐更长 */
+.v2 .m-lyric-full .lyric-scroller {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 18%, #000 78%, transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0%, #000 18%, #000 78%, transparent 100%);
+}
+
+/* U8 · 队列 up-next 徽标 */
+.v2 .m-badge-next {
+  flex-shrink: 0; padding: 3px 8px; border-radius: 7px;
+  font-size: 9.5px; letter-spacing: 0.08em;
+  color: rgb(var(--lune-accent));
+  border: 1px solid rgb(var(--lune-accent) / 0.4);
+}
+</style></head><body>
+<div class="gallery">
+  <header class="g-head">
+    <div class="g-brand">LUNE <small>ANDROID · UI 升级方案 v2</small></div>
+    <h1>播放体验精修:八项升级建议</h1>
+    <p>基于当前线上移动端真实 CSS 渲染,右侧注释与屏内元素一一对应。实施计划见 docs/android-ui-v2.md。</p>
+  </header>
+  <nav class="switcher" id="sw">
+    <button data-s="scr-playing" class="on">① 播放页 v2</button>
+    <button data-s="scr-empty">② 空态 + 断线横幅</button>
+    <button data-s="scr-lyric">③ 歌词页微调</button>
+    <button data-s="scr-queue">④ 队列面板 v2</button>
+  </nav>
+  <div class="stage">
+    <div class="phone"><div class="screen">
+      <section class="scr on" id="scr-playing"><div class="m-room-shell v2">
+  <div class="m-room-glow"></div>
+  <header class="m-room-top">
+  <button type="button" class="m-code-chip"><span>房间</span><strong>LUNE42</strong><small>复制</small></button>
+  <div class="m-top-right">
+    <span class="m-live"><span class="m-dot is-on"></span>4 人在听</span>
+    <button type="button" class="m-icon-btn">×</button>
+  </div>
+</header>
+  <main class="m-player-main">
+    <div class="m-cover-zone">
+      <div class="m-cover-halo"></div>
+      <button type="button" class="m-cover-wrap"><div class="m-cover"><div style="width:100%;height:100%;background:
+      radial-gradient(120% 100% at 78% 12%,#2e2a45 0%,transparent 55%),
+      radial-gradient(120% 120% at 18% 88%,#4a4470 0%,transparent 60%),
+      linear-gradient(160deg,#191722,#232030 48%,#12111a)"></div></div></button>
+    </div>
+    <div class="m-track-id">
+      <h2>月光航线</h2>
+      <p>苏羽 / 白鲸乐队</p>
+      <button type="button" class="m-upnext"><span>接下来</span><strong>子夜电台 · 林深见</strong></button>
+    </div>
+    <button type="button" class="m-lyric-peek"><span class="m-peek-cur">我们沿着月光的航线远行</span></button>
+  </main>
+  <section class="m-player-bottom">
+  <label class="m-progress" style="--m-progress:36%"><input type="range" min="0" max="272000" value="98000"></label>
+  <div class="m-times"><span>1:38</span><span>4:32</span></div>
+  <div class="m-controls">
+    <button type="button" class="m-ctl m-heart" onclick="this.classList.toggle('is-on');this.textContent=this.classList.contains('is-on')?'♥':'♡'">♡</button>
+    <button type="button" class="m-next"><span>下一首</span><svg viewBox="0 0 24 24" width="21" height="21"><polygon points="5 4 15 12 5 20 5 4" fill="currentColor"/><rect x="17.5" y="4" width="2.4" height="16" rx="1.2" fill="currentColor"/></svg></button>
+    <button type="button" class="m-ctl"><svg viewBox="0 0 24 24" width="23" height="23"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+  </div>
+</section>
+  <nav class="m-dock">
+  <button type="button"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="1.8"/><line x1="21" y1="21" x2="16.5" y2="16.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><b>搜索</b></button>
+  <button type="button"><svg viewBox="0 0 24 24" width="16" height="16"><g stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="13" y2="18"/></g><polygon points="17 15 22 18 17 21 17 15" fill="currentColor"/></svg><b>队列 <span class="m-cnt">6</span></b></button>
+  <button type="button"><svg viewBox="0 0 24 24" width="16" height="16"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/><circle cx="17.5" cy="9" r="2.6"/><path d="M16.5 14.2c2.9.3 5 2.4 5 5.3"/></g></svg><b>成员 <span class="m-cnt">4</span></b></button>
+</nav>
+</div></section>
+      <section class="scr" id="scr-empty"><div class="m-room-shell v2">
+  <div class="m-room-glow"></div>
+  <div class="m-reconnect"><i></i>连接中断，正在重连…</div>
+  <header class="m-room-top">
+  <button type="button" class="m-code-chip"><span>房间</span><strong>LUNE42</strong><small>复制</small></button>
+  <div class="m-top-right">
+    <span class="m-live"><span class="m-dot is-on"></span>4 人在听</span>
+    <button type="button" class="m-icon-btn">×</button>
+  </div>
+</header>
+  <main class="m-player-main">
+    <div class="m-cover-zone">
+      <div class="m-empty-stage">
+        <div class="m-empty-moon"></div>
+        <div style="font-size:16px;font-weight:600">今晚还没有音乐</div>
+        <div style="font-size:11.5px;color:rgb(var(--lune-muted)/.6)">房主选歌后全员自动同步播放</div>
+        <button type="button" class="m-empty-cta">去搜索一首歌 →</button>
+      </div>
+    </div>
+  </main>
+  <section class="m-player-bottom">
+    <label class="m-progress is-locked" style="--m-progress:0%"><input type="range" disabled></label>
+    <div class="m-times"><span>0:00</span><span>0:00</span></div>
+    <div class="m-controls">
+      <button type="button" class="m-ctl m-heart" disabled>♡</button>
+      <button type="button" class="m-next" disabled><span>下一首</span></button>
+      <button type="button" class="m-ctl"><svg viewBox="0 0 24 24" width="23" height="23"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor"/></svg></button>
+    </div>
+  </section>
+  <nav class="m-dock">
+  <button type="button"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="1.8"/><line x1="21" y1="21" x2="16.5" y2="16.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><b>搜索</b></button>
+  <button type="button"><svg viewBox="0 0 24 24" width="16" height="16"><g stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="13" y2="18"/></g><polygon points="17 15 22 18 17 21 17 15" fill="currentColor"/></svg><b>队列 <span class="m-cnt">6</span></b></button>
+  <button type="button"><svg viewBox="0 0 24 24" width="16" height="16"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/><circle cx="17.5" cy="9" r="2.6"/><path d="M16.5 14.2c2.9.3 5 2.4 5 5.3"/></g></svg><b>成员 <span class="m-cnt">4</span></b></button>
+</nav>
+</div></section>
+      <section class="scr" id="scr-lyric"><div class="m-room-shell v2">
+  <div class="m-room-glow"></div>
+  <header class="m-room-top">
+    <button type="button" class="m-icon-btn">‹</button>
+    <div class="m-top-track"><strong>月光航线</strong><small>苏羽 / 白鲸乐队</small></div>
+    <span class="m-live"><span class="m-dot is-on"></span>同步中</span>
+  </header>
+  <main class="m-lyric-full"><div class="lyric-scroller" style="position:absolute;inset:0;display:flex;align-items:center">
+    <div class="lyric-list" style="display:flex;flex-direction:column;align-items:center;width:100%"><button class="lyric-item" data-role="far" style="opacity:0.12"><span class="lyric-item-text" style="font-family:inherit;font-size:16px">霓虹退成远处的一排省略号</span></button>\n<button class="lyric-item" data-role="near" style="opacity:0.36"><span class="lyric-item-text" style="font-family:inherit;font-size:16px">城市把灯火调成静音</span></button>\n<button class="lyric-item" data-role="active" style="opacity:1"><span class="lyric-item-text" style="font-family:inherit;font-size:21px;font-weight:560;color:rgb(var(--lune-accent))">我们沿着月光的航线远行</span></button>\n<button class="lyric-item" data-role="near" style="opacity:0.36"><span class="lyric-item-text" style="font-family:inherit;font-size:16px">把整片海留给这一首歌</span></button>\n<button class="lyric-item" data-role="far" style="opacity:0.12"><span class="lyric-item-text" style="font-family:inherit;font-size:16px">你数着波长 我数着星等</span></button>\n<button class="lyric-item" data-role="far" style="opacity:0.12"><span class="lyric-item-text" style="font-family:inherit;font-size:16px">耳机分你一半的引力</span></button>\n<button class="lyric-item" data-role="far" style="opacity:0.12"><span class="lyric-item-text" style="font-family:inherit;font-size:16px">潮汐记得所有未寄出的信</span></button></div>
+  </div></main>
+  <section class="m-lyric-bottom">
+    <label class="m-progress" style="--m-progress:36%"><input type="range" min="0" max="272000" value="98000"></label>
+    <div class="m-times"><span>1:38</span><span>4:32</span></div>
+    <button type="button" class="m-mini-bar">
+      <div class="m-mini-cover"><div style="width:100%;height:100%;background:
+      radial-gradient(120% 100% at 78% 12%,#2e2a45 0%,transparent 55%),
+      radial-gradient(120% 120% at 18% 88%,#4a4470 0%,transparent 60%),
+      linear-gradient(160deg,#191722,#232030 48%,#12111a)"></div></div>
+      <div class="m-mini-copy"><strong>月光航线</strong><small>返回播放页 · 4 人在听</small></div>
+      <span class="m-eq"><i></i><i></i><i></i></span>
+    </button>
+  </section>
+</div></section>
+      <section class="scr" id="scr-queue"><div class="m-room-shell v2">
+  <div class="m-room-glow"></div>
+  <header class="m-room-top">
+  <button type="button" class="m-code-chip"><span>房间</span><strong>LUNE42</strong><small>复制</small></button>
+  <div class="m-top-right">
+    <span class="m-live"><span class="m-dot is-on"></span>4 人在听</span>
+    <button type="button" class="m-icon-btn">×</button>
+  </div>
+</header>
+  <main class="m-player-main" style="filter:brightness(.55)">
+    <div class="m-cover-zone"><div class="m-cover-halo"></div><div class="m-cover"><div style="width:100%;height:100%;background:
+      radial-gradient(120% 100% at 78% 12%,#2e2a45 0%,transparent 55%),
+      radial-gradient(120% 120% at 18% 88%,#4a4470 0%,transparent 60%),
+      linear-gradient(160deg,#191722,#232030 48%,#12111a)"></div></div></div>
+  </main>
+  <nav class="m-dock">
+  <button type="button"><svg viewBox="0 0 24 24" width="16" height="16"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="1.8"/><line x1="21" y1="21" x2="16.5" y2="16.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><b>搜索</b></button>
+  <button type="button" class="is-active"><svg viewBox="0 0 24 24" width="16" height="16"><g stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="13" y2="18"/></g><polygon points="17 15 22 18 17 21 17 15" fill="currentColor"/></svg><b>队列 <span class="m-cnt">6</span></b></button>
+  <button type="button"><svg viewBox="0 0 24 24" width="16" height="16"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/><circle cx="17.5" cy="9" r="2.6"/><path d="M16.5 14.2c2.9.3 5 2.4 5 5.3"/></g></svg><b>成员 <span class="m-cnt">4</span></b></button>
+</nav>
+  <div class="m-scrim is-open"></div>
+  <div class="m-sheet is-open">
+    <div class="m-grab"></div>
+    <div class="m-sheet-head">
+      <div><span class="m-serif-kicker">up next</span><strong>播放队列 · 6</strong></div>
+      <button type="button" class="m-icon-btn">×</button>
+    </div>
+    <div class="m-sheet-body">
+      <div style="display:flex;align-items:center;gap:12px;padding:13px 8px;background:rgb(var(--lune-accent)/.07);border:1px solid rgb(var(--lune-accent)/.2);border-radius:14px"><span class="m-eq"><i></i><i></i><i></i></span><div class="terminal-track-cover" style="width:48px;height:48px;border-radius:12px;background:rgb(var(--lune-surface-2));flex-shrink:0"></div>
+    <div style="flex:1;min-width:0"><div style="font-size:14.5px;font-weight:540;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">月光航线</div>
+    <div style="font-size:12px;color:rgb(var(--lune-muted)/.75);margin-top:3px">苏羽 / 白鲸乐队 · 正在播放</div></div>
+    <span style="font-size:11px;color:rgb(var(--lune-muted)/.55)">4:32</span></div>
+      <div style="display:flex;align-items:center;gap:12px;padding:13px 8px;"><span style="color:rgb(var(--lune-muted)/.45);font-size:15px;padding:0 4px">⠿</span><span style="width:20px;text-align:right;font-size:11px;color:rgb(var(--lune-muted)/.5)">02</span><div class="terminal-track-cover" style="width:48px;height:48px;border-radius:12px;background:rgb(var(--lune-surface-2));flex-shrink:0"></div>
+    <div style="flex:1;min-width:0"><div style="font-size:14.5px;font-weight:540;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">子夜电台</div>
+    <div style="font-size:12px;color:rgb(var(--lune-muted)/.75);margin-top:3px">林深见</div></div><span class="m-badge-next">UP NEXT</span>
+    <span style="font-size:11px;color:rgb(var(--lune-muted)/.55)">3:58</span><button style="width:34px;height:34px;border:0;background:transparent;color:rgb(var(--lune-muted)/.5);font-size:15px;cursor:pointer">×</button></div>
+      <div style="display:flex;align-items:center;gap:12px;padding:13px 8px;"><span style="color:rgb(var(--lune-muted)/.45);font-size:15px;padding:0 4px">⠿</span><span style="width:20px;text-align:right;font-size:11px;color:rgb(var(--lune-muted)/.5)">03</span><div class="terminal-track-cover" style="width:48px;height:48px;border-radius:12px;background:rgb(var(--lune-surface-2));flex-shrink:0"></div>
+    <div style="flex:1;min-width:0"><div style="font-size:14.5px;font-weight:540;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">银色隧道</div>
+    <div style="font-size:12px;color:rgb(var(--lune-muted)/.75);margin-top:3px">回声计划</div></div>
+    <span style="font-size:11px;color:rgb(var(--lune-muted)/.55)">5:11</span><button style="width:34px;height:34px;border:0;background:transparent;color:rgb(var(--lune-muted)/.5);font-size:15px;cursor:pointer">×</button></div>
+      <div style="display:flex;align-items:center;gap:12px;padding:13px 8px;"><span style="color:rgb(var(--lune-muted)/.45);font-size:15px;padding:0 4px">⠿</span><span style="width:20px;text-align:right;font-size:11px;color:rgb(var(--lune-muted)/.5)">04</span><div class="terminal-track-cover" style="width:48px;height:48px;border-radius:12px;background:rgb(var(--lune-surface-2));flex-shrink:0"></div>
+    <div style="flex:1;min-width:0"><div style="font-size:14.5px;font-weight:540;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">失重花园</div>
+    <div style="font-size:12px;color:rgb(var(--lune-muted)/.75);margin-top:3px">苏羽</div></div>
+    <span style="font-size:11px;color:rgb(var(--lune-muted)/.55)">4:05</span><button style="width:34px;height:34px;border:0;background:transparent;color:rgb(var(--lune-muted)/.5);font-size:15px;cursor:pointer">×</button></div>
+      <div style="display:flex;align-items:center;gap:12px;padding:13px 8px;"><span style="color:rgb(var(--lune-muted)/.45);font-size:15px;padding:0 4px">⠿</span><span style="width:20px;text-align:right;font-size:11px;color:rgb(var(--lune-muted)/.5)">05</span><div class="terminal-track-cover" style="width:48px;height:48px;border-radius:12px;background:rgb(var(--lune-surface-2));flex-shrink:0"></div>
+    <div style="flex:1;min-width:0"><div style="font-size:14.5px;font-weight:540;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">凌晨三点的环线</div>
+    <div style="font-size:12px;color:rgb(var(--lune-muted)/.75);margin-top:3px">白鲸乐队</div></div>
+    <span style="font-size:11px;color:rgb(var(--lune-muted)/.55)">3:44</span><button style="width:34px;height:34px;border:0;background:transparent;color:rgb(var(--lune-muted)/.5);font-size:15px;cursor:pointer">×</button></div>
+    </div>
+  </div>
+</div></section>
+    </div></div>
+    
+<aside class="notes">
+  <div class="note"><h3><em>U1</em>封面月光辉光</h3><p>取色逻辑移除后播放页略显扁平。用<b>静态品牌紫辉光 + 双层投影</b>找回氛围深度——纯 CSS,无 JS 开销,不会随封面跳色。</p></div>
+  <div class="note"><h3><em>U2</em>Up-Next 行</h3><p>曲名下新增「接下来 · ○○」胶囊,数据取 <b>queue[0]</b>,点击直达队列面板。共听场景里「下一首是什么」是高频疑问,现在一眼可见。</p></div>
+  <div class="note"><h3><em>U3</em>缓冲反馈</h3><p>之前删掉了文字提示,缓冲状态改用<b>进度条微脉动</b>表达,不占版面、不打断视线。</p></div>
+  <div class="note"><h3><em>U4</em>Dock 高亮态</h3><p>面板打开时对应 Dock 按钮点亮,关闭后还原,强化「当前在哪」的空间感。</p></div>
+  <div class="note"><h3><em>U5</em>断线横幅</h3><p>connected=false 时顶部出现品牌色细条「正在重连…」(见空态屏)。现在断线只有人数文字悄悄变化,用户无感知。</p></div>
+  <div class="note"><h3><em>U6</em>空态升级</h3><p>未播放时不再是灰字占位:月牙插画 + <b>「去搜索一首歌」CTA</b> 直接拉起搜索面板,把新用户第一步铺到眼前。</p></div>
+  <div class="note"><h3><em>U7-U8</em>歌词与队列细节</h3><p>歌词遮罩渐隐区拉长,滚动进出更柔;队列中下一首加 <b>UP NEXT</b> 徽标,与 U2 呼应。</p></div>
+  <div class="note"><h3><em>动效</em>阶段 C 手势</h3><p>面板<b>下滑关闭</b>手势、播放页↔歌词页淡入过渡、封面按压微缩反馈。需少量 JS(touch 事件),原型未演示。</p></div>
+</aside>
+  </div>
+</div>
+<script>
+document.getElementById('sw').addEventListener('click',(e)=>{
+  const b=e.target.closest('button'); if(!b) return;
+  document.querySelectorAll('#sw button').forEach(x=>x.classList.toggle('on',x===b));
+  document.querySelectorAll('.scr').forEach(s=>s.classList.toggle('on',s.id===b.dataset.s));
+});
+</script>
+</body></html>

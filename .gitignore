@@ -61,6 +61,13 @@ server/src/prisma/generated/
 .env.*
 !.env.example
 !.env.*.example
+.env.provider.generated
+
+# Runtime provider credential data
+data/
+server-release-clean/
+server-release-clean.backup-*/
+.server-release-clean-next-*/
 
 # =========================
 # Deploy packages (source + README stay; zips do not)
@@ -114,3 +121,6 @@ ehthumbs.db
 Desktop.ini
 $RECYCLE.BIN/
 *.stackdump
+
+# Local release handoff artifacts
+/release-artifacts/

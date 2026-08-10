@@ -6,12 +6,15 @@ import type {
   ProviderSearchResult,
   Track,
 } from '@lune/shared';
+import { getServerBaseUrl } from './serverConfig';
 
-/** 服务端基址,末尾不带斜杠 */
-const BASE = (import.meta.env.VITE_SERVER_URL as string | undefined)?.replace(/\/$/, '') || 'http://localhost:9527';
+function endpoint(path: string): string {
+  return `${getServerBaseUrl()}${path}`;
+}
 
-/** WS URL 由 HTTP 基址推导 */
-export const WS_URL = BASE.replace(/^http/, 'ws') + '/ws';
+function providerParam(provider?: string): string {
+  return provider ? `&provider=${encodeURIComponent(provider)}` : '';
+}
 
 async function json<T>(resP: Promise<Response> | Response): Promise<T> {
   const res = await resP;
@@ -28,7 +31,7 @@ export async function createRoom(nickname: string): Promise<{
   member: { id: string; nickname: string; isOwner: boolean };
   token: string;
 }> {
-  return json(fetch(`${BASE}/api/rooms`, {
+  return json(fetch(endpoint('/api/rooms'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ nickname }),
@@ -41,37 +44,44 @@ export async function joinRoom(code: string, nickname: string): Promise<{
   member: { id: string; nickname: string; isOwner: boolean };
   token: string;
 }> {
-  return json(fetch(`${BASE}/api/rooms/${code}/join`, {
+  return json(fetch(endpoint(`/api/rooms/${code}/join`), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ nickname }),
   }));
 }
 
-export async function searchTracks(kw: string, limit = 20): Promise<Track[]> {
+export async function getProviders(): Promise<string[]> {
+  const result = await json<{ providers: string[] }>(fetch(endpoint('/api/providers')));
+  return result.providers;
+}
+
+export async function searchTracks(kw: string, limit = 20, provider?: string): Promise<Track[]> {
   const r: ProviderSearchResult = await json(
-    fetch(`${BASE}/api/providers/search?kw=${encodeURIComponent(kw)}&limit=${limit}`),
+    fetch(endpoint(`/api/providers/search?kw=${encodeURIComponent(kw)}&limit=${limit}${providerParam(provider)}`)),
   );
   return r.songs;
 }
 
-export async function resolveTrack(id: string): Promise<ProviderResolveResult> {
-  return json(fetch(`${BASE}/api/providers/resolve?id=${encodeURIComponent(id)}`));
+export async function resolveTrack(id: string, provider?: string): Promise<ProviderResolveResult> {
+  return json(fetch(endpoint(`/api/providers/resolve?id=${encodeURIComponent(id)}${providerParam(provider)}`)));
 }
 
-export async function getLyric(id: string): Promise<ProviderLyricResult> {
-  return json(fetch(`${BASE}/api/providers/lyric?id=${encodeURIComponent(id)}`));
+export async function getLyric(id: string, provider?: string): Promise<ProviderLyricResult> {
+  return json(fetch(endpoint(`/api/providers/lyric?id=${encodeURIComponent(id)}${providerParam(provider)}`)));
 }
 
 /** 按名搜歌单,返回歌单摘要列表 */
-export async function searchPlaylists(kw: string, limit = 20): Promise<PlaylistSummary[]> {
+export async function searchPlaylists(kw: string, limit = 20, provider?: string): Promise<PlaylistSummary[]> {
   const r: ProviderPlaylistSearchResult = await json(
-    fetch(`${BASE}/api/providers/playlist-search?kw=${encodeURIComponent(kw)}&limit=${limit}`),
+    fetch(endpoint(`/api/providers/playlist-search?kw=${encodeURIComponent(kw)}&limit=${limit}${providerParam(provider)}`)),
   );
   return r.playlists;
 }
 
 /** 拉歌单全部曲目 */
-export async function getPlaylist(id: string): Promise<Track[]> {
-  return json<Track[]>(fetch(`${BASE}/api/providers/playlist?id=${encodeURIComponent(id)}`));
+export async function getPlaylist(id: string, provider?: string): Promise<Track[]> {
+  return json<Track[]>(
+    fetch(endpoint(`/api/providers/playlist?id=${encodeURIComponent(id)}${providerParam(provider)}`)),
+  );
 }

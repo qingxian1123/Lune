@@ -1,0 +1,11 @@
+"$schema" = "schemas/schema.json"
+
+[default]
+description = "允许前端控制 Android 媒体会话(前台服务、通知栏元数据与动作回调)"
+permissions = [
+  "allow-start",
+  "allow-update",
+  "allow-stop",
+  "allow-registerListener",
+  "allow-removeListener",
+]

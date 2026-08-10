@@ -8,6 +8,8 @@
 /** 音轨元数据 */
 export interface Track {
   id: string;
+  /** 产生该音轨的音乐源；旧房间数据缺失时回落到服务端默认源 */
+  provider?: string;
   name: string;
   artists: string;
   album: string;
@@ -81,6 +83,8 @@ export interface ProviderLyricResult {
 /** 歌单摘要(搜歌单结果条目) */
 export interface PlaylistSummary {
   id: string;
+  /** 产生该歌单的音乐源 */
+  provider?: string;
   name: string;
   coverUrl: string;
   trackCount: number;

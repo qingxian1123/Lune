@@ -16,7 +16,7 @@ export function getUiErrorMessage(error: unknown, fallback = '操作没有完成
     return '房间人数已满，暂时无法加入';
   }
   if (message.includes('websocket') || message.includes('socket') || raw.includes('断开')) {
-    return '连接暂时中断，正在尝试恢复';
+    return '连接已中断，正在重新连接';
   }
   if (raw.includes('版权') || raw.includes('无法播放')) {
     return '这首歌暂时无法播放';

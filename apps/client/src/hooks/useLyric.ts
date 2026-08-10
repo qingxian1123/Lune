@@ -5,7 +5,11 @@ import { getLyric } from '../lib/api';
 /**
  * 按 track.id 拉歌词,并据当前播放时间(毫秒)算高亮行。
  */
-export function useLyric(trackId: string | null | undefined, currentMs: number) {
+export function useLyric(
+  trackId: string | null | undefined,
+  currentMs: number,
+  provider?: string,
+) {
   const [lines, setLines] = useState<LyricLine[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -14,7 +18,7 @@ export function useLyric(trackId: string | null | undefined, currentMs: number) 
     setIsLoading(Boolean(trackId));
     if (!trackId) return;
     let alive = true;
-    getLyric(trackId)
+    getLyric(trackId, provider)
       .then((r) => {
         if (alive) setLines(r.lines);
       })
@@ -27,7 +31,7 @@ export function useLyric(trackId: string | null | undefined, currentMs: number) 
     return () => {
       alive = false;
     };
-  }, [trackId]);
+  }, [trackId, provider]);
 
   const currentIndex = useMemo(() => {
     if (lines.length === 0) return -1;

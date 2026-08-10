@@ -24,7 +24,7 @@ import { ConnectionRegistry } from './connection.registry';
  *  1. 客户端连接后发 `join { token }`
  *  2. 网关验 JWT,绑定 memberId→room,回 `joined { snapshot, memberId }`
  *  3. 其他成员收到 `member_joined`
- *  4. 播放/队列消息由 owner 校验后改 Room 状态,广播 `playback_state` / `queue_updated`
+ *  4. 播放/队列消息经入房校验后改 Room 状态(全员同权),广播 `playback_state` / `queue_updated`
  *  5. 断开:unbind + rooms.leave,空房删除,他人收到 `member_left`
  *
  * 无 pause 消息(产品决定)。
@@ -151,7 +151,7 @@ export class SyncGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   private handlePlay(ws: WebSocket, track: Track, position?: number): void {
-    if (!this.assertOwner(ws)) return;
+    if (!this.assertJoined(ws)) return;
     const info = this.conns.infoOf(ws)!;
     const room = this.store.getRoom(info.roomCode);
     if (!room) return;
@@ -160,7 +160,7 @@ export class SyncGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   private handleSeek(ws: WebSocket, position: number): void {
-    if (!this.assertOwner(ws)) return;
+    if (!this.assertJoined(ws)) return;
     const info = this.conns.infoOf(ws)!;
     const room = this.store.getRoom(info.roomCode);
     if (!room) return;
@@ -169,7 +169,7 @@ export class SyncGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   private handleNext(ws: WebSocket, endedTrackId?: string): void {
-    if (!this.assertOwner(ws)) return;
+    if (!this.assertJoined(ws)) return;
     const info = this.conns.infoOf(ws)!;
     const room = this.store.getRoom(info.roomCode);
     if (!room) return;
@@ -207,7 +207,7 @@ export class SyncGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   private handleRemoveSong(ws: WebSocket, index: number): void {
-    if (!this.assertOwner(ws)) return;
+    if (!this.assertJoined(ws)) return;
     const info = this.conns.infoOf(ws)!;
     const room = this.store.getRoom(info.roomCode);
     if (!room) return;
@@ -249,20 +249,19 @@ export class SyncGateway implements OnGatewayConnection, OnGatewayDisconnect {
     });
   }
 
-  /** 校验连接已 join 且是 owner,失败发 error 返回 false */
-  private assertOwner(ws: WebSocket): boolean {
+  /**
+   * 校验连接已 join 且房间存在,失败发 error 返回 false。
+   * 产品决策:全员同权——播放/切歌/进度/删歌不再限制房主,
+   * owner 仅保留为成员列表标识与房主转移语义。
+   */
+  private assertJoined(ws: WebSocket): boolean {
     const info = this.conns.infoOf(ws);
     if (!info) {
       this.conns.send(ws, { type: 'error', payload: { message: '请先 join 房间' } });
       return false;
     }
-    const room = this.store.getRoom(info.roomCode);
-    if (!room) {
+    if (!this.store.getRoom(info.roomCode)) {
       this.conns.send(ws, { type: 'error', payload: { message: '房间不存在' } });
-      return false;
-    }
-    if (room.ownerId !== info.memberId) {
-      this.conns.send(ws, { type: 'error', payload: { message: '仅房主可执行此操作' } });
       return false;
     }
     return true;

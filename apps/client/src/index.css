@@ -15,8 +15,31 @@
     --lune-accent: 184 176 216;
     --lune-accent-soft: 118 112 139;
     --lune-bg-accent: 11 11 12;
+    --font-display: "Space Grotesk Variable", "Space Grotesk", sans-serif;
+    --font-body: "Segoe UI Variable Text", "Segoe UI", "Noto Sans CJK SC", "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif;
+    --font-editorial: Georgia, "Times New Roman", serif;
+    --type-display: clamp(4.5rem, 5.2vw, 5.5rem);
+    --type-display-compact: clamp(3.4rem, 6.2vw, 4rem);
+    --type-display-narrow: clamp(3.1rem, 10vw, 4.25rem);
+    --type-display-mobile: clamp(2.2rem, 10.5vw, 2.7rem);
+    --type-display-small: clamp(2.65rem, 12vw, 3.35rem);
+    --type-lyric-active: clamp(24px, 3vw, 40px);
+    --type-lyric: clamp(13px, 1.25vw, 16px);
+    --type-track-title: clamp(22px, 2.3vw, 31px);
+    --type-heading-fluid: clamp(20px, 4.5vw, 28px);
+    --type-heading-lg: 24px;
+    --type-heading: 22px;
+    --type-title-lg: 18px;
+    --type-title: 16px;
+    --type-body: 14px;
+    --type-control: 13px;
+    --type-label: 12px;
+    --type-meta: 11px;
+    --type-micro: 11px;
     color-scheme: dark;
-    font-family: Inter, "SF Pro Display", "Noto Sans SC", "Microsoft YaHei", ui-sans-serif, system-ui, sans-serif;
+    font-family: var(--font-body);
+    font-size: var(--type-title);
+    line-height: 1.55;
   }
 
   * {
@@ -70,8 +93,8 @@
 }
 
 .brand-mark {
-  font-family: "Space Grotesk Variable", "Space Grotesk", sans-serif;
-  font-size: 15px;
+  font-family: var(--font-display);
+  font-size: var(--type-title);
   font-weight: 720;
   letter-spacing: 0.34em;
 }
@@ -85,7 +108,7 @@
 
 .brand-caption,
 .signal-status {
-  font-size: 10px;
+  font-size: var(--type-micro);
   letter-spacing: 0.08em;
   color: rgb(var(--lune-muted));
 }
@@ -155,6 +178,223 @@
   border-bottom: 1px solid rgb(var(--lune-border) / 0.12);
 }
 
+.settings-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 44px;
+  height: 36px;
+  padding: 0 11px;
+  border: 1px solid rgb(var(--lune-border) / 0.12);
+  border-radius: 10px;
+  font-size: var(--type-meta);
+  color: rgb(var(--lune-muted));
+  background: transparent;
+  cursor: pointer;
+  transition: color 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.settings-trigger:hover {
+  border-color: rgb(var(--lune-brand) / 0.42);
+  color: rgb(var(--lune-text));
+  background: rgb(var(--lune-border) / 0.04);
+}
+
+.settings-trigger svg,
+.settings-close svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.settings-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  width: 100vw;
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  justify-items: end;
+  color: rgb(var(--lune-text));
+  background: transparent;
+}
+
+.settings-layer::backdrop {
+  background: rgb(0 0 0 / 0.42);
+}
+
+.settings-surface {
+  position: relative;
+  display: grid;
+  grid-template-rows: 64px minmax(0, 1fr);
+  width: min(420px, 100%);
+  height: 100dvh;
+  border-left: 1px solid rgb(var(--lune-border) / 0.1);
+  color: rgb(var(--lune-text));
+  background: rgb(var(--lune-bg-soft));
+  animation: settingsEnter 220ms cubic-bezier(.22, 1, .36, 1) both;
+}
+
+.settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 18px 0 22px;
+  border-bottom: 1px solid rgb(var(--lune-border) / 0.09);
+}
+
+.settings-header strong {
+  font-family: var(--font-display);
+  font-size: var(--type-title-lg);
+  font-weight: 620;
+  letter-spacing: -0.02em;
+}
+
+.settings-close {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 10px;
+  color: rgb(var(--lune-muted));
+  background: transparent;
+  cursor: pointer;
+}
+
+.settings-close:hover {
+  color: rgb(var(--lune-text));
+  background: rgb(var(--lune-border) / 0.05);
+}
+
+.settings-layout {
+  display: grid;
+  grid-template-columns: 116px minmax(0, 1fr);
+  min-height: 0;
+}
+
+.settings-layout.has-single-section {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.settings-nav {
+  padding: 20px 10px;
+  border-right: 1px solid rgb(var(--lune-border) / 0.08);
+}
+
+.settings-nav button {
+  width: 100%;
+  height: 40px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 10px;
+  text-align: left;
+  font-size: var(--type-label);
+  color: rgb(var(--lune-muted));
+  background: transparent;
+  cursor: pointer;
+}
+
+.settings-nav button.is-active {
+  color: rgb(var(--lune-text));
+  background: rgb(var(--lune-border) / 0.06);
+}
+
+.settings-content {
+  min-width: 0;
+  padding: 30px 26px;
+  overflow-y: auto;
+}
+
+.settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.settings-field {
+  display: block;
+}
+
+.settings-field > span {
+  display: block;
+  margin-bottom: 9px;
+  font-size: var(--type-label);
+  color: rgb(var(--lune-muted));
+}
+
+.settings-field input {
+  width: 100%;
+  height: 48px;
+  padding: 0 14px;
+  border: 1px solid rgb(var(--lune-border) / 0.14);
+  border-radius: 12px;
+  font-size: var(--type-body);
+  color: rgb(var(--lune-text));
+  background: rgb(var(--lune-surface));
+  transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
+}
+
+.settings-field input:focus {
+  border-color: rgb(var(--lune-brand) / 0.72);
+  outline: 0;
+  background: rgb(var(--lune-surface-2));
+  box-shadow: 0 0 0 3px rgb(var(--lune-brand) / 0.1);
+}
+
+.settings-field input::placeholder {
+  color: rgb(var(--lune-muted) / 0.52);
+}
+
+.settings-error {
+  margin: -3px 0 0;
+  font-size: var(--type-meta);
+  line-height: 1.5;
+  color: #d9a3a8;
+}
+
+.settings-save {
+  align-self: flex-end;
+  min-width: 96px;
+  height: 44px;
+  padding: 0 18px;
+  border: 1px solid rgb(var(--lune-brand) / 0.88);
+  border-radius: 12px;
+  font-family: var(--font-display);
+  font-size: var(--type-control);
+  font-weight: 560;
+  color: rgb(var(--lune-bg));
+  background: rgb(var(--lune-brand));
+  cursor: pointer;
+  transition: color 160ms ease, background 160ms ease, opacity 160ms ease;
+}
+
+.settings-save:hover:not(:disabled) {
+  color: rgb(var(--lune-brand));
+  background: transparent;
+}
+
+.settings-save:disabled {
+  cursor: wait;
+  opacity: 0.48;
+}
+
+@keyframes settingsEnter {
+  from { opacity: 0.72; transform: translateX(24px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
 .signal-status {
   display: flex;
   align-items: center;
@@ -184,14 +424,14 @@
 .stage-kicker,
 .pane-heading span,
 .transport-copy > span {
-  font-size: 9px;
+  font-size: var(--type-micro);
   letter-spacing: 0.12em;
   color: rgb(var(--lune-muted));
 }
 
 .terminal-kicker {
   margin-bottom: 28px;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-editorial);
   font-style: italic;
   letter-spacing: 0.06em;
 }
@@ -199,10 +439,10 @@
 .access-intro h1 {
   max-width: 940px;
   margin: 0;
-  font-family: "Space Grotesk Variable", "Space Grotesk", sans-serif;
-  font-size: clamp(4.5rem, 5.2vw, 5.5rem);
+  font-family: var(--font-display);
+  font-size: var(--type-display);
   line-height: 0.98;
-  letter-spacing: -0.055em;
+  letter-spacing: -0.04em;
 }
 
 .access-intro .headline-primary,
@@ -212,7 +452,7 @@
 }
 
 .access-intro .headline-primary {
-  font-weight: 300;
+  font-weight: 320;
   color: rgb(var(--lune-text));
 }
 
@@ -226,8 +466,9 @@
 .access-intro > p {
   max-width: 450px;
   margin: 26px 0 0;
-  font-size: 14px;
+  font-size: var(--type-body);
   line-height: 1.9;
+  letter-spacing: 0.01em;
   color: rgb(var(--lune-muted));
 }
 
@@ -235,7 +476,7 @@
   margin-top: 40px;
   padding-left: 14px;
   border-left: 1px solid rgb(var(--lune-brand));
-  font-size: 11px;
+  font-size: var(--type-meta);
   color: rgb(var(--lune-muted) / 0.76);
 }
 
@@ -267,8 +508,8 @@
 }
 
 .terminal-heading > div > span {
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 9px;
+  font-family: var(--font-editorial);
+  font-size: var(--type-micro);
   font-style: italic;
   letter-spacing: 0.08em;
   color: rgb(var(--lune-muted) / 0.78);
@@ -276,16 +517,16 @@
 
 .terminal-heading strong {
   margin-top: 8px;
-  font-family: "Space Grotesk Variable", "Space Grotesk", sans-serif;
-  font-size: 19px;
+  font-family: var(--font-display);
+  font-size: var(--type-title-lg);
   font-weight: 620;
   letter-spacing: -0.02em;
   color: rgb(var(--lune-text));
 }
 
 .terminal-index {
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 9px !important;
+  font-family: var(--font-editorial);
+  font-size: var(--type-micro) !important;
   font-style: italic;
   letter-spacing: 0.04em;
   color: rgb(var(--lune-muted) / 0.62) !important;
@@ -308,8 +549,8 @@
   height: 40px;
   border: 0;
   border-radius: 10px;
-  font-family: "Space Grotesk Variable", "Space Grotesk", sans-serif;
-  font-size: 12px;
+  font-family: var(--font-display);
+  font-size: var(--type-label);
   font-weight: 500;
   letter-spacing: 0.01em;
   color: rgb(var(--lune-muted));
@@ -340,7 +581,7 @@
 .terminal-field > span {
   display: block;
   margin-bottom: 9px;
-  font-size: 10px;
+  font-size: var(--type-micro);
   letter-spacing: 0.08em;
   color: rgb(var(--lune-muted));
 }
@@ -358,7 +599,7 @@
   height: 46px;
   padding: 0 14px;
   border-radius: 12px;
-  font-size: 13.5px;
+  font-size: var(--type-body);
 }
 
 .terminal-field input:focus,
@@ -377,7 +618,7 @@
 .field-error {
   display: block;
   margin-top: 7px;
-  font-size: 10px;
+  font-size: var(--type-micro);
   color: #d9a3a8;
 }
 
@@ -389,7 +630,7 @@
 .access-message {
   min-height: 28px;
   margin-bottom: 4px;
-  font-size: 11px;
+  font-size: var(--type-meta);
   line-height: 1.5;
   color: rgb(var(--lune-muted) / 0.72);
 }
@@ -407,8 +648,8 @@
   padding: 0 18px;
   border: 1px solid rgb(var(--lune-brand) / 0.88);
   border-radius: 12px;
-  font-family: "Space Grotesk Variable", "Space Grotesk", sans-serif;
-  font-size: 13px;
+  font-family: var(--font-display);
+  font-size: var(--type-control);
   font-weight: 560;
   letter-spacing: 0.02em;
   color: rgb(var(--lune-bg));
@@ -434,7 +675,7 @@
   gap: 12px;
   padding: 14px 24px 16px;
   border-top: 1px solid rgb(var(--lune-border) / 0.07);
-  font-size: 9.5px;
+  font-size: var(--type-micro);
   letter-spacing: 0.06em;
   color: rgb(var(--lune-muted) / 0.58);
 }
@@ -483,14 +724,14 @@
 
 .room-code span,
 .room-code small {
-  font-size: 9px;
+  font-size: var(--type-micro);
   letter-spacing: 0.06em;
   color: rgb(var(--lune-muted));
 }
 
 .room-code strong {
-  font-family: "Space Grotesk Variable", "Space Grotesk", sans-serif;
-  font-size: 11px;
+  font-family: var(--font-display);
+  font-size: var(--type-meta);
   font-weight: 560;
   letter-spacing: 0.14em;
 }
@@ -524,14 +765,14 @@
 }
 
 .connection-state strong {
-  font-size: 10px;
+  font-size: var(--type-micro);
   font-weight: 520;
   letter-spacing: 0.02em;
 }
 
 .connection-state small {
   margin-top: 2px;
-  font-size: 9px;
+  font-size: var(--type-micro);
   color: rgb(var(--lune-muted));
 }
 
@@ -551,12 +792,12 @@
   align-items: center;
   gap: 8px;
   padding: 0 11px;
-  font-size: 10px;
+  font-size: var(--type-micro);
   letter-spacing: 0.04em;
 }
 
 .leave-room strong {
-  font-size: 15px;
+  font-size: var(--type-title);
   font-weight: 400;
 }
 
@@ -569,8 +810,8 @@
 .mobile-panel-toggle {
   display: none;
   padding: 0 12px;
-  font-family: "Space Grotesk Variable", "Space Grotesk", sans-serif;
-  font-size: 11px;
+  font-family: var(--font-display);
+  font-size: var(--type-meta);
   font-weight: 500;
 }
 
@@ -589,7 +830,7 @@
   padding: 10px 14px;
   border: 1px solid rgb(217 163 168 / 0.38);
   border-radius: 10px;
-  font-size: 11px;
+  font-size: var(--type-meta);
   color: #e2b9bd;
   background: #211719;
   transform: translateX(-50%);
@@ -624,8 +865,8 @@
 }
 
 .stage-heading .stage-kicker {
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 9px;
+  font-family: var(--font-editorial);
+  font-size: var(--type-micro);
   font-style: italic;
   letter-spacing: 0.08em;
   color: rgb(var(--lune-muted) / 0.78);
@@ -633,8 +874,8 @@
 
 .stage-heading strong {
   margin-top: 5px;
-  font-family: "Space Grotesk Variable", "Space Grotesk", sans-serif;
-  font-size: 13px;
+  font-family: var(--font-display);
+  font-size: var(--type-control);
   font-weight: 560;
   letter-spacing: -0.01em;
 }
@@ -643,7 +884,7 @@
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: 10px;
+  font-size: var(--type-micro);
   letter-spacing: 0.02em;
   color: rgb(var(--lune-muted));
 }
@@ -713,8 +954,8 @@
 }
 
 .cover-placeholder span {
-  font-family: "Space Grotesk Variable", "Space Grotesk", sans-serif;
-  font-size: 18px;
+  font-family: var(--font-display);
+  font-size: var(--type-title-lg);
   font-weight: 620;
   letter-spacing: 0.28em;
   padding-left: 0.28em;
@@ -723,7 +964,7 @@
 
 .cover-placeholder small {
   margin-top: 10px;
-  font-size: 10px;
+  font-size: var(--type-micro);
   letter-spacing: 0.06em;
   color: rgb(var(--lune-muted));
 }
@@ -739,7 +980,7 @@
 .track-number {
   padding-left: 9px;
   border-left: 1px solid rgb(var(--lune-brand));
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-editorial);
   font-style: italic;
   letter-spacing: 0.06em;
 }
@@ -747,8 +988,8 @@
 .track-identity h2 {
   overflow: hidden;
   margin: 10px 0 0;
-  font-family: "Space Grotesk Variable", "Space Grotesk", sans-serif;
-  font-size: clamp(22px, 2.3vw, 31px);
+  font-family: var(--font-display);
+  font-size: var(--type-track-title);
   font-weight: 620;
   line-height: 1.12;
   letter-spacing: -0.035em;
@@ -759,7 +1000,7 @@
 .track-identity p {
   overflow: hidden;
   margin: 8px 0 0;
-  font-size: 13px;
+  font-size: var(--type-control);
   color: rgb(var(--lune-muted));
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -769,8 +1010,8 @@
   display: block;
   overflow: hidden;
   margin-top: 6px;
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 11px;
+  font-family: var(--font-editorial);
+  font-size: var(--type-meta);
   font-style: italic;
   color: rgb(var(--lune-muted) / 0.68);
   text-overflow: ellipsis;
@@ -862,8 +1103,8 @@
 .lyric-item-text {
   display: block;
   max-width: 30ch;
-  font-family: "Space Grotesk Variable", "Space Grotesk", sans-serif;
-  font-size: clamp(13px, 1.25vw, 16px);
+  font-family: var(--font-display);
+  font-size: var(--type-lyric);
   font-weight: 450;
   line-height: 1.35;
   letter-spacing: 0;
@@ -872,7 +1113,7 @@
 /* Typography role is instant — scroller measures final layout height */
 .lyric-item[data-role="active"] .lyric-item-text {
   max-width: 19ch;
-  font-size: clamp(24px, 3vw, 40px);
+  font-size: var(--type-lyric-active);
   font-weight: 560;
   line-height: 1.28;
   letter-spacing: -0.04em;
@@ -881,8 +1122,8 @@
 .lyric-item-trans {
   display: none;
   margin-top: 8px;
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 12px;
+  font-family: var(--font-editorial);
+  font-size: var(--type-label);
   font-style: italic;
   line-height: 1.5;
   color: rgb(var(--lune-muted) / 0.72);
@@ -897,7 +1138,7 @@
   right: 0;
   top: 50%;
   font-variant-numeric: tabular-nums;
-  font-size: 8px;
+  font-size: var(--type-micro);
   color: rgb(var(--lune-muted) / 0.55);
   opacity: 0;
   transform: translate(4px, -50%);
@@ -928,14 +1169,14 @@
 
 .lyric-empty strong {
   margin-top: 13px;
-  font-family: "Space Grotesk Variable", "Space Grotesk", sans-serif;
-  font-size: 14px;
+  font-family: var(--font-display);
+  font-size: var(--type-body);
   font-weight: 560;
 }
 
 .lyric-empty small {
   margin-top: 7px;
-  font-size: 11px;
+  font-size: var(--type-meta);
   color: rgb(var(--lune-muted));
 }
 
@@ -993,8 +1234,8 @@
   height: 34px;
   border: 0;
   border-radius: 9px;
-  font-family: "Space Grotesk Variable", "Space Grotesk", sans-serif;
-  font-size: 11px;
+  font-family: var(--font-display);
+  font-size: var(--type-meta);
   font-weight: 500;
   letter-spacing: 0.01em;
   color: rgb(var(--lune-muted));
@@ -1005,15 +1246,15 @@
 
 .side-tabs button > span {
   margin-right: 4px;
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 8px;
+  font-family: var(--font-editorial);
+  font-size: var(--type-micro);
   font-style: italic;
   color: rgb(var(--lune-muted) / 0.55);
 }
 
 .side-tabs button > small {
   margin-left: 3px;
-  font-size: 9px;
+  font-size: var(--type-micro);
   font-variant-numeric: tabular-nums;
   color: rgb(var(--lune-muted) / 0.72);
 }
@@ -1039,7 +1280,7 @@
   height: 36px;
   border: 0;
   border-radius: 10px;
-  font-size: 18px;
+  font-size: var(--type-title-lg);
   color: rgb(var(--lune-muted));
   background: rgb(var(--lune-surface));
   cursor: pointer;
@@ -1052,8 +1293,24 @@
 }
 
 .sidebar-content {
+  display: flex;
+  flex-direction: column;
   min-height: 0;
   overflow: hidden;
+}
+
+/* 高度链:sidebar → tab 容器 → terminal-pane → 可滚动列表,否则列表被 overflow 裁切且无法滚动 */
+.sidebar-content > div:not([hidden]) {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.sidebar-content .terminal-pane {
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .sidebar-footer {
@@ -1062,7 +1319,7 @@
   justify-content: space-between;
   padding: 0 12px;
   border-top: 1px solid rgb(var(--lune-border) / 0.08);
-  font-size: 8px;
+  font-size: var(--type-micro);
   color: rgb(var(--lune-muted) / 0.58);
 }
 
@@ -1084,8 +1341,8 @@
 }
 
 .pane-heading > div > span {
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 9px;
+  font-family: var(--font-editorial);
+  font-size: var(--type-micro);
   font-style: italic;
   letter-spacing: 0.06em;
   color: rgb(var(--lune-muted) / 0.78);
@@ -1093,14 +1350,14 @@
 
 .pane-heading strong {
   margin-top: 6px;
-  font-family: "Space Grotesk Variable", "Space Grotesk", sans-serif;
-  font-size: 15px;
+  font-family: var(--font-display);
+  font-size: var(--type-title);
   font-weight: 620;
   letter-spacing: -0.015em;
 }
 
 .pane-heading > small {
-  font-size: 9px;
+  font-size: var(--type-micro);
   letter-spacing: 0.04em;
   color: rgb(var(--lune-muted) / 0.62);
 }
@@ -1123,8 +1380,8 @@
   height: 32px;
   border: 0;
   border-radius: 8px;
-  font-family: "Space Grotesk Variable", "Space Grotesk", sans-serif;
-  font-size: 11px;
+  font-family: var(--font-display);
+  font-size: var(--type-meta);
   font-weight: 500;
   color: rgb(var(--lune-muted));
   background: transparent;
@@ -1150,7 +1407,7 @@
   height: 38px;
   padding: 0 12px !important;
   border-radius: 10px;
-  font-size: 12px !important;
+  font-size: var(--type-label) !important;
 }
 
 .lune-control {
@@ -1243,7 +1500,7 @@
 .track-duration {
   flex: none;
   font-variant-numeric: tabular-nums;
-  font-size: 9px;
+  font-size: var(--type-micro);
   color: rgb(var(--lune-muted) / 0.62);
 }
 
@@ -1311,14 +1568,14 @@
 
 .terminal-track-copy strong,
 .member-copy strong {
-  font-size: 12px;
+  font-size: var(--type-label);
   font-weight: 520;
 }
 
 .terminal-track-copy small,
 .member-copy small {
   margin-top: 3px;
-  font-size: 10px;
+  font-size: var(--type-micro);
   color: rgb(var(--lune-muted) / 0.72);
 }
 
@@ -1346,6 +1603,8 @@
 }
 
 .member-terminal-list {
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
 }
 
@@ -1365,8 +1624,8 @@
   place-items: center;
   border: 1px solid rgb(var(--lune-border) / 0.12);
   border-radius: 10px;
-  font-family: "Space Grotesk Variable", "Space Grotesk", sans-serif;
-  font-size: 11px;
+  font-family: var(--font-display);
+  font-size: var(--type-meta);
   font-weight: 560;
   background: rgb(var(--lune-surface-2));
 }
@@ -1386,7 +1645,7 @@
   padding: 4px 7px;
   border: 1px solid rgb(var(--lune-brand) / 0.36);
   border-radius: 999px;
-  font-size: 9px;
+  font-size: var(--type-micro);
   letter-spacing: 0.04em;
   color: rgb(var(--lune-brand));
 }
@@ -1407,21 +1666,21 @@
   place-items: center;
   border: 1px solid rgb(var(--lune-border) / 0.12);
   border-radius: 12px;
-  font-size: 18px;
+  font-size: var(--type-title-lg);
   color: rgb(var(--lune-brand));
   background: rgb(var(--lune-surface));
 }
 
 .terminal-empty strong {
   margin-top: 14px;
-  font-family: "Space Grotesk Variable", "Space Grotesk", sans-serif;
-  font-size: 13px;
+  font-family: var(--font-display);
+  font-size: var(--type-control);
   font-weight: 560;
 }
 
 .terminal-empty small {
   margin-top: 6px;
-  font-size: 11px;
+  font-size: var(--type-meta);
   color: rgb(var(--lune-muted));
 }
 
@@ -1474,8 +1733,8 @@
   overflow: hidden;
   border: 1px solid rgb(var(--lune-border) / 0.1);
   border-radius: 10px;
-  font-family: "Space Grotesk Variable", "Space Grotesk", sans-serif;
-  font-size: 13px;
+  font-family: var(--font-display);
+  font-size: var(--type-control);
   font-weight: 620;
   color: rgb(var(--lune-brand) / 0.8);
   background: rgb(var(--lune-surface));
@@ -1494,7 +1753,7 @@
 }
 
 .transport-copy > span {
-  font-size: 9px;
+  font-size: var(--type-micro);
   letter-spacing: 0.06em;
   color: rgb(var(--lune-muted) / 0.72);
 }
@@ -1508,15 +1767,15 @@
 
 .transport-copy strong {
   margin-top: 3px;
-  font-family: "Space Grotesk Variable", "Space Grotesk", sans-serif;
-  font-size: 13px;
+  font-family: var(--font-display);
+  font-size: var(--type-control);
   font-weight: 560;
   letter-spacing: -0.015em;
 }
 
 .transport-copy small {
   margin-top: 3px;
-  font-size: 10px;
+  font-size: var(--type-micro);
   color: rgb(var(--lune-muted));
 }
 
@@ -1542,13 +1801,13 @@
 }
 
 .transport-sync strong {
-  font-size: 10px;
+  font-size: var(--type-micro);
   font-weight: 520;
 }
 
 .transport-sync small {
   margin-top: 3px;
-  font-size: 9px;
+  font-size: var(--type-micro);
   color: rgb(var(--lune-muted));
 }
 
@@ -1560,14 +1819,14 @@
 }
 
 .transport-time strong {
-  font-family: "Space Grotesk Variable", "Space Grotesk", sans-serif;
-  font-size: 13px;
+  font-family: var(--font-display);
+  font-size: var(--type-control);
   font-weight: 520;
 }
 
 .transport-time span,
 .transport-time small {
-  font-size: 10px;
+  font-size: var(--type-micro);
   color: rgb(var(--lune-muted));
 }
 
@@ -1581,7 +1840,7 @@
   height: 34px;
   border: 1px solid rgb(var(--lune-border) / 0.12);
   border-radius: 10px;
-  font-size: 15px;
+  font-size: var(--type-title);
   color: rgb(var(--lune-text) / 0.8);
   background: transparent;
   cursor: pointer;
@@ -1608,7 +1867,7 @@
 }
 
 .transport-volume span {
-  font-size: 9px;
+  font-size: var(--type-micro);
   letter-spacing: 0.04em;
   color: rgb(var(--lune-muted));
 }
@@ -1640,8 +1899,8 @@
   padding: 0 14px;
   border: 1px solid rgb(var(--lune-brand) / 0.88);
   border-radius: 10px;
-  font-family: "Space Grotesk Variable", "Space Grotesk", sans-serif;
-  font-size: 11px;
+  font-family: var(--font-display);
+  font-size: var(--type-meta);
   font-weight: 560;
   letter-spacing: 0.02em;
   color: rgb(var(--lune-bg));
@@ -1678,7 +1937,7 @@
 
 @media (max-width: 1200px) {
   .access-intro h1 {
-    font-size: clamp(4.5rem, 6vw, 5rem);
+    font-size: var(--type-display);
   }
 }
 
@@ -1689,7 +1948,7 @@
   }
 
   .access-intro h1 {
-    font-size: clamp(3.4rem, 6.2vw, 4rem);
+    font-size: var(--type-display-compact);
   }
 
   .room-workspace {
@@ -1735,7 +1994,7 @@
 
   .access-intro h1 {
     max-width: 760px;
-    font-size: clamp(3.1rem, 10vw, 4.25rem);
+    font-size: var(--type-display-narrow);
   }
 
   .access-intro .headline-secondary {
@@ -1761,7 +2020,7 @@
   }
 
   .terminal-heading strong {
-    font-size: 17px;
+    font-size: var(--type-title-lg);
   }
 
   .terminal-footer {
@@ -1793,7 +2052,7 @@
   }
 
   .brand-mark {
-    font-size: 13px;
+    font-size: var(--type-control);
   }
 
   .room-code {
@@ -1835,11 +2094,11 @@
   }
 
   .track-identity h2 {
-    font-size: 19px;
+    font-size: var(--type-title-lg);
   }
 
   .lyric-item[data-role="active"] .lyric-item-text {
-    font-size: clamp(20px, 4.5vw, 28px);
+    font-size: var(--type-heading-fluid);
   }
 
   .terminal-sidebar {
@@ -1879,7 +2138,7 @@
   }
 
   .transport-copy strong {
-    font-size: 12px;
+    font-size: var(--type-label);
   }
 
   .transport-time,
@@ -1890,7 +2149,7 @@
   .transport-next {
     height: 32px;
     padding: 0 12px;
-    font-size: 10px;
+    font-size: var(--type-micro);
   }
 
   .terminal-icon-button {
@@ -1906,7 +2165,7 @@
   }
 
   .access-intro h1 {
-    font-size: clamp(2.65rem, 12vw, 3.35rem);
+    font-size: var(--type-display-small);
     line-height: 1;
   }
 
@@ -1925,7 +2184,7 @@
   }
 
   .stage-heading strong {
-    font-size: 12px;
+    font-size: var(--type-label);
   }
 
   .stage-content {
@@ -1965,7 +2224,7 @@
   }
 
   .track-identity h2 {
-    font-size: 18px;
+    font-size: var(--type-title-lg);
   }
 
   .lyric-terminal {
@@ -1980,7 +2239,7 @@
 
   .lyric-item[data-role="active"] .lyric-item-text {
     max-width: 24ch;
-    font-size: 22px;
+    font-size: var(--type-heading);
   }
 
   .transport-copy small,

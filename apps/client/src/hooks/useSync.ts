@@ -13,6 +13,8 @@ interface UseSyncOptions {
   engine: AudioEngine;
 }
 
+const trackKey = (track: Track): string => `${track.provider || ''}:${track.id}`;
+
 /**
  * 消费服务端消息,驱动 AudioEngine 与 roomStore。
  *
@@ -49,8 +51,9 @@ export function useSync({ send, subscribe, getRtt, engine }: UseSyncOptions) {
       const target = calcTargetPosition(pb.position, pb.serverTimestamp, getRtt());
 
       // 新曲目:取 URL 并播放
-      if (lastSyncedTrackId.current !== track.id) {
-        lastSyncedTrackId.current = track.id;
+      const currentTrackKey = trackKey(track);
+      if (lastSyncedTrackId.current !== currentTrackKey) {
+        lastSyncedTrackId.current = currentTrackKey;
         void loadAndPlay(track, target);
         return;
       }
@@ -69,14 +72,14 @@ export function useSync({ send, subscribe, getRtt, engine }: UseSyncOptions) {
 
   const loadAndPlay = useCallback(
     async (track: Track, offsetMs: number) => {
-      const res = await resolveTrack(track.id);
+      const res = await resolveTrack(track.id, track.provider);
       if (!res.url) {
         // 失效:通知服务端切下一首(若本机是 owner 则有效)
         sendRef.current({ type: 'next', payload: { endedTrackId: track.id } });
         return;
       }
       // 加载期间若曲目已变,load 内部 generation 会丢弃,但这里也再校验一次
-      if (latestPlayback.current?.track?.id !== track.id) return;
+      if (!latestPlayback.current?.track || trackKey(latestPlayback.current.track) !== trackKey(track)) return;
       await engine.load(res.url, offsetMs);
     },
     [engine],
