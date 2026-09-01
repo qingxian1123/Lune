@@ -16,14 +16,14 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import type { Track } from '@lune/shared';
+import type { QueueItem, Track } from '@lune/shared';
 import { formatTime } from '../lib/format';
 
 interface MobileQueueProps {
-  queue: Track[];
+  queue: QueueItem[];
   currentTrackId?: string;
-  onRemove: (index: number) => void;
-  onReorder: (fromIndex: number, toIndex: number) => void;
+  onRemove: (itemId: string) => void;
+  onReorder: (itemId: string, beforeItemId: string | null) => void;
 }
 
 interface QueueEntry {
@@ -43,8 +43,8 @@ interface SwipeableTrackProps {
   showUpNext: boolean;
   canReorder: boolean;
   open: boolean;
-  onOpenChange: (index: number | null) => void;
-  onRemove: (index: number) => void;
+  onOpenChange: (itemId: string | null) => void;
+  onRemove: (itemId: string) => void;
 }
 
 function SwipeableTrack({
@@ -65,8 +65,8 @@ function SwipeableTrack({
   // 最新值经 ref 透传,原生监听只绑定一次
   const openRef = useRef(open);
   openRef.current = open;
-  const indexRef = useRef(index);
-  indexRef.current = index;
+  const itemIdRef = useRef(entry.id);
+  itemIdRef.current = entry.id;
   const onOpenChangeRef = useRef(onOpenChange);
   onOpenChangeRef.current = onOpenChange;
 
@@ -123,7 +123,7 @@ function SwipeableTrack({
       const x = Math.min(0, Math.max(-SWIPE_WIDTH, base + dx));
       el.style.transition = '';
       el.style.transform = '';
-      onOpenChangeRef.current(x < -SWIPE_THRESHOLD ? indexRef.current : null);
+      onOpenChangeRef.current(x < -SWIPE_THRESHOLD ? itemIdRef.current : null);
     };
 
     el.addEventListener('touchstart', onStart, { passive: true });
@@ -157,7 +157,7 @@ function SwipeableTrack({
           aria-hidden={!open}
           onClick={() => {
             onOpenChange(null);
-            onRemove(index);
+            onRemove(entry.id);
           }}
         >
           删除
@@ -219,19 +219,19 @@ export default function MobileQueue({
   onRemove,
   onReorder,
 }: MobileQueueProps) {
-  const [openIndex, setOpenIndex] = useState<number | null>(null);
+  const [openItemId, setOpenItemId] = useState<string | null>(null);
 
   // 队列内容变化(增删/排序/切歌)后收起已滑开的行
   useEffect(() => {
-    setOpenIndex(null);
+    setOpenItemId(null);
   }, [queue]);
 
   const entries = useMemo<QueueEntry[]>(
     () =>
-      queue.map((track, index) => ({
-        id: `${track.provider || ''}:${track.id}#${index}`,
+      queue.map((item, index) => ({
+        id: item.id,
         index,
-        track,
+        track: item.track,
       })),
     [queue],
   );
@@ -261,7 +261,10 @@ export default function MobileQueue({
     const fromIndex = entries.findIndex((entry) => entry.id === active.id);
     const toIndex = entries.findIndex((entry) => entry.id === over.id);
     if (fromIndex < 0 || toIndex < 0) return;
-    onReorder(fromIndex, toIndex);
+    const reordered = [...entries];
+    const [moved] = reordered.splice(fromIndex, 1);
+    reordered.splice(toIndex, 0, moved);
+    onReorder(moved.id, reordered[toIndex + 1]?.id ?? null);
   };
 
   return (
@@ -280,8 +283,8 @@ export default function MobileQueue({
               current={entry.index === currentIndex}
               showUpNext={entry.index === upNextIndex && entry.index !== currentIndex}
               canReorder={entries.length > 1}
-              open={openIndex === entry.index}
-              onOpenChange={setOpenIndex}
+              open={openItemId === entry.id}
+              onOpenChange={setOpenItemId}
               onRemove={onRemove}
             />
           ))}

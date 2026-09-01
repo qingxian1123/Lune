@@ -66,4 +66,13 @@ export class ConnectionRegistry {
   connCount(roomCode: string): number {
     return this.roomConns.get(roomCode)?.size ?? 0;
   }
+
+  hasMemberConnection(roomCode: string, memberId: string): boolean {
+    const set = this.roomConns.get(roomCode);
+    if (!set) return false;
+    for (const ws of set) {
+      if (this.connToInfo.get(ws)?.memberId === memberId && ws.readyState === ws.OPEN) return true;
+    }
+    return false;
+  }
 }

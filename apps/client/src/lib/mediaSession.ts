@@ -6,7 +6,8 @@
  * 其他环境(桌面 Tauri、浏览器)全部安全 no-op。
  */
 
-export type MediaAction = 'next' | 'favorite' | 'leave';
+export type MediaAction = 'next' | 'favorite' | 'leave' | 'mute' | 'resume';
+export type AudioInterrupt = 'focus_loss' | 'focus_gain' | 'becoming_noisy';
 
 export interface MediaSessionState {
   title: string;
@@ -15,6 +16,8 @@ export interface MediaSessionState {
   durationMs: number;
   positionMs: number;
   playing: boolean;
+  /** 本机输出是否静音；房间时间线仍继续播放 */
+  muted: boolean;
   /** 是否显示「下一首」动作(仅房主) */
   canNext: boolean;
 }
@@ -42,6 +45,11 @@ export async function startMediaSession(): Promise<void> {
   await invokeMedia('start');
 }
 
+/** 用户要求恢复本机声音时，复用 start 命令重新申请 Android 音频焦点。 */
+export async function requestMediaAudioFocus(): Promise<void> {
+  await invokeMedia('start');
+}
+
 /** 同步曲目元数据与播放状态到通知栏/锁屏 */
 export async function updateMediaSession(state: MediaSessionState): Promise<void> {
   await invokeMedia('update', { ...state });
@@ -65,6 +73,26 @@ export async function onMediaAction(
       'lune-media',
       'action',
       (event) => handler(event.action),
+    );
+    return () => {
+      void listener.unregister();
+    };
+  } catch {
+    return () => {};
+  }
+}
+
+/** 订阅来电、其他应用抢占音频与耳机断开等 Android 系统中断。 */
+export async function onAudioInterrupt(
+  handler: (event: AudioInterrupt) => void,
+): Promise<() => void> {
+  if (!isTauriAndroid()) return () => {};
+  try {
+    const { addPluginListener } = await import('@tauri-apps/api/core');
+    const listener = await addPluginListener<{ event: AudioInterrupt }>(
+      'lune-media',
+      'audio',
+      (payload) => handler(payload.event),
     );
     return () => {
       void listener.unregister();

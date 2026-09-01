@@ -1,4 +1,5 @@
 import type { Track } from '@lune/shared';
+import VolumeIcon from '../../components/VolumeIcon';
 import MobileTimeline from './MobileTimeline';
 import type { MobileRoomSheet, MobileRoomSheetState } from './types';
 
@@ -8,6 +9,8 @@ interface MobilePlayerViewProps {
   isLoadingLyrics: boolean;
   isBuffering: boolean;
   favorite: boolean;
+  volume: number;
+  muted: boolean;
   currentTime: number;
   duration: number;
   activeSheet: MobileRoomSheetState;
@@ -27,6 +30,8 @@ export default function MobilePlayerView({
   isLoadingLyrics,
   isBuffering,
   favorite,
+  volume,
+  muted,
   currentTime,
   duration,
   activeSheet,
@@ -124,18 +129,9 @@ export default function MobilePlayerView({
             type="button"
             className="m-ctl"
             onClick={() => onOpenSheet('volume')}
-            aria-label="音量"
+            aria-label={muted ? '本机音量，当前静音' : `本机音量 ${Math.round(volume * 100)}%`}
           >
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor" />
-              <path
-                d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-              />
-            </svg>
+            <VolumeIcon volume={volume} muted={muted} />
           </button>
         </div>
       </section>

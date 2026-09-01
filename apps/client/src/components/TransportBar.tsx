@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
 import type { CSSProperties } from 'react';
 import type { Track } from '@lune/shared';
 import { useFavoriteStore } from '../hooks/useFavoriteStore';
+import { useVolumeStore } from '../hooks/useVolumeStore';
 import { formatTime } from '../lib/format';
+import VolumeIcon from './VolumeIcon';
 
 interface TransportBarProps {
   track: Track | null;
@@ -12,7 +13,6 @@ interface TransportBarProps {
   isOwner: boolean;
   membersCount: number;
   onSeek: (ms: number) => void;
-  onVolume: (volume: number) => void;
   onNext: () => void;
 }
 
@@ -24,19 +24,18 @@ export default function TransportBar({
   isOwner,
   membersCount,
   onSeek,
-  onVolume,
   onNext,
 }: TransportBarProps) {
   const isFavorite = useFavoriteStore((state) => state.isFavorite);
   const toggleFavorite = useFavoriteStore((state) => state.toggle);
-  const [volume, setVolume] = useState(0.8);
+  const volume = useVolumeStore((state) => state.volume);
+  const muted = useVolumeStore((state) => state.muted);
+  const setVolume = useVolumeStore((state) => state.setVolume);
+  const toggleMute = useVolumeStore((state) => state.toggleMute);
   const safeDuration = duration || track?.duration || 0;
   const progress = safeDuration > 0 ? Math.min(currentTime, safeDuration) / safeDuration : 0;
   const favorite = track ? isFavorite(track.id) : false;
-
-  useEffect(() => {
-    onVolume(volume);
-  }, [onVolume, volume]);
+  const volumePercent = Math.round(volume * 100);
 
   const progressStyle = {
     '--transport-progress': `${progress * 100}%`,
@@ -99,18 +98,34 @@ export default function TransportBar({
           {favorite ? '♥' : '♡'}
         </button>
 
-        <label className="transport-volume" style={volumeStyle}>
-          <span>音量</span>
-          <input
-            type="range"
-            min={0}
-            max={1}
-            step={0.01}
-            value={volume}
-            onChange={(event) => setVolume(Number(event.target.value))}
-            aria-label="音量"
-          />
-        </label>
+        <div className="transport-volume" style={volumeStyle}>
+          <button
+            type="button"
+            className={`transport-volume-toggle ${muted ? 'is-muted' : ''}`}
+            onClick={toggleMute}
+            aria-label={muted ? '恢复本机音量' : '静音本机播放'}
+            aria-pressed={muted}
+            title={muted ? '恢复音量' : '静音'}
+          >
+            <VolumeIcon volume={volume} muted={muted} />
+          </button>
+          <label className="transport-volume-slider">
+            <span className="sr-only">本机音量</span>
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.01}
+              value={volume}
+              onChange={(event) => setVolume(Number(event.target.value))}
+              aria-label="本机音量"
+              aria-valuetext={muted ? '静音' : `${volumePercent}%`}
+            />
+          </label>
+          <output className="transport-volume-value" aria-hidden="true">
+            {volumePercent}%
+          </output>
+        </div>
 
         <button
           type="button"

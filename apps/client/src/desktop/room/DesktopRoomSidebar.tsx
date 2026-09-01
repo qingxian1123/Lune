@@ -1,4 +1,4 @@
-import type { Member, Track } from '@lune/shared';
+import type { Member, QueueItem, Track } from '@lune/shared';
 import MemberList from '../../components/MemberList';
 import Queue from '../../components/Queue';
 import SearchPanel from '../../components/SearchPanel';
@@ -7,7 +7,7 @@ import type { DesktopRoomTab } from './types';
 interface DesktopRoomSidebarProps {
   open: boolean;
   activeTab: DesktopRoomTab;
-  queue: Track[];
+  queue: QueueItem[];
   members: Member[];
   ownerId: string;
   currentTrackId?: string;
@@ -15,8 +15,8 @@ interface DesktopRoomSidebarProps {
   onClose: () => void;
   onPickTrack: (track: Track) => void;
   onAddMany: (tracks: Track[]) => void;
-  onRemove: (index: number) => void;
-  onReorder: (fromIndex: number, toIndex: number) => void;
+  onRemove: (itemId: string) => void;
+  onReorder: (itemId: string, beforeItemId: string | null) => void;
 }
 
 export default function DesktopRoomSidebar({

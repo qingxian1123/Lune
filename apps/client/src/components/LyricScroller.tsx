@@ -4,31 +4,27 @@ import type { LyricLine } from '@lune/shared';
 interface LyricScrollerProps {
   lines: LyricLine[];
   activeIndex: number;
-  isOwner: boolean;
-  onSeek: (ms: number) => void;
 }
 
 /**
- * Karaoke-style lyric scroller.
+ * Read-only bilingual lyric scroller.
  *
  * Model:
  * - All lines stay mounted with stable keys (no slot remounts).
- * - Viewport fills the cover row; the list is translated so the focus line's
- *   main text mid-line sits on the viewport mid-line (= album cover center).
+ * - Every original/translation pair always participates in layout.
+ * - The active line's original-text top edge is pinned to a stable viewport
+ *   anchor. Its translation height can change without moving that anchor.
  * - Transform is written in useLayoutEffect (not React state) so measure +
  *   apply happen before paint — avoids the flash from "new active, old offset".
- * - Only transform is animated. Typography role changes are instant so
- *   layout height is final when we measure.
+ * - Lyrics are display-only. Seeking remains available from the timeline.
  */
 export default function LyricScroller({
   lines,
   activeIndex,
-  isOwner,
-  onSeek,
 }: LyricScrollerProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
-  const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
   const prevFocusRef = useRef<number | null>(null);
   const positionedRef = useRef(false);
   const focusIndexRef = useRef(-1);
@@ -59,17 +55,28 @@ export default function LyricScroller({
     const item = itemRefs.current[index];
     if (!item) return;
 
-    // Pin the main lyric text (not the whole row with translation) to the
-    // viewport mid-line — that mid-line matches the album cover center.
+    // Pin the main lyric text's top edge. Clamp the anchor upward when a tall
+    // bilingual block needs more room below it, keeping common long lines out
+    // of the viewport fade zones.
     const text = item.querySelector('.lyric-item-text');
     const target = text instanceof HTMLElement ? text : item;
 
-    const currentY = readTranslateY(list);
     const viewportRect = viewport.getBoundingClientRect();
-    const targetRect = target.getBoundingClientRect();
-    const viewportCenter = viewportRect.top + viewportRect.height / 2;
-    const targetCenter = targetRect.top + targetRect.height / 2;
-    applyOffset(currentY + (viewportCenter - targetCenter), animate);
+    const styles = getComputedStyle(viewport);
+    const focusRatio = readRatio(styles.getPropertyValue('--lyric-focus-position'), 0.4);
+    const safeRatio = readRatio(styles.getPropertyValue('--lyric-fade-safe'), 0.08);
+    const safeInset = Math.max(16, viewportRect.height * safeRatio);
+    const desiredAnchor = viewportRect.height * focusRatio;
+    const targetOffsetWithinItem = target === item ? 0 : target.offsetTop;
+    const targetOffset = item.offsetTop + targetOffsetWithinItem;
+    const blockHeightBelowTarget = item.offsetHeight - targetOffsetWithinItem;
+    const highestCompleteAnchor = Math.max(
+      safeInset,
+      viewportRect.height - safeInset - blockHeightBelowTarget,
+    );
+    const anchor = Math.max(safeInset, Math.min(desiredAnchor, highestCompleteAnchor));
+
+    applyOffset(anchor - targetOffset, animate);
   };
 
   // Pin after every focus change / line set change — before browser paint.
@@ -89,23 +96,34 @@ export default function LyricScroller({
     prevFocusRef.current = focusIndex;
   }, [focusIndex, lines]);
 
-  // Re-pin on viewport resize without animation.
+  // Re-pin on viewport/content resize and after fonts settle, without motion.
   useEffect(() => {
     const viewport = viewportRef.current;
-    if (!viewport) return;
+    const list = listRef.current;
+    if (!viewport || !list) return;
 
     const observer = new ResizeObserver(() => {
       measureAndPin(false);
     });
     observer.observe(viewport);
-    return () => observer.disconnect();
+    observer.observe(list);
+
+    let alive = true;
+    void document.fonts?.ready.then(() => {
+      if (alive) measureAndPin(false);
+    });
+
+    return () => {
+      alive = false;
+      observer.disconnect();
+    };
   }, [lines]);
 
   if (lines.length === 0) return null;
 
   return (
-    <div className="lyric-scroller" ref={viewportRef} aria-live="polite">
-      <div className="lyric-list" ref={listRef}>
+    <div className="lyric-scroller" ref={viewportRef} aria-label="同步歌词">
+      <div className="lyric-list" ref={listRef} role="list">
         {lines.map((line, index) => {
           const distance = Math.abs(index - focusIndex);
           const role =
@@ -121,35 +139,22 @@ export default function LyricScroller({
           const isFocus = index === focusIndex && activeIndex >= 0;
 
           return (
-            <button
-              type="button"
+            <div
               key={`${line.time}-${index}`}
               ref={(el) => {
                 itemRefs.current[index] = el;
               }}
               className="lyric-item"
+              role="listitem"
               data-role={role}
               data-focus={isFocus ? 'true' : undefined}
-              onClick={() => {
-                if (!isOwner) return;
-                onSeek(line.time * 1000);
-              }}
-              disabled={!isOwner}
-              title={
-                isOwner
-                  ? `跳转到 ${formatClock(line.time)}`
-                  : '正在跟随房主'
-              }
               aria-current={isFocus ? 'true' : undefined}
             >
               <span className="lyric-item-text">{line.text}</span>
               {line.trans ? (
                 <span className="lyric-item-trans">{line.trans}</span>
               ) : null}
-              {isOwner ? (
-                <span className="lyric-item-time">{formatClock(line.time)}</span>
-              ) : null}
-            </button>
+            </div>
           );
         })}
       </div>
@@ -157,30 +162,11 @@ export default function LyricScroller({
   );
 }
 
-function formatClock(seconds: number) {
-  const m = Math.floor(seconds / 60);
-  const s = Math.floor(seconds % 60);
-  return `${m}:${s.toString().padStart(2, '0')}`;
-}
+function readRatio(value: string, fallback: number) {
+  const normalized = value.trim();
+  if (!normalized) return fallback;
 
-/** Current translateY from inline style or computed matrix. */
-function readTranslateY(el: HTMLElement): number {
-  const inline = el.style.transform;
-  const inlineMatch = /translate3d\(\s*[^,]+,\s*([-\d.]+)px/i.exec(inline);
-  if (inlineMatch) return Number(inlineMatch[1]);
-
-  const computed = getComputedStyle(el).transform;
-  if (!computed || computed === 'none') return 0;
-
-  if (computed.startsWith('matrix3d(')) {
-    const parts = computed.slice(9, -1).split(',').map((v) => Number(v.trim()));
-    return parts[13] ?? 0;
-  }
-
-  if (computed.startsWith('matrix(')) {
-    const parts = computed.slice(7, -1).split(',').map((v) => Number(v.trim()));
-    return parts[5] ?? 0;
-  }
-
-  return 0;
+  const parsed = Number.parseFloat(normalized);
+  if (!Number.isFinite(parsed)) return fallback;
+  return normalized.endsWith('%') ? parsed / 100 : parsed;
 }

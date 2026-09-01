@@ -12,8 +12,11 @@ interface RoomMediaSessionOptions {
   track: Track | null | undefined;
   currentTime: number;
   playing: boolean;
+  muted: boolean;
   onNext: () => void;
   onToggleFavorite: (trackId: string) => void;
+  onMute: () => void;
+  onResume: () => void;
   onLeave: () => void;
 }
 
@@ -21,8 +24,11 @@ export function useRoomMediaSession({
   track,
   currentTime,
   playing,
+  muted,
   onNext,
   onToggleFavorite,
+  onMute,
+  onResume,
   onLeave,
 }: RoomMediaSessionOptions) {
   useEffect(() => {
@@ -40,6 +46,14 @@ export function useRoomMediaSession({
     }
     if (action === 'favorite') {
       if (track) onToggleFavorite(track.id);
+      return;
+    }
+    if (action === 'mute') {
+      onMute();
+      return;
+    }
+    if (action === 'resume') {
+      onResume();
       return;
     }
     if (action === 'leave') onLeave();
@@ -61,15 +75,15 @@ export function useRoomMediaSession({
   const positionRef = useRef(0);
   positionRef.current = currentTime;
   useEffect(() => {
-    if (!track) return;
     void updateMediaSession({
-      title: track.name,
-      artist: track.artists,
-      coverUrl: track.coverUrl || null,
-      durationMs: track.duration,
+      title: track?.name ?? 'Lune · 一起听',
+      artist: track?.artists ?? '等待房间里的下一首歌',
+      coverUrl: track?.coverUrl || null,
+      durationMs: track?.duration ?? 0,
       positionMs: Math.round(positionRef.current),
       playing,
-      canNext: true,
+      muted,
+      canNext: Boolean(track),
     });
-  }, [playing, track]);
+  }, [muted, playing, track]);
 }

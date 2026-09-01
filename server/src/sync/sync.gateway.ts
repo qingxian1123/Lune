@@ -7,9 +7,16 @@ import {
 } from '@nestjs/websockets';
 import type { Server, WebSocket } from 'ws';
 import { JwtService } from '@nestjs/jwt';
-import type { ClientMessage, RoomTokenPayload, Track } from '@lune/shared';
+import type {
+  ClientMessage,
+  PlaybackAdvanceReason,
+  RoomStateChangeCause,
+  RoomTokenPayload,
+  Track,
+} from '@lune/shared';
 import { RoomStore } from '../rooms/room.store';
 import { RoomsService } from '../rooms/rooms.service';
+import type { Room } from '../rooms/room.model';
 import { ConnectionRegistry } from './connection.registry';
 
 /**
@@ -24,7 +31,7 @@ import { ConnectionRegistry } from './connection.registry';
  *  1. 客户端连接后发 `join { token }`
  *  2. 网关验 JWT,绑定 memberId→room,回 `joined { snapshot, memberId }`
  *  3. 其他成员收到 `member_joined`
- *  4. 播放/队列消息经入房校验后改 Room 状态(全员同权),广播 `playback_state` / `queue_updated`
+ *  4. 播放/队列命令经版本校验后原子修改 Room 状态，广播单条 `room_state_changed`
  *  5. 断开:unbind + rooms.leave,空房删除,他人收到 `member_left`
  *
  * 无 pause 消息(产品决定)。
@@ -32,6 +39,8 @@ import { ConnectionRegistry } from './connection.registry';
 @WebSocketGateway({ path: '/ws' })
 export class SyncGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private readonly logger = new Logger(SyncGateway.name);
+  private readonly disconnectGraceMs = 30_000;
+  private readonly pendingLeaves = new Map<string, ReturnType<typeof setTimeout>>();
 
   @WebSocketServer()
   server!: Server;
@@ -51,15 +60,24 @@ export class SyncGateway implements OnGatewayConnection, OnGatewayDisconnect {
   handleDisconnect(ws: WebSocket): void {
     const info = this.conns.unbind(ws);
     if (!info) return;
-    const { empty, ownerChanged } = this.rooms.leave(info.roomCode, info.memberId);
-    if (empty) return;
-    const room = this.store.getRoom(info.roomCode);
-    const ownerId = room?.ownerId ?? '';
-    this.conns.broadcast(info.roomCode, {
-      type: 'member_left',
-      payload: { memberId: info.memberId, ownerId },
-    });
-    if (ownerChanged) this.logger.log(`owner 转移至 ${ownerId}`);
+    const key = this.memberConnectionKey(info.roomCode, info.memberId);
+    const previous = this.pendingLeaves.get(key);
+    if (previous) clearTimeout(previous);
+    const timer = setTimeout(() => {
+      this.pendingLeaves.delete(key);
+      if (this.conns.hasMemberConnection(info.roomCode, info.memberId)) return;
+      const { empty, ownerChanged } = this.rooms.leave(info.roomCode, info.memberId);
+      if (empty) return;
+      const room = this.store.getRoom(info.roomCode);
+      const ownerId = room?.ownerId ?? '';
+      this.conns.broadcast(info.roomCode, {
+        type: 'member_left',
+        payload: { memberId: info.memberId, ownerId },
+      });
+      if (ownerChanged) this.logger.log(`owner 转移至 ${ownerId}`);
+    }, this.disconnectGraceMs);
+    timer.unref?.();
+    this.pendingLeaves.set(key, timer);
   }
 
   private onMessage(ws: WebSocket, text: string): void {
@@ -75,13 +93,23 @@ export class SyncGateway implements OnGatewayConnection, OnGatewayDisconnect {
         this.handleJoin(ws, msg.payload.token);
         break;
       case 'play':
-        this.handlePlay(ws, msg.payload.track, msg.payload.position);
+        this.handlePlay(ws, msg.payload.track, msg.payload.position, msg.payload.expectedPlaybackSeq);
         break;
       case 'seek':
-        this.handleSeek(ws, msg.payload.position);
+        this.handleSeek(
+          ws,
+          msg.payload.position,
+          msg.payload.expectedTrackKey,
+        );
         break;
-      case 'next':
-        this.handleNext(ws, msg.payload.endedTrackId);
+      case 'advance_playback':
+        this.handleAdvancePlayback(
+          ws,
+          msg.payload.requestId,
+          msg.payload.expectedPlaybackSeq,
+          msg.payload.expectedTrackKey,
+          msg.payload.reason,
+        );
         break;
       case 'add_song':
         this.handleAddSong(ws, msg.payload.track);
@@ -89,15 +117,15 @@ export class SyncGateway implements OnGatewayConnection, OnGatewayDisconnect {
       case 'add_songs':
         this.handleAddSongs(ws, msg.payload.tracks);
         break;
-      case 'remove_song':
-        this.handleRemoveSong(ws, msg.payload.index);
+      case 'remove_queue_item':
+        this.handleRemoveQueueItem(ws, msg.payload.itemId, msg.payload.expectedQueueRevision);
         break;
-      case 'reorder_song':
-        this.handleReorderSong(
+      case 'reorder_queue_item':
+        this.handleReorderQueueItem(
           ws,
-          msg.payload.fromIndex,
-          msg.payload.toIndex,
-          msg.payload.expectedRevision,
+          msg.payload.itemId,
+          msg.payload.beforeItemId,
+          msg.payload.expectedQueueRevision,
         );
         break;
       case 'heartbeat':
@@ -128,6 +156,8 @@ export class SyncGateway implements OnGatewayConnection, OnGatewayDisconnect {
       this.conns.send(ws, { type: 'error', payload: { message: '成员已不在房间,请重新加入' } });
       return;
     }
+    const reconnecting = this.cancelPendingLeave(payload.roomCode, payload.memberId) ||
+      this.conns.hasMemberConnection(payload.roomCode, payload.memberId);
     this.conns.bind(ws, {
       memberId: payload.memberId,
       roomCode: payload.roomCode,
@@ -137,52 +167,70 @@ export class SyncGateway implements OnGatewayConnection, OnGatewayDisconnect {
       type: 'joined',
       payload: { snapshot: room.toSnapshot(), memberId: payload.memberId },
     });
-    this.conns.broadcast(payload.roomCode, {
-      type: 'member_joined',
-      payload: {
-        member: {
-          id: payload.memberId,
-          nickname: payload.nickname,
-          isOwner: room.ownerId === payload.memberId,
+    if (!reconnecting) {
+      this.conns.broadcast(payload.roomCode, {
+        type: 'member_joined',
+        payload: {
+          member: {
+            id: payload.memberId,
+            nickname: payload.nickname,
+            isOwner: room.ownerId === payload.memberId,
+          },
         },
-      },
-    });
+      });
+    }
     this.logger.log(`${payload.nickname} joined ${payload.roomCode}`);
   }
 
-  private handlePlay(ws: WebSocket, track: Track, position?: number): void {
+  private handlePlay(
+    ws: WebSocket,
+    track: Track,
+    position: number | undefined,
+    expectedPlaybackSeq: number,
+  ): void {
     if (!this.assertJoined(ws)) return;
     const info = this.conns.infoOf(ws)!;
     const room = this.store.getRoom(info.roomCode);
     if (!room) return;
-    const playback = room.play(track, position ?? 0);
-    this.conns.broadcast(info.roomCode, { type: 'playback_state', payload: playback });
-  }
-
-  private handleSeek(ws: WebSocket, position: number): void {
-    if (!this.assertJoined(ws)) return;
-    const info = this.conns.infoOf(ws)!;
-    const room = this.store.getRoom(info.roomCode);
-    if (!room) return;
-    const playback = room.seek(position);
-    this.conns.broadcast(info.roomCode, { type: 'playback_state', payload: playback });
-  }
-
-  private handleNext(ws: WebSocket, endedTrackId?: string): void {
-    if (!this.assertJoined(ws)) return;
-    const info = this.conns.infoOf(ws)!;
-    const room = this.store.getRoom(info.roomCode);
-    if (!room) return;
-    // 防多客户端同时发 next 跳过多次(V1 同款约束):同一 endedTrackId 1s 内不重复
-    const now = Date.now();
-    if (endedTrackId && room.lastEndedTrackId === endedTrackId && now - room.lastNextTime < 1000) {
+    if (!room.play(track, position ?? 0, expectedPlaybackSeq)) {
+      this.sendRoomState(ws, room, 'resync');
       return;
     }
-    room.lastEndedTrackId = endedTrackId ?? '';
-    room.lastNextTime = now;
-    const { playback } = room.next();
-    this.conns.broadcast(info.roomCode, { type: 'playback_state', payload: playback });
-    this.broadcastQueue(info.roomCode, room);
+    this.broadcastRoomState(info.roomCode, room, 'play');
+  }
+
+  private handleSeek(
+    ws: WebSocket,
+    position: number,
+    expectedTrackKey: string,
+  ): void {
+    if (!this.assertJoined(ws)) return;
+    const info = this.conns.infoOf(ws)!;
+    const room = this.store.getRoom(info.roomCode);
+    if (!room) return;
+    if (!room.seek(position, expectedTrackKey)) {
+      this.sendRoomState(ws, room, 'resync');
+      return;
+    }
+    this.broadcastRoomState(info.roomCode, room, 'seek');
+  }
+
+  private handleAdvancePlayback(
+    ws: WebSocket,
+    requestId: string,
+    expectedPlaybackSeq: number,
+    expectedTrackKey: string,
+    _reason: PlaybackAdvanceReason,
+  ): void {
+    if (!this.assertJoined(ws)) return;
+    const info = this.conns.infoOf(ws)!;
+    const room = this.store.getRoom(info.roomCode);
+    if (!room) return;
+    if (!room.advance(expectedPlaybackSeq, expectedTrackKey)) {
+      this.sendRoomState(ws, room, 'resync');
+      return;
+    }
+    this.broadcastRoomState(info.roomCode, room, 'advance', requestId);
   }
 
   private handleAddSong(ws: WebSocket, track: Track): void {
@@ -191,8 +239,8 @@ export class SyncGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const room = this.store.getRoom(info.roomCode);
     if (!room) return;
     // 任何成员都可加歌(沿用 V1)
-    room.enqueue(track);
-    this.broadcastQueue(info.roomCode, room);
+    room.enqueue(track, info.memberId);
+    this.broadcastRoomState(info.roomCode, room, 'enqueue');
   }
 
   private handleAddSongs(ws: WebSocket, tracks: Track[]): void {
@@ -201,25 +249,28 @@ export class SyncGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const room = this.store.getRoom(info.roomCode);
     if (!room) return;
     if (tracks.length === 0) return;
-    // 批量入队(歌单"全部加入"),一次广播避免 N 次 queue_updated 风暴
-    room.enqueueMany(tracks);
-    this.broadcastQueue(info.roomCode, room);
+    // 批量入队(歌单"全部加入"),只产生一次原子房间状态事件
+    room.enqueueMany(tracks, info.memberId);
+    this.broadcastRoomState(info.roomCode, room, 'enqueue');
   }
 
-  private handleRemoveSong(ws: WebSocket, index: number): void {
+  private handleRemoveQueueItem(ws: WebSocket, itemId: string, expectedQueueRevision: number): void {
     if (!this.assertJoined(ws)) return;
     const info = this.conns.infoOf(ws)!;
     const room = this.store.getRoom(info.roomCode);
     if (!room) return;
-    room.removeAt(index);
-    this.broadcastQueue(info.roomCode, room);
+    if (!room.remove(itemId, expectedQueueRevision)) {
+      this.sendRoomState(ws, room, 'resync');
+      return;
+    }
+    this.broadcastRoomState(info.roomCode, room, 'remove');
   }
 
-  private handleReorderSong(
+  private handleReorderQueueItem(
     ws: WebSocket,
-    fromIndex: number,
-    toIndex: number,
-    expectedRevision: number,
+    itemId: string,
+    beforeItemId: string | null,
+    expectedQueueRevision: number,
   ): void {
     const info = this.conns.infoOf(ws);
     if (!info) {
@@ -231,21 +282,40 @@ export class SyncGateway implements OnGatewayConnection, OnGatewayDisconnect {
       this.conns.send(ws, { type: 'error', payload: { message: '房间不存在' } });
       return;
     }
-    if (expectedRevision !== room.queueRevision) {
-      this.conns.send(ws, {
-        type: 'queue_updated',
-        payload: { queue: room.queue, queueRevision: room.queueRevision },
-      });
+    if (!room.reorder(itemId, beforeItemId, expectedQueueRevision)) {
+      this.sendRoomState(ws, room, 'resync');
       return;
     }
-    if (!room.reorder(fromIndex, toIndex)) return;
-    this.broadcastQueue(info.roomCode, room);
+    this.broadcastRoomState(info.roomCode, room, 'reorder');
   }
 
-  private broadcastQueue(roomCode: string, room: { queue: Track[]; queueRevision: number }): void {
+  private broadcastRoomState(
+    roomCode: string,
+    room: Room,
+    cause: RoomStateChangeCause,
+    appliedRequestId?: string,
+  ): void {
     this.conns.broadcast(roomCode, {
-      type: 'queue_updated',
-      payload: { queue: room.queue, queueRevision: room.queueRevision },
+      type: 'room_state_changed',
+      payload: {
+        playback: room.playback,
+        queue: room.queue,
+        queueRevision: room.queueRevision,
+        cause,
+        ...(appliedRequestId ? { appliedRequestId } : {}),
+      },
+    });
+  }
+
+  private sendRoomState(ws: WebSocket, room: Room, cause: RoomStateChangeCause): void {
+    this.conns.send(ws, {
+      type: 'room_state_changed',
+      payload: {
+        playback: room.playback,
+        queue: room.queue,
+        queueRevision: room.queueRevision,
+        cause,
+      },
     });
   }
 
@@ -264,6 +334,19 @@ export class SyncGateway implements OnGatewayConnection, OnGatewayDisconnect {
       this.conns.send(ws, { type: 'error', payload: { message: '房间不存在' } });
       return false;
     }
+    return true;
+  }
+
+  private memberConnectionKey(roomCode: string, memberId: string): string {
+    return `${roomCode}:${memberId}`;
+  }
+
+  private cancelPendingLeave(roomCode: string, memberId: string): boolean {
+    const key = this.memberConnectionKey(roomCode, memberId);
+    const timer = this.pendingLeaves.get(key);
+    if (!timer) return false;
+    clearTimeout(timer);
+    this.pendingLeaves.delete(key);
     return true;
   }
 }

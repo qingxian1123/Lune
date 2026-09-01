@@ -1,7 +1,7 @@
 /**
  * 同步时钟修正(移植 v1 lib/sync.ts,时间单位由秒改为毫秒)。
  *
- * 服务端在 playback_state 里附 serverTimestamp + position(毫秒)。
+ * 服务端在原子房间状态的 playback 中附 serverTimestamp + position(毫秒)。
  * 客户端用本地 now 与 serverTimestamp 的差,叠加单向 RTT 估算当前应处进度。
  */
 

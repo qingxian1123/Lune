@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { WebSocket } from 'ws';
 
 const testPort = process.env.LUNE_TEST_PORT ?? '9527';
-const API = `http://localhost:${testPort}/api`;
-const WS_URL = `ws://localhost:${testPort}/ws`;
+const API = `http://127.0.0.1:${testPort}/api`;
+const WS_URL = `ws://127.0.0.1:${testPort}/ws`;
 
 const log = (tag, x) => console.log(`[${tag}]`, typeof x === 'string' ? x : JSON.stringify(x));
 
@@ -37,10 +37,14 @@ function openClient() {
     once(type) {
       const p = pending.get(type);
       if (p && p.length) return Promise.resolve(p.shift());
-      return new Promise((res) => {
+      return new Promise((res, reject) => {
+        const timeout = setTimeout(() => reject(new Error(`等待 ${type} 超时`)), 5000);
         let arr = waiters.get(type);
         if (!arr) { arr = []; waiters.set(type, arr); }
-        arr.push(res);
+        arr.push((msg) => {
+          clearTimeout(timeout);
+          res(msg);
+        });
       });
     },
     send(msg) { ws.send(JSON.stringify(msg)); },
@@ -77,64 +81,108 @@ const main = async () => {
   const bJoined = await b.once('joined');
   log('bob', `joined snapshot members=${bJoined.payload.snapshot.members.length}`);
 
-  // 4. Bob 非 owner 发 play 应被拒
-  b.send({ type: 'play', payload: { track: trackA } });
-  const denied = await b.once('error');
-  log('bob', `play denied=${denied.payload.message}`);
-
-  // 5. Alice(owner) 发 play
-  a.send({ type: 'play', payload: { track: trackA, position: 1000 } });
-  const bPlay = await b.once('playback_state');
-  log('bob', `playback status=${bPlay.payload.status} track=${bPlay.payload.track?.name} pos=${bPlay.payload.position} seq=${bPlay.payload.seq}`);
-
-  // 6. Alice add_song
-  a.send({ type: 'add_song', payload: { track: trackB } });
-  const [, bQueue] = await Promise.all([a.once('queue_updated'), b.once('queue_updated')]);
-  log('bob', `queue len=${bQueue.payload.queue.length} first=${bQueue.payload.queue[0]?.name}`);
-
-  // 7. Bob（非 owner）添加第二首待播歌曲并把它拖到队首
-  b.send({ type: 'add_song', payload: { track: trackC } });
-  const [, bQueueBeforeReorder] = await Promise.all([a.once('queue_updated'), b.once('queue_updated')]);
-  b.send({
-    type: 'reorder_song',
-    payload: { fromIndex: 1, toIndex: 0, expectedRevision: bQueueBeforeReorder.payload.queueRevision },
+  // 4. Alice 基于加入快照的 playback seq 开始播放
+  a.send({
+    type: 'play',
+    payload: { track: trackA, position: 1000, expectedPlaybackSeq: aJoined.payload.snapshot.playback.seq },
   });
-  const [aReordered, bReordered] = await Promise.all([a.once('queue_updated'), b.once('queue_updated')]);
-  assert.deepEqual(aReordered.payload.queue.map((track) => track.id), ['3', '2']);
-  assert.deepEqual(bReordered.payload.queue.map((track) => track.id), ['3', '2']);
-  log('reorder', `non-owner moved queue to ${bReordered.payload.queue.map((track) => track.name).join(' → ')}`);
+  const [, bPlay] = await Promise.all([
+    a.once('room_state_changed'),
+    b.once('room_state_changed'),
+  ]);
+  assert.equal(bPlay.payload.cause, 'play');
+  log('bob', `playback status=${bPlay.payload.playback.status} track=${bPlay.payload.playback.track?.name} pos=${bPlay.payload.playback.position} seq=${bPlay.payload.playback.seq}`);
 
-  // 8. Alice next → 应按调整后的顺序切到 trackC
-  a.send({ type: 'next', payload: { endedTrackId: '1' } });
-  const bNext = await b.once('playback_state');
-  assert.equal(bNext.payload.track?.id, '3');
-  log('bob', `next playback track=${bNext.payload.track?.name} status=${bNext.payload.status}`);
-  const bNextQueue = await b.once('queue_updated');
-  log('bob', `queue after next len=${bNextQueue.payload.queue.length}`);
+  // 5. Alice add_song
+  a.send({ type: 'add_song', payload: { track: trackB } });
+  const [, bQueue] = await Promise.all([a.once('room_state_changed'), b.once('room_state_changed')]);
+  log('bob', `queue len=${bQueue.payload.queue.length} first=${bQueue.payload.queue[0]?.track.name}`);
 
-  // 9. Alice seek
-  a.send({ type: 'seek', payload: { position: 5000 } });
-  const bSeek = await b.once('playback_state');
-  log('bob', `seek pos=${bSeek.payload.position} seq=${bSeek.payload.seq}`);
+  // 6. Bob 添加第二首待播歌曲并按稳定条目 ID 把它拖到队首
+  b.send({ type: 'add_song', payload: { track: trackC } });
+  const [, bQueueBeforeReorder] = await Promise.all([
+    a.once('room_state_changed'),
+    b.once('room_state_changed'),
+  ]);
+  const [itemB, itemC] = bQueueBeforeReorder.payload.queue;
+  b.send({
+    type: 'reorder_queue_item',
+    payload: {
+      itemId: itemC.id,
+      beforeItemId: itemB.id,
+      expectedQueueRevision: bQueueBeforeReorder.payload.queueRevision,
+    },
+  });
+  const [aReordered, bReordered] = await Promise.all([
+    a.once('room_state_changed'),
+    b.once('room_state_changed'),
+  ]);
+  assert.deepEqual(aReordered.payload.queue.map((item) => item.track.id), ['3', '2']);
+  assert.deepEqual(bReordered.payload.queue.map((item) => item.track.id), ['3', '2']);
+  log('reorder', `queue=${bReordered.payload.queue.map((item) => item.track.name).join(' → ')}`);
+
+  // 7. Alice advance → 播放和队列在一条事件中原子更新
+  const observedPlayback = bReordered.payload.playback;
+  const advancePayload = {
+    requestId: 'advance-A-1',
+    expectedPlaybackSeq: observedPlayback.seq,
+    expectedTrackKey: `:${observedPlayback.track.id}`,
+    reason: 'ended',
+  };
+  a.send({ type: 'advance_playback', payload: advancePayload });
+  const [aAdvanced, bAdvanced] = await Promise.all([
+    a.once('room_state_changed'),
+    b.once('room_state_changed'),
+  ]);
+  assert.equal(aAdvanced.payload.appliedRequestId, advancePayload.requestId);
+  assert.equal(bAdvanced.payload.cause, 'advance');
+  assert.equal(bAdvanced.payload.playback.track?.id, '3');
+  assert.deepEqual(bAdvanced.payload.queue.map((item) => item.track.id), ['2']);
+
+  // 延迟到达的同版本 advance 只触发 resync，不能再弹出下一首
+  b.send({
+    type: 'advance_playback',
+    payload: { ...advancePayload, requestId: 'advance-A-duplicate' },
+  });
+  const staleAdvance = await b.once('room_state_changed');
+  assert.equal(staleAdvance.payload.cause, 'resync');
+  assert.equal(staleAdvance.payload.playback.track?.id, '3');
+  assert.deepEqual(staleAdvance.payload.queue.map((item) => item.track.id), ['2']);
+  log('advance', `playing=${staleAdvance.payload.playback.track?.name} queue=${staleAdvance.payload.queue.length}`);
+
+  // 8. Alice seek
+  a.send({ type: 'seek', payload: { position: 5000, expectedTrackKey: ':3' } });
+  const bSeek = await b.once('room_state_changed');
+  log('bob', `seek pos=${bSeek.payload.playback.position} seq=${bSeek.payload.playback.seq}`);
 
   // 10. heartbeat
   a.send({ type: 'heartbeat', payload: { clientTime: 123 } });
   const hb = await a.once('heartbeat_ack');
   log('alice', `heartbeat serverTime=${hb.payload.serverTime}`);
 
-  // 11. Bob 断开 → Alice 收到 member_left
+  // 11. Bob 短暂断开后在 30s 宽限期内用原 token 恢复身份
   b.ws.close();
-  const left = await a.once('member_left');
-  log('alice', `member_left=${left.payload.memberId} ownerId=${left.payload.ownerId}`);
+  await b.closed;
+  const b2 = openClient();
+  await new Promise((resolve) => b2.ws.on('open', resolve));
+  b2.send({ type: 'join', payload: { token: joined.token } });
+  const bRejoined = await b2.once('joined');
+  assert.equal(bRejoined.payload.memberId, joined.member.id);
+  assert.equal(bRejoined.payload.snapshot.members.length, 2);
+  log('bob', `rejoined as=${bRejoined.payload.memberId} members=${bRejoined.payload.snapshot.members.length}`);
 
-  // 12. Alice 断开 → 房间应被删空
+  // 12. 两端断开；房间会在宽限期结束后清理
+  b2.ws.close();
   a.ws.close();
-  await a.closed;
-  const snap = await http(`/rooms/${created.code}`).catch(() => ({ status: 404 }));
-  log('cleanup', `room after both left: statusCode=${snap.statusCode || 'gone'}`);
+  await Promise.all([a.closed, b2.closed]);
+  const snap = await http(`/rooms/${created.code}`);
+  assert.equal(snap.members.length, 2);
+  log('cleanup', 'room retained during disconnect grace period');
 
   console.log('\n=== P3 全部步骤完成 ===');
-  process.exit(0);
 };
 
-main().catch((e) => { console.error('FAIL:', e); process.exit(1); });
+main().catch((e) => {
+  console.error('FAIL:', e);
+  process.exitCode = 1;
+});

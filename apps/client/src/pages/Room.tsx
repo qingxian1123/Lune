@@ -39,7 +39,6 @@ export default function Room() {
     onRemove,
     onReorder,
     onSeek,
-    setVolume,
     leaveToHome,
   } = useRoomController();
   const { accent, accentSoft, bgAccent } = useAccentColor(track?.coverUrl, track?.id);
@@ -80,10 +79,6 @@ export default function Room() {
           lines={lines}
           currentIndex={currentIndex}
           isLoadingLyrics={isLoadingLyrics}
-          isBuffering={playerState.isBuffering}
-          isOwner={true}
-          membersCount={members.length}
-          onSeek={onSeek}
         />
 
         <DesktopRoomSidebar
@@ -110,7 +105,6 @@ export default function Room() {
         isOwner={true}
         membersCount={members.length}
         onSeek={onSeek}
-        onVolume={setVolume}
         onNext={onNext}
       />
     </div>

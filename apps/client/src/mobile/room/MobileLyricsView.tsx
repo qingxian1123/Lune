@@ -45,7 +45,7 @@ export default function MobileLyricsView({
             {!track && <small>播放后显示歌词</small>}
           </div>
         ) : (
-          <LyricScroller lines={lines} activeIndex={currentIndex} isOwner={true} onSeek={onSeek} />
+          <LyricScroller lines={lines} activeIndex={currentIndex} />
         )}
       </main>
 

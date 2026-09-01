@@ -51,21 +51,35 @@ const main = async () => {
   log('resolve', `name=${resolved.track.name} url=${resolved.url ? '已拿到' : '空'} unplayable=${resolved.unplayable}`);
 
   // 6. owner 发 play(用第一首)
-  ws.send(JSON.stringify({ type: 'play', payload: { track: resolved.track, position: 0 } }));
-  const pb = await once('playback_state');
-  log('play', `status=${pb.payload.status} track=${pb.payload.track?.name} seq=${pb.payload.seq}`);
+  ws.send(JSON.stringify({
+    type: 'play',
+    payload: {
+      track: resolved.track,
+      position: 0,
+      expectedPlaybackSeq: joined.payload.snapshot.playback.seq,
+    },
+  }));
+  const pb = await once('room_state_changed');
+  log('play', `status=${pb.payload.playback.status} track=${pb.payload.playback.track?.name} seq=${pb.payload.playback.seq}`);
 
   // 7. add_song(第二首)
   ws.send(JSON.stringify({ type: 'add_song', payload: { track: songs.songs[1] } }));
-  const q1 = await once('queue_updated');
+  const q1 = await once('room_state_changed');
   log('add_song', `queue len=${q1.payload.queue.length}`);
 
   // 8. next → 应切到队列第一首
-  ws.send(JSON.stringify({ type: 'next', payload: { endedTrackId: songs.songs[0].id } }));
-  const pb2 = await once('playback_state');
-  log('next', `track=${pb2.payload.track?.name} status=${pb2.payload.status}`);
-  const q2 = await once('queue_updated');
-  log('next-queue', `len=${q2.payload.queue.length}`);
+  ws.send(JSON.stringify({
+    type: 'advance_playback',
+    payload: {
+      requestId: 'p4-next-1',
+      expectedPlaybackSeq: q1.payload.playback.seq,
+      expectedTrackKey: `${q1.payload.playback.track.provider || ''}:${q1.payload.playback.track.id}`,
+      reason: 'manual',
+    },
+  }));
+  const pb2 = await once('room_state_changed');
+  log('next', `track=${pb2.payload.playback.track?.name} status=${pb2.payload.playback.status}`);
+  log('next-queue', `len=${pb2.payload.queue.length}`);
 
   // 9. lyric
   const lyric = await http(`/providers/lyric?id=${songs.songs[0].id}`);

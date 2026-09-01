@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef } from 'react';
-import type { ClientMessage, PlaybackState, ServerMessage, Track } from '@lune/shared';
+import type { ClientMessage, PlaybackState, ServerMessage } from '@lune/shared';
 import { AudioEngine } from '../audio/AudioEngine';
 import { resolveTrack } from '../lib/api';
+import { createAdvancePlaybackMessage, getTrackKey } from '../lib/playbackCommand';
 import { calcTargetPosition, shouldCorrect } from '../lib/sync';
 import { useRoomStore } from './useRoomStore';
 
@@ -13,25 +14,22 @@ interface UseSyncOptions {
   engine: AudioEngine;
 }
 
-const trackKey = (track: Track): string => `${track.provider || ''}:${track.id}`;
-
 /**
  * 消费服务端消息,驱动 AudioEngine 与 roomStore。
  *
- * - playback_state(idle) → engine.stop
- * - playback_state(playing, 新 track) → resolve URL → load + 从估算进度播放
- * - playback_state(playing, 同 track 新 position) → shouldCorrect 决定微调/seek
- * - queue_updated / member_* → 直接写 store
+ * - playback idle → engine.stop
+ * - playback playing, 新 track → resolve URL → load + 从估算进度播放
+ * - playback playing, 同 track 新 position → shouldCorrect 决定微调/seek
+ * - room_state_changed → 原子写入 playback + queue，再按 playback seq 驱动音频
  *
  * 无 pause 分支。每条消息经 subscribe 实时处理,不丢消息。
  */
 export function useSync({ send, subscribe, getRtt, engine }: UseSyncOptions) {
-  const applySnapshot = useRoomStore((s) => s.applySnapshot);
   const applyServerMessage = useRoomStore((s) => s.applyServerMessage);
   const setConnected = useRoomStore((s) => s.setConnected);
 
   const lastSyncedTrackId = useRef<string | null>(null);
-  const lastProcessedSeq = useRef(0);
+  const lastProcessedSeq = useRef(-1);
   const latestPlayback = useRef<PlaybackState | null>(null);
   const sendRef = useRef(send);
   sendRef.current = send;
@@ -51,10 +49,10 @@ export function useSync({ send, subscribe, getRtt, engine }: UseSyncOptions) {
       const target = calcTargetPosition(pb.position, pb.serverTimestamp, getRtt());
 
       // 新曲目:取 URL 并播放
-      const currentTrackKey = trackKey(track);
+      const currentTrackKey = getTrackKey(track);
       if (lastSyncedTrackId.current !== currentTrackKey) {
         lastSyncedTrackId.current = currentTrackKey;
-        void loadAndPlay(track, target);
+        void loadAndPlay(pb, target);
         return;
       }
 
@@ -71,40 +69,70 @@ export function useSync({ send, subscribe, getRtt, engine }: UseSyncOptions) {
   );
 
   const loadAndPlay = useCallback(
-    async (track: Track, offsetMs: number) => {
+    async (playback: PlaybackState, offsetMs: number) => {
+      const track = playback.track;
+      if (!track) return;
       const res = await resolveTrack(track.id, track.provider);
       if (!res.url) {
-        // 失效:通知服务端切下一首(若本机是 owner 则有效)
-        sendRef.current({ type: 'next', payload: { endedTrackId: track.id } });
+        const message = createAdvancePlaybackMessage(playback, 'unplayable');
+        if (message) sendRef.current(message);
         return;
       }
       // 加载期间若曲目已变,load 内部 generation 会丢弃,但这里也再校验一次
-      if (!latestPlayback.current?.track || trackKey(latestPlayback.current.track) !== trackKey(track)) return;
+      if (
+        !latestPlayback.current?.track ||
+        latestPlayback.current.seq !== playback.seq ||
+        getTrackKey(latestPlayback.current.track) !== getTrackKey(track)
+      ) return;
       await engine.load(res.url, offsetMs);
     },
     [engine],
   );
+
+  const resyncFromLatestPlayback = useCallback((): boolean => {
+    const pb = latestPlayback.current;
+    if (!pb) return false;
+    if (pb.status !== 'playing' || !pb.track) {
+      handlePlayback(pb);
+      return false;
+    }
+
+    const currentTrackKey = getTrackKey(pb.track);
+    if (lastSyncedTrackId.current !== currentTrackKey) {
+      handlePlayback(pb);
+      return true;
+    }
+
+    const target = calcTargetPosition(pb.position, pb.serverTimestamp, getRtt());
+    if (Math.abs(engine.currentMs - target) < 200) return false;
+    engine.setRate(1);
+    engine.seek(target);
+    return true;
+  }, [engine, getRtt, handlePlayback]);
 
   useEffect(() => {
     const unsub = subscribe((msg) => {
       if (msg.type === 'joined') {
         setConnected(true);
         applyServerMessage(msg);
-        applySnapshot(msg.payload.snapshot);
+        lastProcessedSeq.current = -1;
         latestPlayback.current = msg.payload.snapshot.playback;
         handlePlayback(msg.payload.snapshot.playback);
         return;
       }
-      if (msg.type === 'playback_state') {
+      if (msg.type === 'room_state_changed') {
         applyServerMessage(msg);
-        latestPlayback.current = msg.payload;
-        handlePlayback(msg.payload);
+        const nextPlayback = msg.payload.playback;
+        if (nextPlayback.seq > lastProcessedSeq.current) {
+          latestPlayback.current = nextPlayback;
+          handlePlayback(nextPlayback);
+        }
         return;
       }
       applyServerMessage(msg);
     });
     return unsub;
-  }, [subscribe, applyServerMessage, applySnapshot, setConnected, handlePlayback]);
+  }, [subscribe, applyServerMessage, setConnected, handlePlayback]);
 
-  return { send };
+  return { send, resyncFromLatestPlayback };
 }

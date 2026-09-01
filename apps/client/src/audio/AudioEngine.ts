@@ -1,3 +1,5 @@
+import { clampAudioVolume, SAFE_INITIAL_VOLUME } from '../lib/audioVolume';
+
 /**
  * AudioEngine —— 单例音频引擎。
  *
@@ -24,7 +26,8 @@ export class AudioEngine {
   private source: MediaElementAudioSourceNode | null = null;
 
   private loadGen = 0;
-  private volume = 0.8;
+  private volume = SAFE_INITIAL_VOLUME;
+  private outputSuppressed = false;
   private rafId = 0;
   private tickCb: ((ms: number) => void) | null = null;
   private endCb: (() => void) | null = null;
@@ -35,7 +38,8 @@ export class AudioEngine {
     this.audio = new Audio();
     this.audio.preload = 'auto';
     this.audio.crossOrigin = 'anonymous';
-    this.audio.volume = this.volume;
+    // 只让 GainNode 负责应用内音量，避免与 media.volume 叠乘造成非线性衰减。
+    this.audio.volume = 1;
     this.bindEvents();
   }
 
@@ -53,7 +57,7 @@ export class AudioEngine {
       const Ctor = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       this.ctx = new Ctor();
       this.gain = this.ctx.createGain();
-      this.gain.gain.value = this.volume;
+      this.gain.gain.value = this.effectiveVolume;
       this.source = this.ctx.createMediaElementSource(this.audio);
       this.source.connect(this.gain).connect(this.ctx.destination);
     }
@@ -132,14 +136,53 @@ export class AudioEngine {
     this.tickCb?.(0);
   }
 
-  setVolume(v: number): void {
-    this.volume = Math.max(0, Math.min(1, v));
-    this.audio.volume = this.volume;
-    if (this.gain) this.gain.gain.value = this.volume;
+  setVolume(v: number, options: { immediate?: boolean } = {}): void {
+    this.volume = clampAudioVolume(v);
+    this.audio.volume = 1;
+    this.applyGain(options);
+  }
+
+  /**
+   * Android 音频焦点、来电或耳机断开时只压低本机输出，不改写用户记忆的音量。
+   * 音轨和房间同步继续推进，解除后可以无缝回到当前房间位置。
+   */
+  setOutputSuppressed(suppressed: boolean, options: { immediate?: boolean } = {}): void {
+    if (this.outputSuppressed === suppressed) return;
+    this.outputSuppressed = suppressed;
+    this.applyGain(options);
+  }
+
+  private applyGain(options: { immediate?: boolean } = {}): void {
+    if (!this.gain || !this.ctx) return;
+
+    const now = this.ctx.currentTime;
+    const gain = this.gain.gain;
+    if (typeof gain.cancelAndHoldAtTime === 'function') {
+      gain.cancelAndHoldAtTime(now);
+    } else {
+      const currentValue = gain.value;
+      gain.cancelScheduledValues(now);
+      gain.setValueAtTime(currentValue, now);
+    }
+    if (options.immediate || this.ctx.state !== 'running') {
+      gain.setValueAtTime(this.effectiveVolume, now);
+      return;
+    }
+
+    // 40ms 内平滑且精确到达目标值，静音和快速拖动时不会产生爆音。
+    gain.linearRampToValueAtTime(this.effectiveVolume, now + 0.04);
   }
 
   getVolume(): number {
     return this.volume;
+  }
+
+  get isOutputSuppressed(): boolean {
+    return this.outputSuppressed;
+  }
+
+  private get effectiveVolume(): number {
+    return this.outputSuppressed ? 0 : this.volume;
   }
 
   /** 设置微调播放速率(同步修正用) */

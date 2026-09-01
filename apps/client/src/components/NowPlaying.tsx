@@ -6,10 +6,6 @@ interface NowPlayingProps {
   lines: LyricLine[];
   currentIndex: number;
   isLoadingLyrics: boolean;
-  isBuffering: boolean;
-  isOwner: boolean;
-  membersCount?: number;
-  onSeek: (ms: number) => void;
 }
 
 export default function NowPlaying({
@@ -17,23 +13,9 @@ export default function NowPlaying({
   lines,
   currentIndex,
   isLoadingLyrics,
-  isBuffering,
-  isOwner,
-  membersCount = 0,
-  onSeek,
 }: NowPlayingProps) {
   return (
     <section className="now-playing-stage" aria-label="正在播放">
-        <header className="stage-heading">
-          <div>
-            <strong>{track ? '同步播放' : '选择音乐'}</strong>
-          </div>
-        <div className="stage-status">
-          <span className={track ? 'is-live' : ''} />
-          {isBuffering ? '正在缓冲' : `${membersCount} 人正在听`}
-        </div>
-      </header>
-
       <div className="stage-content">
         <div className="record-column">
           <div className="cover-stack">
@@ -68,12 +50,7 @@ export default function NowPlaying({
             {!track && <small>播放后显示歌词</small>}
             </div>
           ) : (
-            <LyricScroller
-              lines={lines}
-              activeIndex={currentIndex}
-              isOwner={isOwner}
-              onSeek={onSeek}
-            />
+            <LyricScroller lines={lines} activeIndex={currentIndex} />
           )}
         </div>
       </div>

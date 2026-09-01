@@ -22,6 +22,7 @@ class UpdateArgs {
     var durationMs: Long = 0
     var positionMs: Long = 0
     var playing: Boolean = false
+    var muted: Boolean = false
     var canNext: Boolean = false
 }
 
@@ -45,6 +46,11 @@ class MediaPlugin(private val activity: Activity) : Plugin(activity) {
             payload.put("action", action)
             trigger("action", payload)
         }
+        MediaService.audioDispatcher = { event ->
+            val payload = JSObject()
+            payload.put("event", event)
+            trigger("audio", payload)
+        }
     }
 
     @Command
@@ -66,6 +72,7 @@ class MediaPlugin(private val activity: Activity) : Plugin(activity) {
                 durationMs = args.durationMs,
                 positionMs = args.positionMs,
                 playing = args.playing,
+                muted = args.muted,
                 canNext = args.canNext,
             ),
         )

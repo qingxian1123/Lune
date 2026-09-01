@@ -1,5 +1,8 @@
 import { randomUUID } from 'node:crypto';
-import type { Member, PlaybackState, RoomSnapshot, Track } from '@lune/shared';
+import type { Member, PlaybackState, QueueItem, RoomSnapshot, Track } from '@lune/shared';
+
+const getTrackKey = (track: Pick<Track, 'id' | 'provider'>): string =>
+  `${track.provider || ''}:${track.id}`;
 
 /**
  * 房间管理器(内存态)
@@ -12,11 +15,8 @@ export class Room {
   readonly members = new Map<string, { nickname: string; isOwner: boolean }>();
   ownerId = '';
   playback: PlaybackState;
-  queue: Track[] = [];
+  queue: QueueItem[] = [];
   queueRevision = 0;
-  /** 防止多客户端同时发 next 跳过多次,V1 同款约束 */
-  lastEndedTrackId = '';
-  lastNextTime = 0;
   private readonly bornAt = Date.now();
 
   constructor(code: string) {
@@ -66,70 +66,84 @@ export class Room {
     return this.playback;
   }
 
-  /** 开始播放指定音轨(从 position 毫秒起) */
-  play(track: Track, position = 0): PlaybackState {
-    this.lastEndedTrackId = '';
-    return this.bumpPlayback({ status: 'playing', track, position });
+  /** 仅在客户端观察到的播放版本仍为当前版本且房间空闲时开始播放。 */
+  play(track: Track, position: number, expectedPlaybackSeq: number): boolean {
+    if (expectedPlaybackSeq !== this.playback.seq || this.playback.status !== 'idle') return false;
+    this.bumpPlayback({ status: 'playing', track, position });
+    return true;
   }
 
-  /** 跳转到指定位置(毫秒),保持当前音轨与状态 */
-  seek(position: number): PlaybackState {
-    if (!this.playback.track) return this.playback;
-    return this.bumpPlayback({ position });
-  }
-
-  /** 切到队列下一首;队列空则 idle。返回新 playback 与是否切歌 */
-  next(): { playback: PlaybackState; advanced: boolean } {
-    if (this.queue.length === 0) {
-      const pb = this.bumpPlayback({ status: 'idle', track: null, position: 0 });
-      return { playback: pb, advanced: false };
+  /** seek 同样基于播放版本，旧曲目的延迟命令不能作用到新曲目。 */
+  seek(position: number, expectedTrackKey: string): boolean {
+    if (
+      !this.playback.track ||
+      getTrackKey(this.playback.track) !== expectedTrackKey
+    ) {
+      return false;
     }
-    const [next, ...rest] = this.queue;
+    this.bumpPlayback({ position });
+    return true;
+  }
+
+  /**
+   * 版本化切歌：只有基于当前 playback seq 与当前曲目的命令能生效。
+   * 多客户端对同一次结束事件发出的后续命令会因 seq 过期自然失效。
+   */
+  advance(expectedPlaybackSeq: number, expectedTrackKey: string): boolean {
+    if (
+      expectedPlaybackSeq !== this.playback.seq ||
+      !this.playback.track ||
+      getTrackKey(this.playback.track) !== expectedTrackKey
+    ) {
+      return false;
+    }
+    if (this.queue.length === 0) {
+      this.bumpPlayback({ status: 'idle', track: null, position: 0 });
+      return true;
+    }
+    const [nextItem, ...rest] = this.queue;
     this.queue = rest;
     this.queueRevision += 1;
-    this.lastEndedTrackId = '';
-    const pb = this.bumpPlayback({ status: 'playing', track: next, position: 0 });
-    return { playback: pb, advanced: true };
+    this.bumpPlayback({ status: 'playing', track: nextItem.track, position: 0 });
+    return true;
   }
 
   /** 入队 */
-  enqueue(track: Track): Track[] {
-    this.queue.push(track);
+  enqueue(track: Track, addedBy: string): QueueItem[] {
+    this.queue.push({ id: randomUUID(), track, addedBy });
     this.queueRevision += 1;
     return this.queue;
   }
 
   /** 批量入队(歌单"全部加入",一次广播) */
-  enqueueMany(tracks: Track[]): Track[] {
-    this.queue.push(...tracks);
+  enqueueMany(tracks: Track[], addedBy: string): QueueItem[] {
+    this.queue.push(...tracks.map((track) => ({ id: randomUUID(), track, addedBy })));
     if (tracks.length > 0) this.queueRevision += 1;
     return this.queue;
   }
 
-  /** 移除指定下标队列项 */
-  removeAt(index: number): Track[] {
-    if (index < 0 || index >= this.queue.length) return this.queue;
+  /** 按稳定条目 ID 删除；队列版本过期时不执行。 */
+  remove(itemId: string, expectedQueueRevision: number): boolean {
+    if (expectedQueueRevision !== this.queueRevision) return false;
+    const index = this.queue.findIndex((item) => item.id === itemId);
+    if (index < 0) return false;
     this.queue.splice(index, 1);
     this.queueRevision += 1;
-    return this.queue;
+    return true;
   }
 
-  /** 移动指定队列项；返回是否实际改变了队列顺序。 */
-  reorder(fromIndex: number, toIndex: number): boolean {
-    if (
-      !Number.isInteger(fromIndex) ||
-      !Number.isInteger(toIndex) ||
-      fromIndex < 0 ||
-      toIndex < 0 ||
-      fromIndex >= this.queue.length ||
-      toIndex >= this.queue.length ||
-      fromIndex === toIndex
-    ) {
-      return false;
-    }
+  /** 将条目移动到锚点条目之前；beforeItemId=null 表示移动到队尾。 */
+  reorder(itemId: string, beforeItemId: string | null, expectedQueueRevision: number): boolean {
+    if (expectedQueueRevision !== this.queueRevision || itemId === beforeItemId) return false;
+    const fromIndex = this.queue.findIndex((item) => item.id === itemId);
+    if (fromIndex < 0) return false;
+    if (beforeItemId !== null && !this.queue.some((item) => item.id === beforeItemId)) return false;
 
-    const [track] = this.queue.splice(fromIndex, 1);
-    this.queue.splice(toIndex, 0, track);
+    const [item] = this.queue.splice(fromIndex, 1);
+    const toIndex = beforeItemId === null
+      ? this.queue.length
+      : this.queue.findIndex((candidate) => candidate.id === beforeItemId);
+    this.queue.splice(toIndex, 0, item);
     this.queueRevision += 1;
     return true;
   }

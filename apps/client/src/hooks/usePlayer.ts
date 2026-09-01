@@ -40,7 +40,6 @@ export function usePlayer(onEnd?: () => void) {
     state,
     engine: engineRef.current,
     seek: (ms: number) => engineRef.current.seek(ms),
-    setVolume: (v: number) => engineRef.current.setVolume(v),
     setRate: (r: number) => engineRef.current.setRate(r),
   };
 }

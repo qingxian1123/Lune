@@ -91,7 +91,6 @@ export default function Home() {
                 value={access.nickname}
                 onChange={(event) => access.setNickname(event.target.value)}
                 onKeyDown={(event) => event.key === 'Enter' && void access.enterRoom()}
-                placeholder="例如，小林"
                 maxLength={32}
                 autoComplete="nickname"
               />
@@ -106,7 +105,6 @@ export default function Home() {
                   value={access.roomCode}
                   onChange={(event) => access.setRoomCode(event.target.value)}
                   onKeyDown={(event) => event.key === 'Enter' && void access.enterRoom()}
-                  placeholder="例如 ABC123"
                   maxLength={6}
                   autoCapitalize="characters"
                   className="room-code-input"

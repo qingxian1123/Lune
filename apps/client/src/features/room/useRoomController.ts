@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import type { ClientMessage, Track } from '@lune/shared';
+import type { Track } from '@lune/shared';
 import { useLyric } from '../../hooks/useLyric';
 import { usePlayer } from '../../hooks/usePlayer';
 import { useRoomStore } from '../../hooks/useRoomStore';
@@ -8,6 +8,7 @@ import { useSync } from '../../hooks/useSync';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import { getWebSocketUrl } from '../../lib/serverConfig';
 import { getUiErrorMessage } from '../../lib/uiError';
+import { createAdvancePlaybackMessage, getTrackKey } from '../../lib/playbackCommand';
 
 interface RoomRouteState {
   token?: string;
@@ -53,26 +54,22 @@ export function useRoomController(options: RoomControllerOptions = {}) {
   const clearError = useRoomStore((state) => state.clearError);
 
   const onEnd = useCallback(() => {
-    const endedTrackId = playback.track?.id;
-    const message: ClientMessage = { type: 'next', payload: { endedTrackId } };
-    send(message);
-  }, [playback.track?.id, send]);
+    const message = createAdvancePlaybackMessage(playback, 'ended');
+    if (message) send(message);
+  }, [playback, send]);
 
-  const { state: playerState, engine, setVolume } = usePlayer(onEnd);
-  useSync({ send, subscribe: ws.subscribe, getRtt: ws.getRtt, engine });
+  const { state: playerState, engine } = usePlayer(onEnd);
+  const { resyncFromLatestPlayback } = useSync({
+    send,
+    subscribe: ws.subscribe,
+    getRtt: ws.getRtt,
+    engine,
+  });
 
-  const joinedRef = useRef(false);
   useEffect(() => {
-    if (
-      ws.readyState !== WebSocket.OPEN ||
-      joinedRef.current ||
-      !code ||
-      !token ||
-      !memberId
-    ) {
+    if (ws.readyState !== WebSocket.OPEN || !code || !token || !memberId) {
       return;
     }
-    joinedRef.current = true;
     setIdentity(memberId, code);
     send({ type: 'join', payload: { token } });
   }, [code, memberId, send, setIdentity, token, ws.readyState]);
@@ -107,13 +104,16 @@ export function useRoomController(options: RoomControllerOptions = {}) {
     (nextTrack: Track) => {
       const action: TrackAction = playback.status === 'idle' ? 'play' : 'queue';
       if (action === 'play') {
-        send({ type: 'play', payload: { track: nextTrack, position: 0 } });
+        send({
+          type: 'play',
+          payload: { track: nextTrack, position: 0, expectedPlaybackSeq: playback.seq },
+        });
       } else {
         send({ type: 'add_song', payload: { track: nextTrack } });
       }
       onTrackAction?.(nextTrack, action);
     },
-    [onTrackAction, playback.status, send],
+    [onTrackAction, playback.seq, playback.status, send],
   );
 
   const onAddMany = useCallback(
@@ -126,23 +126,40 @@ export function useRoomController(options: RoomControllerOptions = {}) {
   );
 
   const onNext = useCallback(() => {
-    send({ type: 'next', payload: { endedTrackId: track?.id } });
-  }, [send, track?.id]);
+    const message = createAdvancePlaybackMessage(playback, 'manual');
+    if (message) send(message);
+  }, [playback, send]);
 
   const onRemove = useCallback(
-    (index: number) => send({ type: 'remove_song', payload: { index } }),
-    [send],
+    (itemId: string) =>
+      send({
+        type: 'remove_queue_item',
+        payload: { itemId, expectedQueueRevision: queueRevision },
+      }),
+    [queueRevision, send],
   );
 
   const onReorder = useCallback(
-    (fromIndex: number, toIndex: number) =>
-      send({ type: 'reorder_song', payload: { fromIndex, toIndex, expectedRevision: queueRevision } }),
+    (itemId: string, beforeItemId: string | null) =>
+      send({
+        type: 'reorder_queue_item',
+        payload: { itemId, beforeItemId, expectedQueueRevision: queueRevision },
+      }),
     [queueRevision, send],
   );
 
   const onSeek = useCallback(
-    (position: number) => send({ type: 'seek', payload: { position } }),
-    [send],
+    (position: number) => {
+      if (!track) return;
+      send({
+        type: 'seek',
+        payload: {
+          position,
+          expectedTrackKey: getTrackKey(track),
+        },
+      });
+    },
+    [send, track],
   );
 
   const displayRoomCode = roomCode || code || '';
@@ -191,7 +208,7 @@ export function useRoomController(options: RoomControllerOptions = {}) {
     onRemove,
     onReorder,
     onSeek,
-    setVolume,
+    resyncFromLatestPlayback,
     leaveToHome,
   };
 }

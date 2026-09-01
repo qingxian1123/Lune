@@ -1,7 +1,8 @@
 import type { CSSProperties } from 'react';
-import type { Member, Track } from '@lune/shared';
+import type { Member, QueueItem, Track } from '@lune/shared';
 import MemberList from '../../components/MemberList';
 import SearchPanel from '../../components/SearchPanel';
+import VolumeIcon from '../../components/VolumeIcon';
 import { useDismissibleSheet } from '../../features/room/useDismissibleSheet';
 import MobileQueue from '../MobileQueue';
 import type { MobileRoomSheet as SheetKind, MobileRoomSheetState } from './types';
@@ -15,7 +16,7 @@ const SHEET_TITLES: Record<SheetKind, string> = {
 
 interface MobileRoomSheetProps {
   sheet: MobileRoomSheetState;
-  queue: Track[];
+  queue: QueueItem[];
   currentTrackId?: string;
   members: Member[];
   ownerId: string;
@@ -23,14 +24,16 @@ interface MobileRoomSheetProps {
   copied: boolean;
   canShare: boolean;
   volume: number;
+  muted: boolean;
   onClose: () => void;
   onPickTrack: (track: Track) => void;
   onAddMany: (tracks: Track[]) => void;
-  onRemove: (index: number) => void;
-  onReorder: (fromIndex: number, toIndex: number) => void;
+  onRemove: (itemId: string) => void;
+  onReorder: (itemId: string, beforeItemId: string | null) => void;
   onCopyCode: () => void;
   onShareCode: () => void;
   onVolumeChange: (volume: number) => void;
+  onToggleMute: () => void;
 }
 
 export default function MobileRoomSheet({
@@ -43,6 +46,7 @@ export default function MobileRoomSheet({
   copied,
   canShare,
   volume,
+  muted,
   onClose,
   onPickTrack,
   onAddMany,
@@ -51,9 +55,11 @@ export default function MobileRoomSheet({
   onCopyCode,
   onShareCode,
   onVolumeChange,
+  onToggleMute,
 }: MobileRoomSheetProps) {
   const { sheetRef, onTouchStart, onTouchMove, onTouchEnd } = useDismissibleSheet(onClose);
   const volumeStyle = { '--m-progress': `${volume * 100}%` } as CSSProperties;
+  const volumePercent = Math.round(volume * 100);
 
   return (
     <>
@@ -119,22 +125,37 @@ export default function MobileRoomSheet({
           )}
           {sheet === 'volume' && (
             <div className="m-vol-body">
-              <label className="m-progress" style={volumeStyle}>
-                <span className="sr-only">音量</span>
-                <input
-                  type="range"
-                  min={0}
-                  max={1}
-                  step={0.01}
-                  value={volume}
-                  onChange={(event) => onVolumeChange(Number(event.target.value))}
-                  aria-label="音量"
-                />
-              </label>
-              <div className="m-vol-caption">
-                <span>只影响你自己的设备</span>
-                <span>{Math.round(volume * 100)}%</span>
+              <div className="m-vol-control">
+                <button
+                  type="button"
+                  className={`m-vol-toggle ${muted ? 'is-muted' : ''}`}
+                  onClick={onToggleMute}
+                  aria-label={muted ? '恢复本机音量' : '静音本机播放'}
+                  aria-pressed={muted}
+                >
+                  <VolumeIcon volume={volume} muted={muted} />
+                </button>
+                <div className="m-vol-level">
+                  <label className="m-progress" style={volumeStyle}>
+                    <span className="sr-only">本机音量</span>
+                    <input
+                      type="range"
+                      min={0}
+                      max={1}
+                      step={0.01}
+                      value={volume}
+                      onChange={(event) => onVolumeChange(Number(event.target.value))}
+                      aria-label="本机音量"
+                      aria-valuetext={muted ? '静音' : `${volumePercent}%`}
+                    />
+                  </label>
+                  <div className="m-vol-caption">
+                    <span>只影响你自己的设备</span>
+                    <output aria-hidden="true">{volumePercent}%</output>
+                  </div>
+                </div>
               </div>
+              <p className="m-vol-system-note">手机侧键控制系统媒体音量</p>
             </div>
           )}
         </div>

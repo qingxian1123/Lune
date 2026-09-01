@@ -4,9 +4,12 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.ServiceInfo
+import android.media.AudioManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Build
@@ -16,6 +19,9 @@ import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
+import androidx.media.AudioAttributesCompat
+import androidx.media.AudioFocusRequestCompat
+import androidx.media.AudioManagerCompat
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.concurrent.Executors
@@ -36,25 +42,34 @@ class MediaService : Service() {
         val durationMs: Long,
         val positionMs: Long,
         val playing: Boolean,
+        val muted: Boolean,
         val canNext: Boolean,
     )
 
     companion object {
         private const val CHANNEL_ID = "lune_media_playback"
         private const val NOTIFICATION_ID = 4210
+        private const val ACTION_START = "com.lune.app.media.action.START"
         private const val ACTION_FAVORITE = "com.lune.app.media.action.FAVORITE"
         private const val ACTION_NEXT = "com.lune.app.media.action.NEXT"
+        private const val ACTION_MUTE = "com.lune.app.media.action.MUTE"
+        private const val ACTION_RESUME = "com.lune.app.media.action.RESUME"
         private const val ACTION_LEAVE = "com.lune.app.media.action.LEAVE"
 
         /** 由 MediaPlugin 注入,把通知动作回传给 WebView 前端 */
         @Volatile
         internal var actionDispatcher: ((String) -> Unit)? = null
 
+        /** 由 MediaPlugin 注入，把系统音频中断回传给 WebView 前端。 */
+        @Volatile
+        internal var audioDispatcher: ((String) -> Unit)? = null
+
         @Volatile
         private var latest: NowPlaying? = null
 
         internal fun start(context: Context) {
-            ContextCompat.startForegroundService(context, Intent(context, MediaService::class.java))
+            val intent = Intent(context, MediaService::class.java).setAction(ACTION_START)
+            ContextCompat.startForegroundService(context, intent)
         }
 
         internal fun update(context: Context, state: NowPlaying) {
@@ -70,19 +85,65 @@ class MediaService : Service() {
     }
 
     private lateinit var session: MediaSessionCompat
+    private lateinit var audioManager: AudioManager
+    private lateinit var focusRequest: AudioFocusRequestCompat
     private val coverExecutor = Executors.newSingleThreadExecutor()
     private var coverBitmap: Bitmap? = null
     private var coverLoadedFor: String? = null
+    private var noisyReceiverRegistered = false
+
+    private val focusListener = AudioManager.OnAudioFocusChangeListener { change ->
+        when (change) {
+            AudioManager.AUDIOFOCUS_GAIN -> audioDispatcher?.invoke("focus_gain")
+            AudioManager.AUDIOFOCUS_LOSS,
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK ->
+                audioDispatcher?.invoke("focus_loss")
+        }
+    }
+
+    private val noisyReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == AudioManager.ACTION_AUDIO_BECOMING_NOISY) {
+                audioDispatcher?.invoke("becoming_noisy")
+            }
+        }
+    }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
         super.onCreate()
         createChannel()
+        audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
+        val audioAttributes = AudioAttributesCompat.Builder()
+            .setUsage(AudioAttributesCompat.USAGE_MEDIA)
+            .setContentType(AudioAttributesCompat.CONTENT_TYPE_MUSIC)
+            .build()
+        focusRequest = AudioFocusRequestCompat.Builder(AudioManagerCompat.AUDIOFOCUS_GAIN)
+            .setAudioAttributes(audioAttributes)
+            .setOnAudioFocusChangeListener(focusListener)
+            .build()
+        ContextCompat.registerReceiver(
+            this,
+            noisyReceiver,
+            IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY),
+            ContextCompat.RECEIVER_NOT_EXPORTED,
+        )
+        noisyReceiverRegistered = true
         session = MediaSessionCompat(this, "LuneMediaSession")
         session.setCallback(object : MediaSessionCompat.Callback() {
             override fun onSkipToNext() {
                 actionDispatcher?.invoke("next")
+            }
+
+            override fun onPause() {
+                actionDispatcher?.invoke("mute")
+            }
+
+            override fun onPlay() {
+                requestAudioFocus()
+                actionDispatcher?.invoke("resume")
             }
         })
         session.isActive = true
@@ -90,15 +151,26 @@ class MediaService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
+            ACTION_START -> requestAudioFocus()
             ACTION_FAVORITE -> actionDispatcher?.invoke("favorite")
             ACTION_NEXT -> actionDispatcher?.invoke("next")
+            ACTION_MUTE -> actionDispatcher?.invoke("mute")
+            ACTION_RESUME -> {
+                requestAudioFocus()
+                actionDispatcher?.invoke("resume")
+            }
             ACTION_LEAVE -> actionDispatcher?.invoke("leave")
         }
         refresh()
-        return START_NOT_STICKY
+        return START_STICKY
     }
 
     override fun onDestroy() {
+        AudioManagerCompat.abandonAudioFocusRequest(audioManager, focusRequest)
+        if (noisyReceiverRegistered) {
+            unregisterReceiver(noisyReceiver)
+            noisyReceiverRegistered = false
+        }
         session.isActive = false
         session.release()
         coverExecutor.shutdownNow()
@@ -107,6 +179,7 @@ class MediaService : Service() {
 
     private fun refresh() {
         val state = latest
+        if (state?.coverUrl != coverLoadedFor) coverBitmap = null
         updateSession(state)
         val notification = buildNotification(state)
         if (Build.VERSION.SDK_INT >= 29) {
@@ -126,14 +199,24 @@ class MediaService : Service() {
             .build()
         session.setMetadata(metadata)
 
-        var actions = PlaybackStateCompat.ACTION_STOP
+        var actions = 0L
         if (state?.canNext == true) actions = actions or PlaybackStateCompat.ACTION_SKIP_TO_NEXT
+        if (state?.muted == true) {
+            actions = actions or PlaybackStateCompat.ACTION_PLAY
+        } else if (state?.playing == true) {
+            actions = actions or PlaybackStateCompat.ACTION_PAUSE
+        }
         val playbackState = PlaybackStateCompat.Builder()
             .setActions(actions)
             .setState(
-                if (state?.playing == true) PlaybackStateCompat.STATE_PLAYING else PlaybackStateCompat.STATE_PAUSED,
+                when {
+                    state == null -> PlaybackStateCompat.STATE_STOPPED
+                    state.muted -> PlaybackStateCompat.STATE_PAUSED
+                    state.playing -> PlaybackStateCompat.STATE_PLAYING
+                    else -> PlaybackStateCompat.STATE_PAUSED
+                },
                 state?.positionMs ?: 0,
-                1.0f,
+                if (state?.playing == true && state.muted != true) 1.0f else 0.0f,
             )
             .build()
         session.setPlaybackState(playbackState)
@@ -144,9 +227,15 @@ class MediaService : Service() {
             .setMediaSession(session.sessionToken)
 
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_media_play)
+            .setSmallIcon(R.drawable.ic_lune_notification)
             .setContentTitle(state?.title ?: "Lune · 一起听")
-            .setContentText(state?.artist ?: "与房间保持同步")
+            .setContentText(
+                when {
+                    state == null -> "播放已被系统中断 · 点按返回房间"
+                    state.muted -> "已在本机静音 · 房间仍在播放"
+                    else -> state.artist
+                },
+            )
             .setLargeIcon(coverBitmap)
             .setOngoing(state?.playing == true)
             .setOnlyAlertOnce(true)
@@ -159,6 +248,20 @@ class MediaService : Service() {
             "喜欢",
             serviceActionIntent(ACTION_FAVORITE, 1),
         )
+        compactCount++
+        if (state?.muted == true) {
+            builder.addAction(
+                android.R.drawable.ic_lock_silent_mode_off,
+                "恢复声音",
+                serviceActionIntent(ACTION_RESUME, 4),
+            )
+        } else {
+            builder.addAction(
+                android.R.drawable.ic_lock_silent_mode,
+                "本机静音",
+                serviceActionIntent(ACTION_MUTE, 4),
+            )
+        }
         compactCount++
         if (state?.canNext == true) {
             builder.addAction(
@@ -178,6 +281,15 @@ class MediaService : Service() {
         style.setShowActionsInCompactView(*IntArray(minOf(compactCount, 3)) { it })
         builder.setStyle(style)
         return builder.build()
+    }
+
+    private fun requestAudioFocus() {
+        val result = AudioManagerCompat.requestAudioFocus(audioManager, focusRequest)
+        if (result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
+            audioDispatcher?.invoke("focus_gain")
+        } else if (result == AudioManager.AUDIOFOCUS_REQUEST_FAILED) {
+            audioDispatcher?.invoke("focus_loss")
+        }
     }
 
     private fun launchAppIntent(): PendingIntent? {
@@ -203,7 +315,12 @@ class MediaService : Service() {
 
     private fun maybeLoadCover(state: NowPlaying?) {
         val url = state?.coverUrl
-        if (url.isNullOrBlank() || url == coverLoadedFor || coverExecutor.isShutdown) return
+        if (url.isNullOrBlank()) {
+            coverLoadedFor = null
+            coverBitmap = null
+            return
+        }
+        if (url == coverLoadedFor || coverExecutor.isShutdown) return
         coverLoadedFor = url
         coverExecutor.execute {
             val bitmap = fetchBitmap(url)

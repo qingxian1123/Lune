@@ -1,11 +1,11 @@
 import { create } from 'zustand';
-import type { Member, PlaybackState, RoomSnapshot, ServerMessage, Track } from '@lune/shared';
+import type { Member, PlaybackState, QueueItem, RoomSnapshot, ServerMessage } from '@lune/shared';
 
 interface RoomState {
   memberId: string | null;
   roomCode: string | null;
   playback: PlaybackState;
-  queue: Track[];
+  queue: QueueItem[];
   queueRevision: number;
   members: Member[];
   ownerId: string;
@@ -60,11 +60,18 @@ export const useRoomStore = create<RoomState>((set) => ({
           ownerId: msg.payload.snapshot.ownerId,
         });
         break;
-      case 'playback_state':
-        set({ playback: msg.payload });
-        break;
-      case 'queue_updated':
-        set({ queue: msg.payload.queue, queueRevision: msg.payload.queueRevision });
+      case 'room_state_changed':
+        set((state) => ({
+          playback:
+            msg.payload.playback.seq >= state.playback.seq
+              ? msg.payload.playback
+              : state.playback,
+          queue:
+            msg.payload.queueRevision >= state.queueRevision
+              ? msg.payload.queue
+              : state.queue,
+          queueRevision: Math.max(state.queueRevision, msg.payload.queueRevision),
+        }));
         break;
       case 'member_joined':
         set((s) => {

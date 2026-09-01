@@ -16,15 +16,15 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import type { Track } from '@lune/shared';
+import type { QueueItem, Track } from '@lune/shared';
 import { formatTime } from '../lib/format';
 
 interface QueueProps {
-  queue: Track[];
+  queue: QueueItem[];
   currentTrackId?: string;
   isOwner: boolean;
-  onRemove: (index: number) => void;
-  onReorder: (fromIndex: number, toIndex: number) => void;
+  onRemove: (itemId: string) => void;
+  onReorder: (itemId: string, beforeItemId: string | null) => void;
 }
 
 interface QueueEntry {
@@ -38,7 +38,7 @@ interface SortableTrackProps {
   currentTrackId?: string;
   isOwner: boolean;
   canReorder: boolean;
-  onRemove: (index: number) => void;
+  onRemove: (itemId: string) => void;
 }
 
 function SortableTrack({
@@ -89,7 +89,7 @@ function SortableTrack({
       {isOwner && (
         <button
           type="button"
-          onClick={() => onRemove(index)}
+          onClick={() => onRemove(entry.id)}
           className="track-remove"
           aria-label={`移除《${track.name}》`}
           title="移除"
@@ -110,10 +110,10 @@ export default function Queue({
 }: QueueProps) {
   const entries = useMemo<QueueEntry[]>(
     () =>
-      queue.map((track, index) => ({
-        id: `${track.provider || ''}:${track.id}:${index}`,
+      queue.map((item, index) => ({
+        id: item.id,
         index,
-        track,
+        track: item.track,
       })),
     [queue],
   );
@@ -143,7 +143,10 @@ export default function Queue({
     const fromIndex = entries.findIndex((entry) => entry.id === active.id);
     const toIndex = entries.findIndex((entry) => entry.id === over.id);
     if (fromIndex < 0 || toIndex < 0) return;
-    onReorder(fromIndex, toIndex);
+    const reordered = [...entries];
+    const [moved] = reordered.splice(fromIndex, 1);
+    reordered.splice(toIndex, 0, moved);
+    onReorder(moved.id, reordered[toIndex + 1]?.id ?? null);
   };
 
   return (
@@ -153,7 +156,7 @@ export default function Queue({
         <small>{queue.length} 首 · 拖动排序</small>
       </div>
       <DndContext
-        key={queue.map((track) => `${track.provider || ''}:${track.id}`).join('|')}
+        key={entries.map((entry) => entry.id).join('|')}
         sensors={sensors}
         collisionDetection={closestCenter}
         onDragEnd={handleDragEnd}

@@ -14,10 +14,8 @@ interface UseWebSocketReturn {
 /**
  * WebSocket 连接 + 自动重连 + 5s 心跳 RTT 测量。
  *
- * 消息传递用订阅器而非 `useState<lastMessage>`:
- * owner 切歌时 server 连续广播 `playback_state` + `queue_updated` 两条,
- * 若用 useState 在 React 18 批处理下只保留后一条,导致客机丢 `playback_state`
- * 而切歌不同步。订阅器保证每条消息实时处理。
+ * 消息传递使用订阅器而非 `useState<lastMessage>`，保证心跳之外的每条协议消息
+ * 都按 WebSocket 到达顺序处理。播放与队列现在由单条原子房间状态事件承载。
  */
 export function useWebSocket(url: string): UseWebSocketReturn {
   const wsRef = useRef<WebSocket | null>(null);

@@ -17,6 +17,18 @@ export interface Track {
   duration: number; // 毫秒
 }
 
+/**
+ * 待播队列中的一次入队实例。
+ *
+ * 同一首 Track 可以被重复加入，队列操作必须使用服务端生成的 item id，
+ * 不能使用歌曲 id 或易失的数组下标标识。
+ */
+export interface QueueItem {
+  id: string;
+  track: Track;
+  addedBy: string;
+}
+
 /** 成员 */
 export interface Member {
   id: string;
@@ -42,8 +54,28 @@ export interface RoomSnapshot {
   members: Member[];
   ownerId: string;
   playback: PlaybackState;
-  queue: Track[];
+  queue: QueueItem[];
   queueRevision: number;
+}
+
+export type PlaybackAdvanceReason = 'ended' | 'manual' | 'unplayable';
+
+export type RoomStateChangeCause =
+  | 'play'
+  | 'seek'
+  | 'advance'
+  | 'enqueue'
+  | 'remove'
+  | 'reorder'
+  | 'resync';
+
+/** 播放与队列的原子状态事件，避免客户端观察到半次切歌。 */
+export interface RoomStateChangedPayload {
+  playback: PlaybackState;
+  queue: QueueItem[];
+  queueRevision: number;
+  cause: RoomStateChangeCause;
+  appliedRequestId?: string;
 }
 
 /** JWT payload 内容 */
@@ -128,20 +160,33 @@ export interface MusicProvider {
 /** 客户端 → 服务端 */
 export type ClientMessage =
   | { type: 'join'; payload: { token: string } }
-  | { type: 'play'; payload: { track: Track; position?: number } }
-  | { type: 'seek'; payload: { position: number } }
-  | { type: 'next'; payload: { endedTrackId?: string } }
+  | { type: 'play'; payload: { track: Track; position?: number; expectedPlaybackSeq: number } }
+  | {
+      type: 'seek';
+      payload: { position: number; expectedTrackKey: string };
+    }
+  | {
+      type: 'advance_playback';
+      payload: {
+        requestId: string;
+        expectedPlaybackSeq: number;
+        expectedTrackKey: string;
+        reason: PlaybackAdvanceReason;
+      };
+    }
   | { type: 'add_song'; payload: { track: Track } }
   | { type: 'add_songs'; payload: { tracks: Track[] } }
-  | { type: 'remove_song'; payload: { index: number } }
-  | { type: 'reorder_song'; payload: { fromIndex: number; toIndex: number; expectedRevision: number } }
+  | { type: 'remove_queue_item'; payload: { itemId: string; expectedQueueRevision: number } }
+  | {
+      type: 'reorder_queue_item';
+      payload: { itemId: string; beforeItemId: string | null; expectedQueueRevision: number };
+    }
   | { type: 'heartbeat'; payload: { clientTime: number } };
 
 /** 服务端 → 客户端 */
 export type ServerMessage =
   | { type: 'joined'; payload: { snapshot: RoomSnapshot; memberId: string } }
-  | { type: 'playback_state'; payload: PlaybackState }
-  | { type: 'queue_updated'; payload: { queue: Track[]; queueRevision: number } }
+  | { type: 'room_state_changed'; payload: RoomStateChangedPayload }
   | { type: 'member_joined'; payload: { member: Member } }
   | { type: 'member_left'; payload: { memberId: string; ownerId: string } }
   | { type: 'heartbeat_ack'; payload: { serverTime: number; clientTime: number } }

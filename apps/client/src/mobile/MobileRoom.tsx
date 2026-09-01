@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Track } from '@lune/shared';
+import { AudioEngine } from '../audio/AudioEngine';
 import { useRoomController } from '../features/room/useRoomController';
 import { useFavoriteStore } from '../hooks/useFavoriteStore';
+import { useVolumeStore } from '../hooks/useVolumeStore';
+import {
+  onAudioInterrupt,
+  requestMediaAudioFocus,
+} from '../lib/mediaSession';
 import { useRoomBackNavigation } from '../platform/android/useRoomBackNavigation';
 import { useRoomMediaSession } from '../platform/android/useRoomMediaSession';
 import MobileLeaveConfirm from './room/MobileLeaveConfirm';
@@ -11,13 +17,16 @@ import MobileRoomHeader from './room/MobileRoomHeader';
 import MobileRoomSheet from './room/MobileRoomSheet';
 import type { MobileRoomSheet as RoomSheet, MobileRoomSheetState, MobileRoomView } from './room/types';
 
+type LocalAudioInterruption = 'focus' | 'noisy' | 'manual';
+
 export default function MobileRoom() {
   const [view, setView] = useState<MobileRoomView>('player');
   const [sheet, setSheet] = useState<MobileRoomSheetState>(null);
-  const [volume, setVolumeState] = useState(0.8);
   const [confirmLeave, setConfirmLeave] = useState(false);
+  const [audioInterruption, setAudioInterruption] = useState<LocalAudioInterruption | null>(null);
   const [toast, setToast] = useState<{ id: number; text: string } | null>(null);
   const toastId = useRef(0);
+  const audioInterruptionRef = useRef<LocalAudioInterruption | null>(null);
 
   const showToast = useCallback((text: string) => {
     toastId.current += 1;
@@ -64,11 +73,70 @@ export default function MobileRoom() {
     onRemove,
     onReorder,
     onSeek,
-    setVolume,
+    resyncFromLatestPlayback,
   } = useRoomController({ onTrackAction, onTracksAdded });
 
   const isFavorite = useFavoriteStore((state) => state.isFavorite);
   const toggleFavorite = useFavoriteStore((state) => state.toggle);
+  const volume = useVolumeStore((state) => state.volume);
+  const muted = useVolumeStore((state) => state.muted);
+  const setVolume = useVolumeStore((state) => state.setVolume);
+  const toggleMute = useVolumeStore((state) => state.toggleMute);
+
+  const suppressLocalAudio = useCallback((reason: LocalAudioInterruption) => {
+    const current = audioInterruptionRef.current;
+    if (reason === 'focus' && (current === 'manual' || current === 'noisy')) return;
+    audioInterruptionRef.current = reason;
+    setAudioInterruption(reason);
+    AudioEngine.instance().setOutputSuppressed(true);
+  }, []);
+
+  const resumeLocalAudio = useCallback(
+    (options: { requestFocus: boolean } = { requestFocus: true }) => {
+      if (options.requestFocus) void requestMediaAudioFocus();
+      audioInterruptionRef.current = null;
+      setAudioInterruption(null);
+      AudioEngine.instance().setOutputSuppressed(false);
+      if (resyncFromLatestPlayback()) showToast('已追上房间进度');
+    },
+    [resyncFromLatestPlayback, showToast],
+  );
+
+  useEffect(() => {
+    let dispose: (() => void) | undefined;
+    let active = true;
+    void onAudioInterrupt((event) => {
+      if (event === 'focus_loss') {
+        suppressLocalAudio('focus');
+        return;
+      }
+      if (event === 'becoming_noisy') {
+        suppressLocalAudio('noisy');
+        return;
+      }
+      if (event === 'focus_gain' && audioInterruptionRef.current === 'focus') {
+        resumeLocalAudio({ requestFocus: false });
+      }
+    }).then((unsubscribe) => {
+      if (active) dispose = unsubscribe;
+      else unsubscribe();
+    });
+    return () => {
+      active = false;
+      dispose?.();
+      audioInterruptionRef.current = null;
+      AudioEngine.instance().setOutputSuppressed(false, { immediate: true });
+    };
+  }, [resumeLocalAudio, suppressLocalAudio]);
+
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (resyncFromLatestPlayback()) showToast('已追上房间进度');
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [resyncFromLatestPlayback, showToast]);
 
   const closeConfirm = useCallback(() => setConfirmLeave(false), []);
   const closeSheet = useCallback(() => setSheet(null), []);
@@ -86,10 +154,6 @@ export default function MobileRoom() {
     requestLeave,
   });
 
-  useEffect(() => {
-    setVolume(volume);
-  }, [setVolume, volume]);
-
   const canShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
   const shareCode = useCallback(() => {
     if (!displayRoomCode) return;
@@ -102,12 +166,26 @@ export default function MobileRoom() {
     if (track) toggleFavorite(track.id);
   }, [toggleFavorite, track]);
 
+  const muteFromSystemSurface = useCallback(() => {
+    suppressLocalAudio('manual');
+  }, [suppressLocalAudio]);
+
+  const resumeFromSystemSurface = useCallback(() => {
+    if (muted) toggleMute();
+    resumeLocalAudio({ requestFocus: false });
+  }, [muted, resumeLocalAudio, toggleMute]);
+
+  const locallyMuted = muted || audioInterruption !== null;
+
   useRoomMediaSession({
     track,
     currentTime: playerState.currentTime,
     playing: playback.status === 'playing',
+    muted: locallyMuted,
     onNext,
     onToggleFavorite: toggleFavorite,
+    onMute: muteFromSystemSurface,
+    onResume: resumeFromSystemSurface,
     onLeave: leaveRoom,
   });
 
@@ -139,6 +217,25 @@ export default function MobileRoom() {
         onRequestLeave={requestLeave}
       />
 
+      {audioInterruption && (
+        <section className="m-audio-interruption" role="status" aria-live="polite">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M5 9v6h4l5 4V5L9 9H5Z" />
+            <path d="m18 9 4 4m0-4-4 4" />
+          </svg>
+          <span>
+            {audioInterruption === 'noisy'
+              ? '耳机已断开，为你保持静音'
+              : audioInterruption === 'focus'
+                ? '其他声音正在播放，已为你静音'
+                : '已在本机静音，房间仍在播放'}
+          </span>
+          <button type="button" onClick={() => resumeLocalAudio()}>
+            恢复声音
+          </button>
+        </section>
+      )}
+
       {errorMessage && (
         <div className="m-room-error" role="alert">
           {errorMessage}
@@ -152,6 +249,8 @@ export default function MobileRoom() {
           isLoadingLyrics={isLoadingLyrics}
           isBuffering={playerState.isBuffering}
           favorite={favorite}
+          volume={volume}
+          muted={locallyMuted}
           currentTime={timeline.currentTime}
           duration={timeline.duration}
           activeSheet={sheet}
@@ -196,6 +295,7 @@ export default function MobileRoom() {
         copied={copied}
         canShare={canShare}
         volume={volume}
+        muted={muted}
         onClose={closeSheet}
         onPickTrack={onPickTrack}
         onAddMany={onAddMany}
@@ -203,7 +303,8 @@ export default function MobileRoom() {
         onReorder={onReorder}
         onCopyCode={copyCode}
         onShareCode={shareCode}
-        onVolumeChange={setVolumeState}
+        onVolumeChange={setVolume}
+        onToggleMute={toggleMute}
       />
     </div>
   );

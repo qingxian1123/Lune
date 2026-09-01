@@ -34,7 +34,17 @@ apps/shared/src/**/*.js
 # =========================
 apps/client/src-tauri/target/
 apps/client/src-tauri/gen/*
-!apps/client/src-tauri/gen/android/.gitkeep
+!apps/client/src-tauri/gen/android/
+!apps/client/src-tauri/gen/android/**
+
+# Android / Gradle generated and local files
+.gradle/
+.externalNativeBuild/
+.cxx/
+local.properties
+keystore.properties
+*.keystore
+*.jks
 
 # Tauri / Windows packaging leftovers
 *.pdb
@@ -42,6 +52,8 @@ WixTools/
 *.wixpdb
 *.msi
 *.nsis.zip
+*.apk
+*.aab
 *.app
 *.dmg
 *.AppImage
@@ -109,6 +121,7 @@ lerna-debug.log*
 .claude/
 .agents/
 .cursor/
+.impeccable/config.local.json
 
 # =========================
 # OS junk
@@ -124,3 +137,7 @@ $RECYCLE.BIN/
 
 # Local release handoff artifacts
 /release-artifacts/
+
+# Local archives and deletion staging
+/archive/v1-legacy/
+/_to_delete/
