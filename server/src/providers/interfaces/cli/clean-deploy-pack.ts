@@ -18,7 +18,7 @@ async function main(): Promise<void> {
     'bin/lune-provider',
     'nginx/lune.conf',
     'ecosystem.config.cjs',
-    '.env.new-login.example',
+    '.env.example',
     'package.json',
     'package-lock.json',
     'README.md',
@@ -37,14 +37,14 @@ async function main(): Promise<void> {
   await copyFile(resolve(deploySource, 'nginx', 'lune.conf'), resolve(stage, 'nginx', 'lune.conf'));
   for (const name of [
     'ecosystem.config.cjs',
-    '.env.new-login.example',
+    '.env.example',
     'package.json',
     'package-lock.json',
   ]) {
     await copyFile(resolve(deploySource, name), resolve(stage, name));
   }
   await copyFile(
-    resolve(workspaceRoot, 'docs', 'UBUNTU_NEW_LOGIN_DEPLOY.md'),
+    resolve(workspaceRoot, 'docs', 'DEPLOYMENT.md'),
     resolve(stage, 'README.md'),
   );
 

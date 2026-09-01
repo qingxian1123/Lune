@@ -1,22 +1,24 @@
-# Lune 文档索引
+# Lune 文档
+
+这里仅保留与当前实现一致的使用和维护资料。共享类型、环境变量示例和部署模板是文档之外的最终依据；修改相关行为时应同步更新对应文档。
+
+## 系统
+
+- [系统架构](ARCHITECTURE.md)：模块边界、请求链路、状态与安全模型
+- [WebSocket 同步协议](SYNC_PROTOCOL.md)：连接、消息、版本控制与重连语义
+
+## 音乐源
+
+- [Provider 配置与开发](PROVIDERS.md)：配置、登录、管理 API 和新 Provider 接入
 
 ## 客户端
 
-- [Android 开发与构建](android.md)
-- [Android 后台播放](android-background-audio.md)
-- [Android 界面方案](design/android/android-ui-v2.md)
-- [历史验证记录](verification.md)
+- [Android 开发与构建](android.md)：环境、签名、调试与打包
+- [Android 后台播放](android-background-audio.md)：后台服务、媒体控制和系统中断行为
+- [产品定义](../apps/client/PRODUCT.md)
+- [界面设计系统](../apps/client/DESIGN.md)
 
-## 音乐源与 Provider
+## 部署
 
-- [音乐源说明](MUSIC_SOURCE.md)
-- [Provider 系统方案](PROVIDER_SYSTEM_V1_PLAN.md)
-- [Provider 运维](PROVIDER_OPERATIONS_V1.md)
-
-## 服务端与部署
-
-- [服务端持久化](SERVER_PERSISTENCE_V1.md)
-- [Ubuntu 全新登录部署](UBUNTU_NEW_LOGIN_DEPLOY.md)
-- [同步协议](SYNC_PROTOCOL.md)
-
-`design/` 保存设计方案和可视化原型；运行产物统一位于被 Git 忽略的 `release-artifacts/`。
+- [服务端部署与运维](DEPLOYMENT.md)：发布包、systemd、Nginx、升级和备份
+- [部署目录说明](../server-deploy/README.md)：`server-deploy/` 模板内容与本地打包命令
