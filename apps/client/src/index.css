@@ -1299,7 +1299,7 @@
 /* Search mode tabs — pill, matches access-tabs / side-tabs */
 .search-mode-tabs {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   flex: none;
   gap: 3px;
   margin-bottom: 12px;

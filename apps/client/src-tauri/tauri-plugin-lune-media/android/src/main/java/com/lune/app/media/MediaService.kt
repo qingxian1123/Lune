@@ -245,7 +245,7 @@ class MediaService : Service() {
         var compactCount = 0
         builder.addAction(
             android.R.drawable.star_off,
-            "喜欢",
+            "送出爱心",
             serviceActionIntent(ACTION_FAVORITE, 1),
         )
         compactCount++

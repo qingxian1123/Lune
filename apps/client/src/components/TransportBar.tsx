@@ -1,9 +1,10 @@
 import type { CSSProperties } from 'react';
 import type { Track } from '@lune/shared';
-import { useFavoriteStore } from '../hooks/useFavoriteStore';
+import HeartButton from './HeartButton';
 import { useVolumeStore } from '../hooks/useVolumeStore';
 import { formatTime } from '../lib/format';
 import VolumeIcon from './VolumeIcon';
+import { getServerBaseUrl } from '../lib/serverConfig';
 
 interface TransportBarProps {
   track: Track | null;
@@ -14,6 +15,7 @@ interface TransportBarProps {
   membersCount: number;
   onSeek: (ms: number) => void;
   onNext: () => void;
+  onSendHeart: (track: Track) => Promise<void>;
 }
 
 export default function TransportBar({
@@ -25,16 +27,14 @@ export default function TransportBar({
   membersCount,
   onSeek,
   onNext,
+  onSendHeart,
 }: TransportBarProps) {
-  const isFavorite = useFavoriteStore((state) => state.isFavorite);
-  const toggleFavorite = useFavoriteStore((state) => state.toggle);
   const volume = useVolumeStore((state) => state.volume);
   const muted = useVolumeStore((state) => state.muted);
   const setVolume = useVolumeStore((state) => state.setVolume);
   const toggleMute = useVolumeStore((state) => state.toggleMute);
   const safeDuration = duration || track?.duration || 0;
   const progress = safeDuration > 0 ? Math.min(currentTime, safeDuration) / safeDuration : 0;
-  const favorite = track ? isFavorite(track.id) : false;
   const volumePercent = Math.round(volume * 100);
 
   const progressStyle = {
@@ -87,16 +87,7 @@ export default function TransportBar({
       </div>
 
       <div className="transport-actions">
-        <button
-          type="button"
-          className={`terminal-icon-button ${favorite ? 'is-active' : ''}`}
-          onClick={() => track && toggleFavorite(track.id)}
-          disabled={!track}
-          aria-label={favorite ? '取消喜欢' : '喜欢'}
-          title={favorite ? '取消喜欢' : '喜欢'}
-        >
-          {favorite ? '♥' : '♡'}
-        </button>
+        <HeartButton track={track} onSendHeart={onSendHeart} sessionScope={getServerBaseUrl()} className="transport-heart" />
 
         <div className="transport-volume" style={volumeStyle}>
           <button

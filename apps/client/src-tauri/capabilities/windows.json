@@ -1,0 +1,12 @@
+{
+  "identifier": "windows-controls",
+  "description": "Windows 自定义标题栏窗口控制",
+  "windows": ["main"],
+  "platforms": ["windows"],
+  "permissions": [
+    "core:window:allow-minimize",
+    "core:window:allow-toggle-maximize",
+    "core:window:allow-close",
+    "core:window:allow-start-dragging"
+  ]
+}

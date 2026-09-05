@@ -7,6 +7,7 @@ import DesktopRoomSidebar from '../desktop/room/DesktopRoomSidebar';
 import type { DesktopRoomTab } from '../desktop/room/types';
 import NowPlaying from '../components/NowPlaying';
 import TransportBar from '../components/TransportBar';
+import { useClientRuntime } from '../app/ClientRuntimeProvider';
 
 type LuneThemeStyle = CSSProperties & {
   '--lune-accent': string;
@@ -15,6 +16,7 @@ type LuneThemeStyle = CSSProperties & {
 };
 
 export default function Room() {
+  const isWindows = useClientRuntime().kind === 'windows';
   const [sideTab, setSideTab] = useState<DesktopRoomTab>('search');
   const [panelOpen, setPanelOpen] = useState(false);
   const {
@@ -36,6 +38,7 @@ export default function Room() {
     onPickTrack,
     onAddMany,
     onNext,
+    onSendHeart,
     onRemove,
     onReorder,
     onSeek,
@@ -56,8 +59,8 @@ export default function Room() {
   };
 
   return (
-    <div className="room-shell" style={themeStyle}>
-      <DesktopRoomHeader
+    <div className={`room-shell${isWindows ? ' room-frameless' : ''}`} style={themeStyle}>
+      {!isWindows && <DesktopRoomHeader
         roomCode={displayRoomCode}
         copied={copied}
         connected={connected}
@@ -65,7 +68,8 @@ export default function Room() {
         onCopyCode={copyCode}
         onOpenLibrary={() => setPanelOpen(true)}
         onLeave={leaveToHome}
-      />
+      />}
+      {isWindows && <button type="button" className="desktop-library-toggle" onClick={() => setPanelOpen(true)}>音乐库</button>}
 
       {errorMessage && (
         <div className="room-error" role="alert">
@@ -87,6 +91,11 @@ export default function Room() {
           queue={queue}
           members={members}
           ownerId={ownerId}
+          roomCode={displayRoomCode}
+          copied={copied}
+          connected={connected}
+          onCopyCode={copyCode}
+          onLeave={leaveToHome}
           currentTrackId={track?.id}
           onSelectTab={selectSideTab}
           onClose={() => setPanelOpen(false)}
@@ -98,6 +107,7 @@ export default function Room() {
       </main>
 
       <TransportBar
+        onSendHeart={onSendHeart}
         track={track}
         currentTime={timeline.currentTime}
         duration={timeline.duration}

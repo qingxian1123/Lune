@@ -159,6 +159,7 @@ export interface MusicProvider {
 
 /** 客户端 → 服务端 */
 export type ClientMessage =
+  | { type: 'send_heart'; payload: { requestId: string; track: Track } }
   | { type: 'join'; payload: { token: string } }
   | { type: 'play'; payload: { track: Track; position?: number; expectedPlaybackSeq: number } }
   | {
@@ -185,6 +186,8 @@ export type ClientMessage =
 
 /** 服务端 → 客户端 */
 export type ServerMessage =
+  | { type: 'heart_recorded'; payload: { requestId: string } }
+  | { type: 'heart_failed'; payload: { requestId: string; message: string } }
   | { type: 'joined'; payload: { snapshot: RoomSnapshot; memberId: string } }
   | { type: 'room_state_changed'; payload: RoomStateChangedPayload }
   | { type: 'member_joined'; payload: { member: Member } }
@@ -198,4 +201,10 @@ export type ServerMessage =
 export interface DailyBest {
   date: string; // YYYY-MM-DD
   tracks: Track[];
+}
+
+export interface HotChart {
+  window: '7d';
+  generatedAt: string;
+  tracks: Array<{ rank: number; track: Track; heartCount: number; lastHeartAt: string }>;
 }

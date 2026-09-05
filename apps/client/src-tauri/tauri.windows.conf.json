@@ -1,0 +1,18 @@
+{
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Lune · 一起听",
+        "width": 960,
+        "height": 640,
+        "minWidth": 640,
+        "minHeight": 480,
+        "backgroundColor": "#0b0b0c",
+        "decorations": false,
+        "shadow": true,
+        "resizable": true
+      }
+    ]
+  }
+}

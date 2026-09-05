@@ -6,6 +6,7 @@ import { usePlayer } from '../../hooks/usePlayer';
 import { useRoomStore } from '../../hooks/useRoomStore';
 import { useSync } from '../../hooks/useSync';
 import { useWebSocket } from '../../hooks/useWebSocket';
+import { useHearts } from '../../hooks/useHearts';
 import { getWebSocketUrl } from '../../lib/serverConfig';
 import { getUiErrorMessage } from '../../lib/uiError';
 import { createAdvancePlaybackMessage, getTrackKey } from '../../lib/playbackCommand';
@@ -31,6 +32,7 @@ export function useRoomController(options: RoomControllerOptions = {}) {
   const token = routeState?.token ?? '';
   const memberId = routeState?.memberId ?? '';
   const [copied, setCopied] = useState(false);
+  const [copyError, setCopyError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token || !memberId || !code) {
@@ -41,6 +43,7 @@ export function useRoomController(options: RoomControllerOptions = {}) {
   const wsUrl = useMemo(() => getWebSocketUrl(), []);
   const ws = useWebSocket(wsUrl);
   const { send } = ws;
+  const onSendHeart = useHearts(send, ws.subscribe, ws.readyState === WebSocket.OPEN);
 
   const setIdentity = useRoomStore((state) => state.setIdentity);
   const reset = useRoomStore((state) => state.reset);
@@ -163,10 +166,16 @@ export function useRoomController(options: RoomControllerOptions = {}) {
   );
 
   const displayRoomCode = roomCode || code || '';
-  const copyCode = useCallback(() => {
+  const copyCode = useCallback(async () => {
     if (!displayRoomCode) return;
-    void navigator.clipboard?.writeText(displayRoomCode);
-    setCopied(true);
+    setCopyError(null);
+    setCopied(false);
+    try {
+      await navigator.clipboard.writeText(displayRoomCode);
+      setCopied(true);
+    } catch {
+      setCopyError('复制失败，请手动复制房间邀请码');
+    }
   }, [displayRoomCode]);
 
   const timeline = useMemo(
@@ -194,7 +203,7 @@ export function useRoomController(options: RoomControllerOptions = {}) {
     members,
     ownerId,
     displayRoomCode,
-    errorMessage: lastError ? getUiErrorMessage(lastError) : null,
+    errorMessage: lastError ? getUiErrorMessage(lastError) : copyError,
     playerState,
     lines,
     currentIndex,
@@ -203,6 +212,7 @@ export function useRoomController(options: RoomControllerOptions = {}) {
     copied,
     copyCode,
     onPickTrack,
+    onSendHeart,
     onAddMany,
     onNext,
     onRemove,

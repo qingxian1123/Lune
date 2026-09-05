@@ -1,4 +1,6 @@
 import { Logger } from '@nestjs/common';
+import { HeartStore } from '../charts/heart.store';
+import { ProviderRegistry } from '../providers/provider.registry';
 import {
   OnGatewayConnection,
   OnGatewayDisconnect,
@@ -36,11 +38,13 @@ import { ConnectionRegistry } from './connection.registry';
  *
  * 无 pause 消息(产品决定)。
  */
-@WebSocketGateway({ path: '/ws' })
+@WebSocketGateway({ path: '/ws', maxPayload: 1024 * 1024 })
 export class SyncGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private readonly logger = new Logger(SyncGateway.name);
   private readonly disconnectGraceMs = 30_000;
   private readonly pendingLeaves = new Map<string, ReturnType<typeof setTimeout>>();
+  private readonly heartRates = new WeakMap<WebSocket, { at: number; count: number }>();
+  private heartPending = 0;
 
   @WebSocketServer()
   server!: Server;
@@ -50,6 +54,8 @@ export class SyncGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private readonly rooms: RoomsService,
     private readonly store: RoomStore,
     private readonly conns: ConnectionRegistry,
+    private readonly hearts: HeartStore,
+    private readonly providers: ProviderRegistry,
   ) {}
 
   handleConnection(ws: WebSocket): void {
@@ -88,7 +94,11 @@ export class SyncGateway implements OnGatewayConnection, OnGatewayDisconnect {
       this.conns.send(ws, { type: 'error', payload: { message: '无效的 JSON' } });
       return;
     }
+    if (!msg || typeof msg !== 'object' || !msg.payload) return;
     switch (msg.type) {
+      case 'send_heart':
+        void this.handleHeart(ws, msg.payload, text.length);
+        break;
       case 'join':
         this.handleJoin(ws, msg.payload.token);
         break;
@@ -180,6 +190,35 @@ export class SyncGateway implements OnGatewayConnection, OnGatewayDisconnect {
       });
     }
     this.logger.log(`${payload.nickname} joined ${payload.roomCode}`);
+  }
+
+  private async handleHeart(ws: WebSocket, payload: { requestId: string; track: Track }, size: number): Promise<void> {
+    const requestId = typeof payload.requestId === 'string' ? payload.requestId.slice(0, 128) : '';
+    try {
+      const info = this.conns.infoOf(ws);
+      if (!info || !this.store.getRoom(info.roomCode)?.members.has(info.memberId)) throw new Error('Not joined');
+      const now = Date.now();
+      const rate = this.heartRates.get(ws);
+      if (!rate || now - rate.at >= 1000) this.heartRates.set(ws, { at: now, count: 1 });
+      else if (++rate.count > 20) throw new Error('Too many hearts');
+      if (size > 8192 || this.heartPending >= 100 || typeof payload.requestId !== 'string' || !/^[\w:-]{1,128}$/.test(payload.requestId)) throw new Error('Invalid request');
+      const raw = payload.track;
+      if (!raw || typeof raw !== 'object') throw new Error('Invalid track');
+      const provider = raw.provider ?? this.providers.getDefaultId();
+      if (!provider || !this.providers.getActiveById(provider)) throw new Error('Invalid provider');
+      for (const [field, max] of [['id', 256], ['name', 512], ['artists', 1024], ['album', 512], ['coverUrl', 2048]] as const) {
+        if (typeof raw[field] !== 'string' || raw[field].length > max) throw new Error('Invalid track field');
+      }
+      if (!raw.id.trim() || !raw.name.trim() || !Number.isFinite(raw.duration) || raw.duration < 0 || raw.duration > 604800000) throw new Error('Invalid track');
+      if (raw.coverUrl && !/^https?:\/\//i.test(raw.coverUrl)) throw new Error('Invalid cover');
+      const track: Track = { id: raw.id, provider, name: raw.name, artists: raw.artists, album: raw.album, coverUrl: raw.coverUrl, duration: raw.duration };
+      this.heartPending += 1;
+      try { await this.hearts.record(requestId, track); }
+      finally { this.heartPending -= 1; }
+      this.conns.send(ws, { type: 'heart_recorded', payload: { requestId } });
+    } catch {
+      this.conns.send(ws, { type: 'heart_failed', payload: { requestId, message: '爱心没有送出，请重试' } });
+    }
   }
 
   private handlePlay(

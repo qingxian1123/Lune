@@ -8,7 +8,7 @@ import MobileQueue from '../MobileQueue';
 import type { MobileRoomSheet as SheetKind, MobileRoomSheetState } from './types';
 
 const SHEET_TITLES: Record<SheetKind, string> = {
-  search: '搜索音乐',
+  search: '选歌',
   queue: '播放队列',
   members: '房间成员',
   volume: '本机音量',
@@ -93,9 +93,9 @@ export default function MobileRoomSheet({
           </div>
         )}
         <div className="m-sheet-body">
-          {sheet === 'search' && (
-            <SearchPanel onPick={onPickTrack} onAddMany={onAddMany} providerPicker="pills" />
-          )}
+          <div hidden={sheet !== 'search'}>
+            <SearchPanel active={sheet === 'search'} onPick={onPickTrack} onAddMany={onAddMany} providerPicker="pills" />
+          </div>
           {sheet === 'queue' && (
             <MobileQueue
               queue={queue}

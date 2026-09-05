@@ -1,6 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore, useRef } from 'react';
 import type { PlaylistSummary, Track } from '@lune/shared';
 import { getPlaylist, getProviders, searchPlaylists, searchTracks } from '../lib/api';
+import HotChartPanel, { providerLabel } from './HotChartPanel';
+import './hearts.css';
+import { getServerBaseUrl } from '../lib/serverConfig';
 import { formatTime } from '../lib/format';
 import { getUiErrorMessage } from '../lib/uiError';
 
@@ -11,19 +14,34 @@ interface SearchPanelProps {
    * 音乐源选择器形态:桌面默认原生 select;
    * 移动端传 'pills' 渲染主题化胶囊组,避免弹出系统样式菜单。
    */
+  active?: boolean;
   providerPicker?: 'select' | 'pills';
 }
 
-type Tab = 'songs' | 'playlists';
+type Tab = 'songs' | 'playlists' | 'hot';
 type PlaylistView = 'list' | 'detail';
 
-const providerLabel = (provider: string): string =>
-  ({ netease: '网易云音乐', kugou: '酷狗音乐' })[provider] || provider;
+const subscribeServer = (listener: () => void) => {
+  window.addEventListener('storage', listener);
+  window.addEventListener('lune-server-changed', listener);
+  return () => { window.removeEventListener('storage', listener); window.removeEventListener('lune-server-changed', listener); };
+};
 
-export default function SearchPanel({ onPick, onAddMany, providerPicker = 'select' }: SearchPanelProps) {
+async function searchSources<T>(sources: string[], search: (source: string) => Promise<T[]>): Promise<T[]> {
+  const results = await Promise.allSettled(sources.map(search));
+  const available = results.flatMap((result) => result.status === 'fulfilled' ? [result.value] : []);
+  if (available.length === 0) throw new Error('暂时无法搜索，请检查音乐源连接后重试');
+  // Interleave sources so a full first-source response does not hide every other source.
+  return Array.from({ length: 20 }, (_, i) => available.flatMap((items) => items[i] ? [items[i]] : [])).flat().slice(0, 20);
+}
+
+export default function SearchPanel({ onPick, onAddMany, providerPicker = 'select', active = true }: SearchPanelProps) {
   const [tab, setTab] = useState<Tab>('songs');
   const [providers, setProviders] = useState<string[]>([]);
-  const [provider, setProvider] = useState('');
+  const [provider, setProvider] = useState('all');
+  const serverUrl = useSyncExternalStore(subscribeServer, getServerBaseUrl);
+
+  const requests = useRef({ songs: 0, playlists: 0, detail: 0 });
 
   // 搜歌 state
   const [kw, setKw] = useState('');
@@ -43,26 +61,31 @@ export default function SearchPanel({ onPick, onAddMany, providerPicker = 'selec
   const [detailErr, setDetailErr] = useState('');
 
   useEffect(() => {
+    requests.current.songs++; requests.current.playlists++; requests.current.detail++;
+    setLoading(false); setPlLoading(false); setDetailLoading(false);
+    setResults([]); setPlaylists([]); setTracks([]); setSelected(null); setPlView('list');
     let alive = true;
     getProviders()
       .then((activeProviders) => {
         if (!alive) return;
         setProviders(activeProviders);
         setProvider((current) =>
-          current && activeProviders.includes(current) ? current : activeProviders[0] || '',
+          current === 'all' || activeProviders.includes(current) ? current : 'all',
         );
       })
       .catch(() => {
         if (!alive) return;
         setProviders(['netease']);
-        setProvider('netease');
+        setProvider('all');
       });
     return () => {
       alive = false;
     };
-  }, []);
+  }, [serverUrl]);
 
   const changeProvider = (nextProvider: string) => {
+    requests.current.songs++; requests.current.playlists++; requests.current.detail++;
+    setLoading(false); setPlLoading(false); setDetailLoading(false);
     setProvider(nextProvider);
     setResults([]);
     setPlaylists([]);
@@ -76,42 +99,55 @@ export default function SearchPanel({ onPick, onAddMany, providerPicker = 'selec
 
   const doSearch = async () => {
     if (!kw.trim()) return;
+    const request = ++requests.current.songs;
+    const isCurrent = () => request === requests.current.songs && serverUrl === getServerBaseUrl();
     setLoading(true);
     setErr('');
     try {
-      setResults(await searchTracks(kw.trim(), 20, provider || undefined));
+      const result = provider === 'all'
+        ? await searchSources(providers, (source) => searchTracks(kw.trim(), 20, source))
+        : await searchTracks(kw.trim(), 20, provider);
+      if (isCurrent()) setResults(result);
     } catch (e) {
-      setErr(getUiErrorMessage(e, '暂时无法搜索歌曲，请稍后再试'));
+      if (isCurrent()) setErr(getUiErrorMessage(e, '暂时无法搜索歌曲，请稍后再试'));
     } finally {
-      setLoading(false);
+      if (isCurrent()) setLoading(false);
     }
   };
 
   const doPlaylistSearch = async () => {
     if (!plKw.trim()) return;
+    const request = ++requests.current.playlists;
+    const isCurrent = () => request === requests.current.playlists && serverUrl === getServerBaseUrl();
     setPlLoading(true);
     setPlErr('');
     try {
-      setPlaylists(await searchPlaylists(plKw.trim(), 20, provider || undefined));
+      const result = provider === 'all'
+        ? await searchSources(providers, (source) => searchPlaylists(plKw.trim(), 20, source))
+        : await searchPlaylists(plKw.trim(), 20, provider);
+      if (isCurrent()) setPlaylists(result);
     } catch (e) {
-      setPlErr(getUiErrorMessage(e, '暂时无法搜索歌单，请稍后再试'));
+      if (isCurrent()) setPlErr(getUiErrorMessage(e, '暂时无法搜索歌单，请稍后再试'));
     } finally {
-      setPlLoading(false);
+      if (isCurrent()) setPlLoading(false);
     }
   };
 
   const openPlaylist = async (pl: PlaylistSummary) => {
+    const request = ++requests.current.detail;
+    const isCurrent = () => request === requests.current.detail && serverUrl === getServerBaseUrl();
     setSelected(pl);
     setPlView('detail');
     setDetailLoading(true);
     setDetailErr('');
     setTracks([]);
     try {
-      setTracks(await getPlaylist(pl.id, pl.provider || provider || undefined));
+      const result = await getPlaylist(pl.id, pl.provider || (provider === 'all' ? undefined : provider));
+      if (isCurrent()) setTracks(result);
     } catch (e) {
-      setDetailErr(getUiErrorMessage(e, '歌单载入失败，请稍后再试'));
+      if (isCurrent()) setDetailErr(getUiErrorMessage(e, '歌单载入失败，请稍后再试'));
     } finally {
-      setDetailLoading(false);
+      if (isCurrent()) setDetailLoading(false);
     }
   };
 
@@ -123,7 +159,7 @@ export default function SearchPanel({ onPick, onAddMany, providerPicker = 'selec
   return (
     <section className="terminal-pane terminal-search">
       <div className="pane-heading">
-        <div><strong>搜索音乐</strong></div>
+        <div><strong>选歌</strong></div>
         {providerPicker === 'select' && (
           <label className="flex items-center gap-2 text-xs text-[rgb(var(--lune-muted)/0.58)]">
             <span>音乐源</span>
@@ -134,7 +170,7 @@ export default function SearchPanel({ onPick, onAddMany, providerPicker = 'selec
               className="lune-control rounded-lg px-2 py-1 text-xs"
               aria-label="选择音乐源"
             >
-              {providers.map((item) => (
+              {['all', ...providers].map((item) => (
                 <option key={item} value={item}>{providerLabel(item)}</option>
               ))}
             </select>
@@ -144,7 +180,7 @@ export default function SearchPanel({ onPick, onAddMany, providerPicker = 'selec
 
       {providerPicker === 'pills' && providers.length > 0 && (
         <div className="provider-pills" role="radiogroup" aria-label="选择音乐源">
-          {providers.map((item) => (
+          {['all', ...providers].map((item) => (
             <button
               key={item}
               type="button"
@@ -159,25 +195,29 @@ export default function SearchPanel({ onPick, onAddMany, providerPicker = 'selec
         </div>
       )}
 
-      <div className="search-mode-tabs">
+      <div className="search-mode-tabs" aria-label="选歌方式">
         <button
           type="button"
+          aria-pressed={tab === 'songs'}
           onClick={() => setTab('songs')}
           className={tab === 'songs' ? 'is-active' : ''}
         >
-          单曲
+          搜歌
         </button>
         <button
           type="button"
+          aria-pressed={tab === 'playlists'}
           onClick={() => setTab('playlists')}
           className={tab === 'playlists' ? 'is-active' : ''}
         >
           歌单
         </button>
+        <button type="button" aria-pressed={tab === 'hot'} onClick={() => setTab('hot')} className={tab === 'hot' ? 'is-active' : ''}>热榜</button>
       </div>
 
-      {tab === 'songs' && (
-        <>
+      <div hidden={tab !== 'hot'}><HotChartPanel provider={provider} serverUrl={serverUrl} active={active && tab === 'hot'} onPick={(track) => onAddMany([track])} /></div>
+
+      <div hidden={tab !== 'songs'}>
           <div className="flex gap-2">
             <input
               value={kw}
@@ -220,11 +260,9 @@ export default function SearchPanel({ onPick, onAddMany, providerPicker = 'selec
               </li>
             ))}
           </ul>
-        </>
-      )}
+      </div>
 
-      {tab === 'playlists' && plView === 'list' && (
-        <>
+      <div hidden={tab !== 'playlists' || plView !== 'list'}>
           <div className="flex gap-2">
             <input
               value={plKw}
@@ -268,10 +306,10 @@ export default function SearchPanel({ onPick, onAddMany, providerPicker = 'selec
               </li>
             ))}
           </ul>
-        </>
-      )}
+      </div>
 
-      {tab === 'playlists' && plView === 'detail' && selected && (
+      <div hidden={tab !== 'playlists'}>
+      {plView === 'detail' && selected && (
         <>
           <div className="flex items-center gap-2">
             <button
@@ -329,6 +367,7 @@ export default function SearchPanel({ onPick, onAddMany, providerPicker = 'selec
           )}
         </>
       )}
+      </div>
     </section>
   );
 }

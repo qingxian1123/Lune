@@ -1,4 +1,5 @@
 import type {
+  HotChart,
   PlaylistSummary,
   ProviderLyricResult,
   ProviderPlaylistSearchResult,
@@ -10,6 +11,10 @@ import { getServerBaseUrl } from './serverConfig';
 
 function endpoint(path: string): string {
   return `${getServerBaseUrl()}${path}`;
+}
+
+export async function getHotChart(serverUrl: string, provider: string, signal: AbortSignal): Promise<HotChart> {
+  return json(fetch(`${serverUrl}/api/charts/hot?window=7d&limit=20&provider=${encodeURIComponent(provider || 'all')}`, { signal }));
 }
 
 function providerParam(provider?: string): string {

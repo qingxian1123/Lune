@@ -1,6 +1,8 @@
 import { useLayoutEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
 import type { SettingsSectionDefinition } from './model/types';
+import { useClientRuntime } from '../../app/ClientRuntimeProvider';
+import WindowTitlebar from '../../desktop/WindowTitlebar';
 
 interface SettingsShellProps {
   open: boolean;
@@ -22,6 +24,7 @@ export default function SettingsShell({
   children,
 }: SettingsShellProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const isWindows = useClientRuntime().kind === 'windows';
   const showNavigation = sections.length > 1;
 
   useLayoutEffect(() => {
@@ -48,6 +51,7 @@ export default function SettingsShell({
         if (!mobile && event.target === event.currentTarget) onClose();
       }}
     >
+      {isWindows && <WindowTitlebar />}
       <section className="settings-surface">
         <header className="settings-header">
           <strong id="settings-title">设置</strong>

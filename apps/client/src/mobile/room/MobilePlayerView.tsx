@@ -1,4 +1,5 @@
 import type { Track } from '@lune/shared';
+import HeartButton from '../../components/HeartButton';
 import VolumeIcon from '../../components/VolumeIcon';
 import MobileTimeline from './MobileTimeline';
 import type { MobileRoomSheet, MobileRoomSheetState } from './types';
@@ -8,7 +9,6 @@ interface MobilePlayerViewProps {
   lyricPreview: string | null;
   isLoadingLyrics: boolean;
   isBuffering: boolean;
-  favorite: boolean;
   volume: number;
   muted: boolean;
   currentTime: number;
@@ -18,7 +18,7 @@ interface MobilePlayerViewProps {
   membersCount: number;
   onShowLyrics: () => void;
   onSearch: () => void;
-  onToggleFavorite: () => void;
+  onSendHeart: (track: Track) => Promise<void>;
   onNext: () => void;
   onSeek: (position: number) => void;
   onOpenSheet: (sheet: MobileRoomSheet) => void;
@@ -29,7 +29,6 @@ export default function MobilePlayerView({
   lyricPreview,
   isLoadingLyrics,
   isBuffering,
-  favorite,
   volume,
   muted,
   currentTime,
@@ -39,7 +38,7 @@ export default function MobilePlayerView({
   membersCount,
   onShowLyrics,
   onSearch,
-  onToggleFavorite,
+  onSendHeart,
   onNext,
   onSeek,
   onOpenSheet,
@@ -107,15 +106,7 @@ export default function MobilePlayerView({
         />
 
         <div className="m-controls">
-          <button
-            type="button"
-            className={`m-ctl m-heart ${favorite ? 'is-on' : ''}`}
-            onClick={onToggleFavorite}
-            disabled={!track}
-            aria-label={favorite ? '取消喜欢' : '喜欢'}
-          >
-            {favorite ? '♥' : '♡'}
-          </button>
+          <HeartButton track={track} onSendHeart={onSendHeart} className="m-ctl m-heart" />
 
           <button type="button" className="m-next" onClick={onNext} disabled={!track}>
             <span>下一首</span>
@@ -154,7 +145,7 @@ export default function MobilePlayerView({
               strokeLinecap="round"
             />
           </svg>
-          <b>搜索</b>
+          <b>选歌</b>
         </button>
         <button
           type="button"

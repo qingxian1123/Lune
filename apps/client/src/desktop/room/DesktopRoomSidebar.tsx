@@ -3,6 +3,7 @@ import MemberList from '../../components/MemberList';
 import Queue from '../../components/Queue';
 import SearchPanel from '../../components/SearchPanel';
 import type { DesktopRoomTab } from './types';
+import DesktopRoomMembers from './DesktopRoomMembers';
 
 interface DesktopRoomSidebarProps {
   open: boolean;
@@ -10,6 +11,11 @@ interface DesktopRoomSidebarProps {
   queue: QueueItem[];
   members: Member[];
   ownerId: string;
+  roomCode: string;
+  copied: boolean;
+  connected: boolean;
+  onCopyCode: () => void;
+  onLeave: () => void;
   currentTrackId?: string;
   onSelectTab: (tab: DesktopRoomTab) => void;
   onClose: () => void;
@@ -25,6 +31,11 @@ export default function DesktopRoomSidebar({
   queue,
   members,
   ownerId,
+  roomCode,
+  copied,
+  connected,
+  onCopyCode,
+  onLeave,
   currentTrackId,
   onSelectTab,
   onClose,
@@ -44,7 +55,7 @@ export default function DesktopRoomSidebar({
             className={activeTab === 'search' ? 'is-active' : ''}
             onClick={() => onSelectTab('search')}
           >
-            搜索
+            选歌
           </button>
           <button
             type="button"
@@ -72,7 +83,7 @@ export default function DesktopRoomSidebar({
 
       <div className="sidebar-content">
         <div hidden={activeTab !== 'search'}>
-          <SearchPanel onPick={onPickTrack} onAddMany={onAddMany} />
+          <SearchPanel active={activeTab === 'search'} onPick={onPickTrack} onAddMany={onAddMany} />
         </div>
         <div hidden={activeTab !== 'queue'}>
           <Queue
@@ -84,7 +95,9 @@ export default function DesktopRoomSidebar({
           />
         </div>
         <div hidden={activeTab !== 'members'}>
-          <MemberList members={members} ownerId={ownerId} />
+          <DesktopRoomMembers roomCode={roomCode} copied={copied} connected={connected} onCopyCode={onCopyCode} onLeave={onLeave}>
+            <MemberList members={members} ownerId={ownerId} />
+          </DesktopRoomMembers>
         </div>
       </div>
     </aside>

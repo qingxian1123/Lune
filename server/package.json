@@ -9,6 +9,7 @@
     "start": "node dist/main.js",
     "typecheck": "tsc -p tsconfig.typecheck.json",
     "test:room": "tsx --test test/room-state-machine.test.ts",
+    "test:hearts": "tsx --test test/hearts.test.ts",
     "test:kugou": "tsx test/kugou-provider.test.ts",
     "test:providers": "tsx test/provider-system.test.ts",
     "provider": "tsx src/providers/interfaces/cli/provider-cli.ts",

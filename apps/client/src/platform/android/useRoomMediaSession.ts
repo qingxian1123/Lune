@@ -14,7 +14,7 @@ interface RoomMediaSessionOptions {
   playing: boolean;
   muted: boolean;
   onNext: () => void;
-  onToggleFavorite: (trackId: string) => void;
+  onSendHeart: () => void;
   onMute: () => void;
   onResume: () => void;
   onLeave: () => void;
@@ -26,7 +26,7 @@ export function useRoomMediaSession({
   playing,
   muted,
   onNext,
-  onToggleFavorite,
+  onSendHeart,
   onMute,
   onResume,
   onLeave,
@@ -45,7 +45,7 @@ export function useRoomMediaSession({
       return;
     }
     if (action === 'favorite') {
-      if (track) onToggleFavorite(track.id);
+      if (track) onSendHeart();
       return;
     }
     if (action === 'mute') {

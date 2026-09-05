@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Track } from '@lune/shared';
 import { AudioEngine } from '../audio/AudioEngine';
 import { useRoomController } from '../features/room/useRoomController';
-import { useFavoriteStore } from '../hooks/useFavoriteStore';
 import { useVolumeStore } from '../hooks/useVolumeStore';
 import {
   onAudioInterrupt,
@@ -70,14 +69,13 @@ export default function MobileRoom() {
     onPickTrack,
     onAddMany,
     onNext,
+    onSendHeart,
     onRemove,
     onReorder,
     onSeek,
     resyncFromLatestPlayback,
   } = useRoomController({ onTrackAction, onTracksAdded });
 
-  const isFavorite = useFavoriteStore((state) => state.isFavorite);
-  const toggleFavorite = useFavoriteStore((state) => state.toggle);
   const volume = useVolumeStore((state) => state.volume);
   const muted = useVolumeStore((state) => state.muted);
   const setVolume = useVolumeStore((state) => state.setVolume);
@@ -162,10 +160,6 @@ export default function MobileRoom() {
       .catch(() => {});
   }, [displayRoomCode]);
 
-  const toggleCurrentFavorite = useCallback(() => {
-    if (track) toggleFavorite(track.id);
-  }, [toggleFavorite, track]);
-
   const muteFromSystemSurface = useCallback(() => {
     suppressLocalAudio('manual');
   }, [suppressLocalAudio]);
@@ -183,14 +177,13 @@ export default function MobileRoom() {
     playing: playback.status === 'playing',
     muted: locallyMuted,
     onNext,
-    onToggleFavorite: toggleFavorite,
+    onSendHeart: () => { if (track) void onSendHeart(track).then(() => showToast('爱心已送出')).catch(() => showToast('爱心没有送出，请重试')); },
     onMute: muteFromSystemSurface,
     onResume: resumeFromSystemSurface,
     onLeave: leaveRoom,
   });
 
   if (!code) return null;
-  const favorite = track ? isFavorite(track.id) : false;
   const lyricPreview = (() => {
     if (lines.length === 0) return null;
     const index = currentIndex < 0 ? 0 : Math.min(currentIndex, lines.length - 1);
@@ -248,7 +241,6 @@ export default function MobileRoom() {
           lyricPreview={lyricPreview}
           isLoadingLyrics={isLoadingLyrics}
           isBuffering={playerState.isBuffering}
-          favorite={favorite}
           volume={volume}
           muted={locallyMuted}
           currentTime={timeline.currentTime}
@@ -258,7 +250,7 @@ export default function MobileRoom() {
           membersCount={members.length}
           onShowLyrics={showLyrics}
           onSearch={() => openSheet('search')}
-          onToggleFavorite={toggleCurrentFavorite}
+          onSendHeart={onSendHeart}
           onNext={onNext}
           onSeek={onSeek}
           onOpenSheet={openSheet}

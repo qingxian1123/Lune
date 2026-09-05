@@ -45,6 +45,7 @@ export function getInitialServerUrl(): string {
 export function saveServerUrl(input: string): string {
   const normalized = normalizeServerUrl(input);
   window.localStorage.setItem(STORAGE_KEY, normalized);
+  window.dispatchEvent(new Event('lune-server-changed'));
   return normalized;
 }
 
