@@ -4,6 +4,10 @@ Lune 是一个自托管的多人同步听歌应用。用户在 Windows 或 Andro
 
 项目不提供公共服务器、预置账号或固定音乐源登录态。部署需要自行运行服务端，并通过 Provider CLI 登录音乐平台账号。
 
+## 界面预览
+
+![Lune Windows 客户端界面：同步播放、歌词与歌单](docs/images/lune-desktop.png)
+
 ## 功能
 
 - Windows 与 Android 双平台

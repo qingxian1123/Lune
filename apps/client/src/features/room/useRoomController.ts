@@ -56,12 +56,7 @@ export function useRoomController(options: RoomControllerOptions = {}) {
   const lastError = useRoomStore((state) => state.lastError);
   const clearError = useRoomStore((state) => state.clearError);
 
-  const onEnd = useCallback(() => {
-    const message = createAdvancePlaybackMessage(playback, 'ended');
-    if (message) send(message);
-  }, [playback, send]);
-
-  const { state: playerState, engine } = usePlayer(onEnd);
+  const { state: playerState, engine } = usePlayer();
   const { resyncFromLatestPlayback } = useSync({
     send,
     subscribe: ws.subscribe,

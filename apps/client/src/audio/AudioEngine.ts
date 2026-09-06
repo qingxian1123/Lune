@@ -75,6 +75,8 @@ export class AudioEngine {
     this.audio.addEventListener('waiting', () => this.bufferingCb?.(true));
     this.audio.addEventListener('canplay', () => this.bufferingCb?.(false));
     this.audio.addEventListener('ended', () => {
+      // 已换源或 stop 后，旧媒体任务队列中的 ended 不能结束新歌曲。
+      if (!this.audio.ended) return;
       this.stopTicker();
       this.endCb?.();
     });
@@ -102,11 +104,12 @@ export class AudioEngine {
 
   /**
    * 加载 URL 并从 offsetMs 开始播放。
-   * 返回 generation,外部可用以判断是否仍是当前请求。
+   * 每次 await 后检查 generation，禁止旧加载任务修改新音频。
    */
   async load(url: string, offsetMs = 0): Promise<void> {
-    await this.ensureGraph();
     const gen = ++this.loadGen;
+    await this.ensureGraph();
+    if (gen !== this.loadGen) return;
     this.stopTicker();
     this.audio.src = url;
     this.audio.load();
@@ -115,9 +118,9 @@ export class AudioEngine {
     } catch {
       // autoplay 被拦截,等 resume 后再 play;忽略
     }
-    if (offsetMs > 0) this.seek(offsetMs);
     // 若在 await 期间被新 load 覆盖,丢弃
     if (gen !== this.loadGen) return;
+    if (offsetMs > 0) this.seek(offsetMs);
   }
 
   /** 跳转到指定毫秒 */
