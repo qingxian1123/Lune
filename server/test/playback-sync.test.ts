@@ -156,3 +156,59 @@ test('重复入队的同一歌曲切换时重新加载；旧版本广播不能�
   assert.equal(sent.length, 0);
   assert.ok(engine.currentMs < 170_000);
 });
+
+test('成员设备快十分钟，排序及新歌加载仍使用服务器时间线', async (t) => {
+  const serverTime = 1_800_000_000_000;
+  let localTime = serverTime + 600_000;
+  let monotonicTime = 1000;
+  t.mock.method(Date, 'now', () => localTime);
+  t.mock.method(performance, 'now', () => monotonicTime);
+  const engine = new FakeEngine();
+  const resolver = deferredResolver();
+  const sync = new PlaybackSync(engine, resolver.resolve, () => {}, () => 100);
+  t.after(() => sync.dispose());
+  const pb = { ...playback('A', 1), serverTimestamp: serverTime };
+  sync.apply(pb, { serverTime });
+  monotonicTime += 500;
+  resolver.requests[0].finish('A');
+  await flush();
+  assert.equal(engine.currentMs, 550, '不能把本机快十分钟当作歌曲已播放十分钟');
+  const end = engine.end;
+  sync.apply(structuredClone(pb), { serverTime: serverTime + 500 });
+  assert.equal(engine.end, end, '排序广播不能重新绑定结束事件');
+  localTime += 3_600_000; // 用户或系统校时，不得使播放进度突跳。
+  monotonicTime += 1000;
+  sync.resync();
+  assert.equal(engine.currentMs, 1550);
+});
+
+test('临时 URL 解析失败不能上报全房间切歌', async (t) => {
+  const engine = new FakeEngine();
+  const sent: ClientMessage[] = [];
+  const sync = new PlaybackSync(engine, async () => ({ track: track('A'), url: null, unplayable: false }), (msg) => sent.push(msg), () => 0);
+  t.after(() => sync.dispose());
+  sync.apply(playback('A', 1));
+  await flush();
+  assert.deepEqual(sent, []);
+});
+
+test('提前 ended 被拒后，同版本 resync 恢复一次，不反复加载或跳歌', async (t) => {
+  const engine = new FakeEngine();
+  const resolver = deferredResolver();
+  const sent: ClientMessage[] = [];
+  const sync = new PlaybackSync(engine, resolver.resolve, (msg) => sent.push(msg), () => 0);
+  t.after(() => sync.dispose());
+  const pb = playback('A', 1);
+  sync.apply(pb, { serverTime: pb.serverTimestamp });
+  resolver.requests[0].finish('A');
+  await flush();
+  engine.end!();
+  sync.apply(pb, { recover: true, serverTime: pb.serverTimestamp });
+  assert.equal(resolver.requests.length, 2);
+  resolver.requests[1].finish('A');
+  await flush();
+  assert.ok(engine.currentMs < 1000);
+  engine.end!();
+  sync.apply(pb, { recover: true, serverTime: pb.serverTimestamp });
+  assert.equal(resolver.requests.length, 2);
+});

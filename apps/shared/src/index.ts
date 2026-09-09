@@ -71,6 +71,8 @@ export type RoomStateChangeCause =
 
 /** 播放与队列的原子状态事件，避免客户端观察到半次切歌。 */
 export interface RoomStateChangedPayload {
+  /** 消息发送时的服务器时间；与 playback.serverTimestamp 的播放锚点不同。 */
+  serverTime?: number;
   playback: PlaybackState;
   queue: QueueItem[];
   queueRevision: number;
@@ -97,7 +99,7 @@ export interface ProviderSearchResult {
 export interface ProviderResolveResult {
   track: Track;
   url: string | null;
-  /** 失效或无版权时为 true,前端可据此提示并跳下一首 */
+  /** 确定失效或无版权时为 true；临时解析失败不可标记为 true。 */
   unplayable?: boolean;
 }
 
@@ -188,7 +190,7 @@ export type ClientMessage =
 export type ServerMessage =
   | { type: 'heart_recorded'; payload: { requestId: string } }
   | { type: 'heart_failed'; payload: { requestId: string; message: string } }
-  | { type: 'joined'; payload: { snapshot: RoomSnapshot; memberId: string } }
+  | { type: 'joined'; payload: { snapshot: RoomSnapshot; memberId: string; serverTime?: number } }
   | { type: 'room_state_changed'; payload: RoomStateChangedPayload }
   | { type: 'member_joined'; payload: { member: Member } }
   | { type: 'member_left'; payload: { memberId: string; ownerId: string } }

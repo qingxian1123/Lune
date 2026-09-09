@@ -47,9 +47,9 @@ export class KugouProvider implements MusicProvider {
     const fallback: ProviderResolveResult = {
       track: this.emptyTrack(songId),
       url: null,
-      unplayable: true,
+      unplayable: false, // 解析异常不等于确定不可播。
     };
-    if (!ref) return fallback;
+    if (!ref) return { ...fallback, unplayable: true };
 
     return this.safe('resolve', fallback, async () => {
       const body = await this.api.songUrl({
@@ -58,6 +58,7 @@ export class KugouProvider implements MusicProvider {
         album_audio_id: ref.albumAudioId,
         quality: 128,
       });
+      if (!body || body.status === 0 || (body.errcode !== undefined && body.errcode !== 0)) return fallback;
       const data = body?.data ?? body;
       const url =
         this.stringValue(data, ['play_url', 'playUrl', 'url']) ||

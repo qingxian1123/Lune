@@ -41,6 +41,8 @@ class MediaPlugin(private val activity: Activity) : Plugin(activity) {
 
     override fun load(webView: WebView) {
         super.load(webView)
+        // 入房解析和通知栏恢复都跨异步边界，不能依赖短暂的页面用户手势。
+        webView.settings.mediaPlaybackRequiresUserGesture = false
         MediaService.actionDispatcher = { action ->
             val payload = JSObject()
             payload.put("action", action)

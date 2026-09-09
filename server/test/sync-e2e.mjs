@@ -127,7 +127,7 @@ const main = async () => {
     requestId: 'advance-A-1',
     expectedPlaybackSeq: observedPlayback.seq,
     expectedTrackKey: `:${observedPlayback.track.id}`,
-    reason: 'ended',
+    reason: 'manual', // 本测试未等待歌曲时长；自然结束的时间校验由回归测试覆盖。
   };
   a.send({ type: 'advance_playback', payload: advancePayload });
   const [aAdvanced, bAdvanced] = await Promise.all([

@@ -1,11 +1,27 @@
 # Android 后台播放
 
-Android 客户端通过 `apps/client/src-tauri/tauri-plugin-lune-media` 提供前台媒体服务和 `MediaSessionCompat`。音频仍由 WebView 内的 `AudioEngine` 播放，原生层负责进程保活、系统媒体入口、音频焦点和耳机断开事件。
+Android 客户端通过 `apps/client/src-tauri/tauri-plugin-lune-media` 提供前台媒体服务和 `MediaSessionCompat`。音频和音频焦点统一由 WebView 内的 `AudioEngine` / Chromium 管理；原生层负责前台服务、系统媒体入口和耳机断开事件。
+
+## 打断方案（2026-09-07）
+
+原方案有两个相互放大的问题：原生服务与 WebView 分别申请焦点，存在内部相互抢占的风险；恢复按钮只改 Gain 和 seek，没有调用 `AudioContext.resume()` 与 `HTMLAudioElement.play()`。此外，服务还未收到元数据时就显示“被系统打断”，把初始化状态当成了故障。
+
+现在只保留 WebView 一个焦点管理方，服务不再申请、放弃或转发自己的焦点变化。通知的恢复动作与页面恢复按钮走同一条播放路径。WebView 关闭媒体用户手势限制，使异步入房、切歌和通知栏恢复不依赖已经失效的页面手势。
+
+本机状态分开处理：
+
+- `paused`：媒体实际暂停或 AudioContext 挂起。只说明当前未播放，不推断一定有其他应用播放。
+- `blocked`：`play()` 返回 `NotAllowedError`，显示播放尚未启动。
+- `error`：媒体网络、解码、启动失败或启动超过 10 秒，提供重试入口并记录控制台错误。
+- `manual` / `noisy`：用户在媒体卡静音或耳机断开，暂停并锁住本机输出。只有用户明确恢复才解锁，系统恢复事件不能绕过。
+- 正常播放：实际媒体恢复和 AudioContext 运行后清除故障状态，再校准房间位置。
+
+暂停期间房间仍接收歌曲及进度更新，但新曲目不会主动 `play()` 抢回焦点；返回前台也只校准进度。系统自行恢复播放时跟进同步，系统没有恢复时保留按钮供用户操作。恢复同时启动 Context 和媒体，等待结果后校准进度；网络错误会先重新加载当前媒体源。恢复失败保留提示，不显示成功。过期或失效的音频 URL 仍可能需要切换歌曲重新解析。
 
 ## 行为原则
 
 - 房间播放状态是唯一权威状态。本机系统中断不会向房间广播暂停、进度或切歌。
-- Lune 没有暂停命令。来电、其他应用抢占音频或耳机断开时，只把当前设备静音，房间时间线继续推进。
+- Lune 没有房间暂停命令。本机暂停或耳机断开不会暂停房间时间线。
 - 声音恢复或应用回到前台时，客户端按最新房间状态校正播放位置。
 - WebSocket 短暂断线时，服务端保留成员身份 30 秒；客户端重连后重新发送 `join` 并取得最新快照。
 
@@ -16,7 +32,7 @@ Android 客户端通过 `apps/client/src-tauri/tauri-plugin-lune-media` 提供�
 - 发布包含封面、歌曲、歌手和播放状态的通知栏/锁屏媒体卡
 - 把“喜欢”“本机静音/恢复”“下一首”“离开房间”动作回传前端
 - 接收耳机媒体按键
-- 申请音频焦点并监听焦点变化
+- 音频焦点委托实际播放的 WebView，服务不独立申请焦点
 - 监听 `ACTION_AUDIO_BECOMING_NOISY`，防止耳机或蓝牙断开后突然外放
 - 使用 `START_STICKY` 请求系统在可行时恢复前台服务
 
@@ -26,9 +42,11 @@ Android 客户端通过 `apps/client/src-tauri/tauri-plugin-lune-media` 提供�
 
 | 场景 | 本机行为 | 房间行为 |
 |---|---|---|
-| 来电或暂时失去音频焦点 | 静音，获得焦点后恢复并校正 | 继续播放 |
-| 其他应用长期占用音频 | 保持静音，用户可手动恢复 | 继续播放 |
-| 耳机或蓝牙断开 | 立即静音，等待用户恢复 | 继续播放 |
+| 来电或暂时失去音频焦点 | 由 WebView 响应系统；实际恢复后校正，未恢复则显示入口 | 继续播放 |
+| 其他应用长期占用音频 | 不主动抢回焦点，用户可手动恢复 | 继续播放 |
+| 耳机或蓝牙断开 | 立即静音并暂停，等待用户恢复 | 继续播放 |
+| 打断期间房间切歌 | 更新待播放源，继续保持暂停 | 正常切歌 |
+| 播放策略或媒体错误 | 显示对应故障，重试实际启动音频 | 不发送额外控制命令 |
 | WebSocket 断开不超过 30 秒 | 自动重连并重发身份 | 成员列表保持稳定 |
 | WebSocket 断开超过 30 秒 | 需要重新加入房间 | 服务端移除成员 |
 | 应用回到前台 | 立即按最新状态校正 | 不产生控制命令 |
@@ -51,5 +69,13 @@ Android 清单声明媒体播放前台服务相关权限。Android 13 及更高�
 5. 拔出耳机或断开蓝牙时不会突然外放。
 6. 飞行模式开启 20 秒后关闭，成员身份和播放状态恢复。
 7. 断网超过 30 秒后，客户端正确提示重新加入。
+8. 入房、切歌时没有其他应用播放，不出现虚假的“其他声音正在播放”提示。
+9. 暂停期间房主连续切歌，手机保持暂停；恢复后播放最新歌曲并追上进度。
+10. 恢复尚未完成时断开耳机，手机仍保持暂停；快速重复点击不会并发恢复。
+11. 模拟音频 URL 网络错误，显示加载错误而非外部打断；网络恢复后按钮能实际重新加载。
+
+自动化回归：`pnpm --filter @lune/server test:playback`。测试覆盖 Context 与媒体同时恢复、暂停期间切歌、耳机锁定、恢复竞态、策略拒绝、网络重试，以及旧加载和旧结束事件隔离。原生编译检查：在 `apps/client/src-tauri/gen/android` 执行 `gradlew.bat :tauri-plugin-lune-media:compileDebugKotlin`。
+
+参考：[Chromium 媒体会话与焦点](https://chromium.googlesource.com/chromium/src/+/HEAD/services/media_session/controlling_media_playback.md)、[Android WebSettings 媒体手势设置](https://developer.android.com/reference/android/webkit/WebSettings#setMediaPlaybackRequiresUserGesture(boolean))。
 
 不同厂商对后台进程和电池优化的限制不同；若出现特定机型终止服务，应记录系统版本、电池策略和复现时长，再决定是否增加厂商设置引导。

@@ -12,6 +12,7 @@ import { JwtService } from '@nestjs/jwt';
 import type {
   ClientMessage,
   PlaybackAdvanceReason,
+  ProviderResolveResult,
   RoomStateChangeCause,
   RoomTokenPayload,
   Track,
@@ -45,6 +46,7 @@ export class SyncGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private readonly pendingLeaves = new Map<string, ReturnType<typeof setTimeout>>();
   private readonly heartRates = new WeakMap<WebSocket, { at: number; count: number }>();
   private heartPending = 0;
+  private readonly unplayableChecks = new WeakMap<Room, { seq: number; result: Promise<ProviderResolveResult | null> }>();
 
   @WebSocketServer()
   server!: Server;
@@ -113,7 +115,7 @@ export class SyncGateway implements OnGatewayConnection, OnGatewayDisconnect {
         );
         break;
       case 'advance_playback':
-        this.handleAdvancePlayback(
+        void this.handleAdvancePlayback(
           ws,
           msg.payload.requestId,
           msg.payload.expectedPlaybackSeq,
@@ -175,7 +177,7 @@ export class SyncGateway implements OnGatewayConnection, OnGatewayDisconnect {
     });
     this.conns.send(ws, {
       type: 'joined',
-      payload: { snapshot: room.toSnapshot(), memberId: payload.memberId },
+      payload: { snapshot: room.toSnapshot(), memberId: payload.memberId, serverTime: Date.now() },
     });
     if (!reconnecting) {
       this.conns.broadcast(payload.roomCode, {
@@ -254,21 +256,50 @@ export class SyncGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.broadcastRoomState(info.roomCode, room, 'seek');
   }
 
-  private handleAdvancePlayback(
+  private async handleAdvancePlayback(
     ws: WebSocket,
     requestId: string,
     expectedPlaybackSeq: number,
     expectedTrackKey: string,
-    _reason: PlaybackAdvanceReason,
-  ): void {
+    reason: PlaybackAdvanceReason,
+  ): Promise<void> {
     if (!this.assertJoined(ws)) return;
     const info = this.conns.infoOf(ws)!;
     const room = this.store.getRoom(info.roomCode);
     if (!room) return;
-    if (!room.advance(expectedPlaybackSeq, expectedTrackKey)) {
+    if (!['manual', 'ended', 'unplayable'].includes(reason)) return;
+    const currentTrack = room.playback.track;
+    if (!currentTrack || room.playback.seq !== expectedPlaybackSeq ||
+      `${currentTrack.provider || ''}:${currentTrack.id}` !== expectedTrackKey) {
       this.sendRoomState(ws, room, 'resync');
       return;
     }
+    if (reason === 'unplayable') {
+      // 单个成员 URL 解析失败不能决定全房间切歌；服务端合并并复核同版本报告。
+      let check = this.unplayableChecks.get(room);
+      if (!check || check.seq !== expectedPlaybackSeq) {
+        const provider = currentTrack.provider
+          ? this.providers.getActiveById(currentTrack.provider)
+          : this.providers.getActive();
+        const result = Promise.resolve().then(() => provider?.resolve(currentTrack.id) ?? null).catch(() => null);
+        check = { seq: expectedPlaybackSeq, result };
+        this.unplayableChecks.set(room, check);
+      }
+      const result = await check.result;
+      if (this.unplayableChecks.get(room) === check) this.unplayableChecks.delete(room);
+      if (this.store.getRoom(info.roomCode) !== room || this.conns.infoOf(ws)?.memberId !== info.memberId) return;
+      if (!result || result.url || result.unplayable !== true) {
+        this.logger.warn(`保留播放 room=${room.code} seq=${expectedPlaybackSeq} track=${expectedTrackKey} reason=unplayable-unconfirmed`);
+        this.sendRoomState(ws, room, 'resync');
+        return;
+      }
+    }
+    if (!room.advance(expectedPlaybackSeq, expectedTrackKey, reason)) {
+      this.logger.warn(`忽略切歌 room=${room.code} seq=${expectedPlaybackSeq} track=${expectedTrackKey} reason=${reason}`);
+      this.sendRoomState(ws, room, 'resync');
+      return;
+    }
+    this.logger.log(`切歌 room=${room.code} seq=${expectedPlaybackSeq} track=${expectedTrackKey} reason=${reason} next=${room.playback.track?.id ?? 'idle'}`);
     this.broadcastRoomState(info.roomCode, room, 'advance', requestId);
   }
 
@@ -337,6 +368,7 @@ export class SyncGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.conns.broadcast(roomCode, {
       type: 'room_state_changed',
       payload: {
+        serverTime: Date.now(),
         playback: room.playback,
         queue: room.queue,
         queueRevision: room.queueRevision,
@@ -350,6 +382,7 @@ export class SyncGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.conns.send(ws, {
       type: 'room_state_changed',
       payload: {
+        serverTime: Date.now(),
         playback: room.playback,
         queue: room.queue,
         queueRevision: room.queueRevision,

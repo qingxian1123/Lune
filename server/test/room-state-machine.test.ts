@@ -74,3 +74,26 @@ test('旧曲目的 seek 与 advance 不能作用到新曲目', () => {
   assert.equal(room.playback.track?.id, second.id);
   assert.equal(room.playback.position, 0);
 });
+
+test('排序后，一个成员连续上报新版本 ended 也不能提前跳过歌曲', (t) => {
+  let now = 1_800_000_000_000;
+  t.mock.method(Date, 'now', () => now);
+  const room = new Room('EARLY');
+  room.play(track('A'), 0, 0);
+  room.enqueueMany(['B', 'C', 'D'].map((id) => track(id)), 'member');
+  const [b, c] = room.queue;
+  room.reorder(c.id, b.id, room.queueRevision);
+  const firstSeq = room.playback.seq;
+  assert.equal(room.advance(firstSeq, getTrackKey(track('A')), 'ended'), false);
+  now += 180_000;
+  assert.equal(room.advance(firstSeq, getTrackKey(track('A')), 'ended'), true);
+  for (let i = 0; i < 3; i++) {
+    assert.equal(room.advance(room.playback.seq, getTrackKey(room.playback.track!), 'ended'), false);
+  }
+  assert.equal(room.playback.track?.id, 'C');
+  assert.deepEqual(room.queue.map((item) => item.track.id), ['B', 'D']);
+  // 手动下一首保持即时；用户拖到末尾后也允许自然结束。
+  assert.equal(room.advance(room.playback.seq, getTrackKey(track('C')), 'manual'), true);
+  room.seek(179_000, getTrackKey(track('B')));
+  assert.equal(room.advance(room.playback.seq, getTrackKey(track('B')), 'ended'), true);
+});

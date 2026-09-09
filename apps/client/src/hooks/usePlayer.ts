@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { AudioEngine } from '../audio/AudioEngine';
+import type { PlaybackIssue } from '../audio/AudioEngine';
 
 export interface PlayerState {
   currentTime: number; // 毫秒
   duration: number; // 毫秒
   isBuffering: boolean;
+  playbackIssue: PlaybackIssue;
 }
 
 /**
@@ -21,6 +23,7 @@ export function usePlayer() {
     currentTime: 0,
     duration: 0,
     isBuffering: false,
+    playbackIssue: null,
   });
 
   useEffect(() => {
@@ -28,7 +31,9 @@ export function usePlayer() {
     engine.onTick((ms) => setState((s) => ({ ...s, currentTime: ms })));
     engine.onDuration((ms) => setState((s) => ({ ...s, duration: ms })));
     engine.onBuffering((b) => setState((s) => ({ ...s, isBuffering: b })));
+    engine.onPlaybackIssue((playbackIssue) => setState((s) => ({ ...s, playbackIssue })));
     return () => {
+      engine.onPlaybackIssue(null);
       // 组件卸载不 dispose 引擎(单例,跨页面复用)
     };
   }, []);

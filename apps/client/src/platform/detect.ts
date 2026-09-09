@@ -17,7 +17,11 @@ export function isDesktopShell(): boolean {
 
 export function detectPlatformKind(): ClientPlatformKind {
   if (isAndroidShell()) return 'android';
-  if (isDesktopShell()) return 'windows';
+  if (isDesktopShell()) {
+    // Android also includes Linux in its user agent, so detect it first.
+    if (/linux/i.test(navigator.userAgent)) return 'linux';
+    return 'windows';
+  }
   return 'browser';
 }
 

@@ -7,7 +7,7 @@
  */
 
 export type MediaAction = 'next' | 'favorite' | 'leave' | 'mute' | 'resume';
-export type AudioInterrupt = 'focus_loss' | 'focus_gain' | 'becoming_noisy';
+export type AudioInterrupt = 'becoming_noisy';
 
 export interface MediaSessionState {
   title: string;
@@ -45,11 +45,6 @@ export async function startMediaSession(): Promise<void> {
   await invokeMedia('start');
 }
 
-/** 用户要求恢复本机声音时，复用 start 命令重新申请 Android 音频焦点。 */
-export async function requestMediaAudioFocus(): Promise<void> {
-  await invokeMedia('start');
-}
-
 /** 同步曲目元数据与播放状态到通知栏/锁屏 */
 export async function updateMediaSession(state: MediaSessionState): Promise<void> {
   await invokeMedia('update', { ...state });
@@ -82,7 +77,7 @@ export async function onMediaAction(
   }
 }
 
-/** 订阅来电、其他应用抢占音频与耳机断开等 Android 系统中断。 */
+/** 焦点由 WebView 管理；原生层只转发耳机断开。 */
 export async function onAudioInterrupt(
   handler: (event: AudioInterrupt) => void,
 ): Promise<() => void> {

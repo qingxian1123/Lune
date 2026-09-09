@@ -125,6 +125,11 @@ assert.equal(resolved.url, 'https://audio.example/moon.mp3');
 assert.equal(resolved.unplayable, false);
 assert.equal(resolved.track.provider, 'kugou');
 
+const failedProvider = new KugouProvider({ songUrl: async () => { throw new Error('rate limited'); } } as unknown as KugouApiService);
+assert.equal((await failedProvider.resolve(track.id)).unplayable, false, '临时解析异常不能触发全房间跳歌');
+const rejectedProvider = new KugouProvider({ songUrl: async () => ({ status: 0, errcode: 429 }) } as unknown as KugouApiService);
+assert.equal((await rejectedProvider.resolve(track.id)).unplayable, false, '上游限流响应不能标记歌曲不可播');
+
 const lyric = await provider.lyric(track.id);
 assert.deepEqual(lyric.lines, [
   { time: 1.5, text: '第一行' },

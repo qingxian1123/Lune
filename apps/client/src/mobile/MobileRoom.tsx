@@ -3,10 +3,7 @@ import type { Track } from '@lune/shared';
 import { AudioEngine } from '../audio/AudioEngine';
 import { useRoomController } from '../features/room/useRoomController';
 import { useVolumeStore } from '../hooks/useVolumeStore';
-import {
-  onAudioInterrupt,
-  requestMediaAudioFocus,
-} from '../lib/mediaSession';
+import { onAudioInterrupt } from '../lib/mediaSession';
 import { useRoomBackNavigation } from '../platform/android/useRoomBackNavigation';
 import { useRoomMediaSession } from '../platform/android/useRoomMediaSession';
 import MobileLeaveConfirm from './room/MobileLeaveConfirm';
@@ -16,13 +13,15 @@ import MobileRoomHeader from './room/MobileRoomHeader';
 import MobileRoomSheet from './room/MobileRoomSheet';
 import type { MobileRoomSheet as RoomSheet, MobileRoomSheetState, MobileRoomView } from './room/types';
 
-type LocalAudioInterruption = 'focus' | 'noisy' | 'manual';
+type LocalAudioInterruption = 'noisy' | 'manual';
 
 export default function MobileRoom() {
   const [view, setView] = useState<MobileRoomView>('player');
   const [sheet, setSheet] = useState<MobileRoomSheetState>(null);
   const [confirmLeave, setConfirmLeave] = useState(false);
   const [audioInterruption, setAudioInterruption] = useState<LocalAudioInterruption | null>(null);
+  const [resuming, setResuming] = useState(false);
+  const resumePending = useRef(false);
   const [toast, setToast] = useState<{ id: number; text: string } | null>(null);
   const toastId = useRef(0);
   const audioInterruptionRef = useRef<LocalAudioInterruption | null>(null);
@@ -82,20 +81,34 @@ export default function MobileRoom() {
   const toggleMute = useVolumeStore((state) => state.toggleMute);
 
   const suppressLocalAudio = useCallback((reason: LocalAudioInterruption) => {
-    const current = audioInterruptionRef.current;
-    if (reason === 'focus' && (current === 'manual' || current === 'noisy')) return;
     audioInterruptionRef.current = reason;
     setAudioInterruption(reason);
-    AudioEngine.instance().setOutputSuppressed(true);
+    AudioEngine.instance().setOutputSuppressed(true, { immediate: true });
   }, []);
 
   const resumeLocalAudio = useCallback(
-    (options: { requestFocus: boolean } = { requestFocus: true }) => {
-      if (options.requestFocus) void requestMediaAudioFocus();
+    () => {
+      if (resumePending.current) return;
+      resumePending.current = true;
+      setResuming(true);
       audioInterruptionRef.current = null;
       setAudioInterruption(null);
-      AudioEngine.instance().setOutputSuppressed(false);
-      if (resyncFromLatestPlayback()) showToast('已追上房间进度');
+      const engine = AudioEngine.instance();
+      const volumeState = useVolumeStore.getState();
+      if (volumeState.muted) volumeState.toggleMute();
+      engine.setOutputSuppressed(false);
+      resyncFromLatestPlayback();
+      // play 和 context.resume 必须实际执行，seek 本身不能恢复声音。
+      void engine.resume().then(() => {
+        if (audioInterruptionRef.current !== null) return;
+        resyncFromLatestPlayback();
+      }).catch((error) => {
+        console.warn('恢复本机播放失败', error);
+        showToast('声音未能恢复，请重试或切换歌曲');
+      }).finally(() => {
+        resumePending.current = false;
+        setResuming(false);
+      });
     },
     [resyncFromLatestPlayback, showToast],
   );
@@ -104,16 +117,9 @@ export default function MobileRoom() {
     let dispose: (() => void) | undefined;
     let active = true;
     void onAudioInterrupt((event) => {
-      if (event === 'focus_loss') {
-        suppressLocalAudio('focus');
-        return;
-      }
       if (event === 'becoming_noisy') {
         suppressLocalAudio('noisy');
         return;
-      }
-      if (event === 'focus_gain' && audioInterruptionRef.current === 'focus') {
-        resumeLocalAudio({ requestFocus: false });
       }
     }).then((unsubscribe) => {
       if (active) dispose = unsubscribe;
@@ -164,22 +170,26 @@ export default function MobileRoom() {
     suppressLocalAudio('manual');
   }, [suppressLocalAudio]);
 
-  const resumeFromSystemSurface = useCallback(() => {
-    if (muted) toggleMute();
-    resumeLocalAudio({ requestFocus: false });
-  }, [muted, resumeLocalAudio, toggleMute]);
+  const locallyMuted = muted || audioInterruption !== null || playerState.playbackIssue !== null;
 
-  const locallyMuted = muted || audioInterruption !== null;
+  // 系统真正恢复播放后也追上房间进度，不只处理用户点按恢复的路径。
+  const previousIssue = useRef(playerState.playbackIssue);
+  useEffect(() => {
+    if (previousIssue.current && !playerState.playbackIssue && !audioInterruption) {
+      resyncFromLatestPlayback();
+    }
+    previousIssue.current = playerState.playbackIssue;
+  }, [audioInterruption, playerState.playbackIssue, resyncFromLatestPlayback]);
 
   useRoomMediaSession({
     track,
     currentTime: playerState.currentTime,
-    playing: playback.status === 'playing',
-    muted: locallyMuted,
+    playing: playback.status === 'playing' && playerState.playbackIssue === null,
+    muted: muted || audioInterruption !== null,
     onNext,
     onSendHeart: () => { if (track) void onSendHeart(track).then(() => showToast('爱心已送出')).catch(() => showToast('爱心没有送出，请重试')); },
     onMute: muteFromSystemSurface,
-    onResume: resumeFromSystemSurface,
+    onResume: resumeLocalAudio,
     onLeave: leaveRoom,
   });
 
@@ -210,7 +220,7 @@ export default function MobileRoom() {
         onRequestLeave={requestLeave}
       />
 
-      {audioInterruption && (
+      {(audioInterruption || playerState.playbackIssue) && (
         <section className="m-audio-interruption" role="status" aria-live="polite">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M5 9v6h4l5 4V5L9 9H5Z" />
@@ -219,12 +229,16 @@ export default function MobileRoom() {
           <span>
             {audioInterruption === 'noisy'
               ? '耳机已断开，为你保持静音'
-              : audioInterruption === 'focus'
-                ? '其他声音正在播放，已为你静音'
-                : '已在本机静音，房间仍在播放'}
+              : audioInterruption === 'manual'
+                ? '已在本机静音，房间仍在播放'
+                : playerState.playbackIssue === 'error'
+                  ? '音频加载失败，请重试或切换歌曲'
+                  : playerState.playbackIssue === 'blocked'
+                    ? '播放尚未启动，请点按恢复'
+                    : '本机播放已暂停，房间仍在播放'}
           </span>
-          <button type="button" onClick={() => resumeLocalAudio()}>
-            恢复声音
+          <button type="button" disabled={resuming} onClick={() => resumeLocalAudio()}>
+            {resuming ? '正在恢复…' : '恢复声音'}
           </button>
         </section>
       )}

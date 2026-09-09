@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { Member, PlaybackState, QueueItem, RoomSnapshot, Track } from '@lune/shared';
+import type { Member, PlaybackAdvanceReason, PlaybackState, QueueItem, RoomSnapshot, Track } from '@lune/shared';
 
 const getTrackKey = (track: Pick<Track, 'id' | 'provider'>): string =>
   `${track.provider || ''}:${track.id}`;
@@ -89,13 +89,20 @@ export class Room {
    * 版本化切歌：只有基于当前 playback seq 与当前曲目的命令能生效。
    * 多客户端对同一次结束事件发出的后续命令会因 seq 过期自然失效。
    */
-  advance(expectedPlaybackSeq: number, expectedTrackKey: string): boolean {
+  advance(expectedPlaybackSeq: number, expectedTrackKey: string, reason: PlaybackAdvanceReason = 'manual'): boolean {
     if (
       expectedPlaybackSeq !== this.playback.seq ||
       !this.playback.track ||
       getTrackKey(this.playback.track) !== expectedTrackKey
     ) {
       return false;
+    }
+    if (reason === 'ended') {
+      const duration = this.playback.track.duration;
+      const position = this.playback.position + Math.max(0, Date.now() - this.playback.serverTimestamp);
+      // 版本正确不代表真的播完：时钟偏差、试听或异常 seek 都可能立即触发 ended。
+      // 容忍 1.5 秒的媒体时长/网络误差；手动切歌不受此限制。
+      if (Number.isFinite(duration) && duration > 0 && position < duration - 1500) return false;
     }
     if (this.queue.length === 0) {
       this.bumpPlayback({ status: 'idle', track: null, position: 0 });

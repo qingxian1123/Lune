@@ -13,6 +13,7 @@
 
 ## 客户端
 
+- [Linux 开发与构建](linux.md)：桌面端准备、依赖、打包与验收
 - [Android 开发与构建](android.md)：环境、签名、调试与打包
 - [Android 后台播放](android-background-audio.md)：后台服务、媒体控制和系统中断行为
 - [产品定义](../apps/client/PRODUCT.md)

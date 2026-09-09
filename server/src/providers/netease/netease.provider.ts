@@ -78,7 +78,7 @@ export class NeteaseProvider implements MusicProvider {
     const fallback: ProviderResolveResult = {
       track: this.emptyTrack(songId),
       url: null,
-      unplayable: true,
+      unplayable: false, // 网络/限流异常只能表示解析失败，不能据此让全房间跳歌。
     };
     return this.safe('resolve', fallback, async () => {
       const detailRes: any = await song_detail(this.withCookie({ ids: String(id) }) as any);
@@ -96,10 +96,12 @@ export class NeteaseProvider implements MusicProvider {
 
       // 从高到低取第一个可播 URL
       let url: string | null = null;
+      let receivedUrlResponse = false;
       for (const level of RESOLVE_LEVELS) {
         try {
           const urlRes: any = await song_url_v1(this.withCookie({ id, level }) as any);
           const urlData = (urlRes.body?.data || [])[0];
+          if (urlData) receivedUrlResponse = true;
           if (urlData?.url) {
             url = urlData.url;
             break;
@@ -109,7 +111,7 @@ export class NeteaseProvider implements MusicProvider {
         }
       }
       if (!url) this.logger.warn(`resolve 无可播 URL: id=${songId}`);
-      return { track, url, unplayable: !url };
+      return { track, url, unplayable: !url && receivedUrlResponse };
     });
   }
 

@@ -1,5 +1,7 @@
 import { clampAudioVolume, SAFE_INITIAL_VOLUME } from '../lib/audioVolume';
 
+export type PlaybackIssue = 'paused' | 'blocked' | 'error' | null;
+
 /**
  * AudioEngine —— 单例音频引擎。
  *
@@ -28,6 +30,10 @@ export class AudioEngine {
   private loadGen = 0;
   private volume = SAFE_INITIAL_VOLUME;
   private outputSuppressed = false;
+  private wantsPlayback = false;
+  private playbackHeld = false;
+  private playbackIssue: PlaybackIssue = null;
+  private issueCb: ((issue: PlaybackIssue) => void) | null = null;
   private rafId = 0;
   private tickCb: ((ms: number) => void) | null = null;
   private endCb: (() => void) | null = null;
@@ -45,13 +51,39 @@ export class AudioEngine {
 
   /** 用户手势触发 AudioContext 解锁(Tauri/浏览器首屏策略) */
   async resume(): Promise<void> {
-    await this.ensureGraph();
-    if (this.ctx && this.ctx.state !== 'running') {
-      await this.ctx.resume();
+    this.ensureGraph();
+    if (this.outputSuppressed) return;
+    this.playbackHeld = false;
+    const gen = this.loadGen;
+    // 网络/解码错误后单独 play 会继续拒绝；重新加载当前源后才能重试。
+    if (this.wantsPlayback && this.audio.error) {
+      const position = this.currentMs;
+      this.audio.load();
+      this.seek(position);
+    }
+    // 两项调用都在用户手势内发起；仅恢复 AudioContext 不会重启被系统暂停的媒体。
+    const contextReady = this.ctx && this.ctx.state !== 'running' ? this.ctx.resume() : Promise.resolve();
+    const mediaReady = this.wantsPlayback ? this.audio.play() : Promise.resolve();
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    try {
+      await Promise.race([
+        Promise.all([contextReady, mediaReady]),
+        new Promise<never>((_, reject) => {
+          timeout = setTimeout(() => reject(new Error('音频启动超时')), 10_000);
+        }),
+      ]);
+      if (gen === this.loadGen && this.wantsPlayback && !this.audio.paused && this.ctx?.state === 'running') {
+        this.setPlaybackIssue(null);
+      }
+    } catch (error) {
+      if (gen === this.loadGen && this.wantsPlayback) this.reportPlaybackError(error);
+      throw error;
+    } finally {
+      clearTimeout(timeout);
     }
   }
 
-  private async ensureGraph(): Promise<void> {
+  private ensureGraph(): void {
     if (this.ctx && this.source) return;
     if (!this.ctx) {
       const Ctor = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
@@ -60,6 +92,16 @@ export class AudioEngine {
       this.gain.gain.value = this.effectiveVolume;
       this.source = this.ctx.createMediaElementSource(this.audio);
       this.source.connect(this.gain).connect(this.ctx.destination);
+      this.ctx.addEventListener('statechange', () => {
+        if (!this.wantsPlayback) return;
+        if (this.ctx?.state !== 'running') {
+          this.playbackHeld = true;
+          this.setPlaybackIssue('paused');
+        } else if (!this.audio.paused && !this.outputSuppressed) {
+          this.playbackHeld = false;
+          this.setPlaybackIssue(null);
+        }
+      });
     }
   }
 
@@ -69,10 +111,22 @@ export class AudioEngine {
       this.durationCb?.(d);
     });
     this.audio.addEventListener('playing', () => {
+      if (this.outputSuppressed) {
+        this.audio.pause();
+        return;
+      }
+      this.playbackHeld = false;
+      this.setPlaybackIssue(this.ctx?.state === 'running' ? null : 'paused');
       this.bufferingCb?.(false);
       this.startTicker();
     });
     this.audio.addEventListener('waiting', () => this.bufferingCb?.(true));
+    this.audio.addEventListener('pause', () => {
+      if (this.wantsPlayback && this.audio.paused && !this.audio.ended && !this.audio.error) {
+        this.playbackHeld = true;
+        this.setPlaybackIssue('paused');
+      }
+    });
     this.audio.addEventListener('canplay', () => this.bufferingCb?.(false));
     this.audio.addEventListener('ended', () => {
       // 已换源或 stop 后，旧媒体任务队列中的 ended 不能结束新歌曲。
@@ -81,6 +135,7 @@ export class AudioEngine {
       this.endCb?.();
     });
     this.audio.addEventListener('error', () => {
+      if (this.wantsPlayback && this.audio.error) this.setPlaybackIssue('error');
       this.stopTicker();
       this.bufferingCb?.(false);
     });
@@ -111,12 +166,21 @@ export class AudioEngine {
     await this.ensureGraph();
     if (gen !== this.loadGen) return;
     this.stopTicker();
+    this.wantsPlayback = true;
+    if (!this.playbackHeld && !this.outputSuppressed) this.setPlaybackIssue(null);
     this.audio.src = url;
     this.audio.load();
+    // 系统暂停、耳机断开或手动静音期间切歌只更新源，不能重新抢占焦点。
+    if (this.playbackHeld || this.outputSuppressed) {
+      this.setPlaybackIssue('paused');
+      if (offsetMs > 0) this.seek(offsetMs);
+      return;
+    }
     try {
-      await this.audio.play();
-    } catch {
-      // autoplay 被拦截,等 resume 后再 play;忽略
+      await this.resume();
+    } catch (error) {
+      if (gen !== this.loadGen) return;
+      console.warn('音频播放失败', error);
     }
     // 若在 await 期间被新 load 覆盖,丢弃
     if (gen !== this.loadGen) return;
@@ -132,6 +196,8 @@ export class AudioEngine {
   /** 停止播放并清空 src */
   stop(): void {
     this.loadGen++;
+    this.wantsPlayback = false;
+    this.setPlaybackIssue(null);
     this.stopTicker();
     this.audio.pause();
     this.audio.removeAttribute('src');
@@ -146,13 +212,17 @@ export class AudioEngine {
   }
 
   /**
-   * Android 音频焦点、来电或耳机断开时只压低本机输出，不改写用户记忆的音量。
-   * 音轨和房间同步继续推进，解除后可以无缝回到当前房间位置。
+   * 耳机断开或用户在系统媒体卡静音时，锁住本机播放，不改写记忆音量。
+   * 房间时间线继续推进；解除后由 resume + 房间同步恢复。
    */
   setOutputSuppressed(suppressed: boolean, options: { immediate?: boolean } = {}): void {
     if (this.outputSuppressed === suppressed) return;
     this.outputSuppressed = suppressed;
     this.applyGain(options);
+    if (suppressed) {
+      this.playbackHeld = true;
+      this.audio.pause();
+    }
   }
 
   private applyGain(options: { immediate?: boolean } = {}): void {
@@ -207,6 +277,24 @@ export class AudioEngine {
 
   onDuration(cb: ((ms: number) => void) | null): void {
     this.durationCb = cb;
+  }
+
+  onPlaybackIssue(cb: ((issue: PlaybackIssue) => void) | null): void {
+    this.issueCb = cb;
+    cb?.(this.playbackIssue);
+  }
+
+  private setPlaybackIssue(issue: PlaybackIssue): void {
+    this.playbackIssue = issue;
+    this.issueCb?.(issue);
+  }
+
+  private reportPlaybackError(error: unknown): void {
+    if (this.outputSuppressed) {
+      this.setPlaybackIssue('paused');
+      return;
+    }
+    this.setPlaybackIssue(error instanceof DOMException && error.name === 'NotAllowedError' ? 'blocked' : 'error');
   }
 
   get isPlaying(): boolean {

@@ -19,9 +19,6 @@ import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
-import androidx.media.AudioAttributesCompat
-import androidx.media.AudioFocusRequestCompat
-import androidx.media.AudioManagerCompat
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.concurrent.Executors
@@ -32,6 +29,7 @@ import java.util.concurrent.Executors
  *
  * 音频本体仍在 WebView(AudioEngine)中播放,本服务只负责:
  * 进程保活、锁屏/通知栏元数据展示、媒体按键与通知动作转发。
+ * 音频焦点只由实际播放的 WebView 管理，避免两个焦点持有者相互抢占。
  */
 class MediaService : Service() {
 
@@ -85,22 +83,10 @@ class MediaService : Service() {
     }
 
     private lateinit var session: MediaSessionCompat
-    private lateinit var audioManager: AudioManager
-    private lateinit var focusRequest: AudioFocusRequestCompat
     private val coverExecutor = Executors.newSingleThreadExecutor()
     private var coverBitmap: Bitmap? = null
     private var coverLoadedFor: String? = null
     private var noisyReceiverRegistered = false
-
-    private val focusListener = AudioManager.OnAudioFocusChangeListener { change ->
-        when (change) {
-            AudioManager.AUDIOFOCUS_GAIN -> audioDispatcher?.invoke("focus_gain")
-            AudioManager.AUDIOFOCUS_LOSS,
-            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
-            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK ->
-                audioDispatcher?.invoke("focus_loss")
-        }
-    }
 
     private val noisyReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -115,15 +101,6 @@ class MediaService : Service() {
     override fun onCreate() {
         super.onCreate()
         createChannel()
-        audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
-        val audioAttributes = AudioAttributesCompat.Builder()
-            .setUsage(AudioAttributesCompat.USAGE_MEDIA)
-            .setContentType(AudioAttributesCompat.CONTENT_TYPE_MUSIC)
-            .build()
-        focusRequest = AudioFocusRequestCompat.Builder(AudioManagerCompat.AUDIOFOCUS_GAIN)
-            .setAudioAttributes(audioAttributes)
-            .setOnAudioFocusChangeListener(focusListener)
-            .build()
         ContextCompat.registerReceiver(
             this,
             noisyReceiver,
@@ -142,7 +119,6 @@ class MediaService : Service() {
             }
 
             override fun onPlay() {
-                requestAudioFocus()
                 actionDispatcher?.invoke("resume")
             }
         })
@@ -151,12 +127,11 @@ class MediaService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
-            ACTION_START -> requestAudioFocus()
+            ACTION_START -> Unit
             ACTION_FAVORITE -> actionDispatcher?.invoke("favorite")
             ACTION_NEXT -> actionDispatcher?.invoke("next")
             ACTION_MUTE -> actionDispatcher?.invoke("mute")
             ACTION_RESUME -> {
-                requestAudioFocus()
                 actionDispatcher?.invoke("resume")
             }
             ACTION_LEAVE -> actionDispatcher?.invoke("leave")
@@ -166,7 +141,6 @@ class MediaService : Service() {
     }
 
     override fun onDestroy() {
-        AudioManagerCompat.abandonAudioFocusRequest(audioManager, focusRequest)
         if (noisyReceiverRegistered) {
             unregisterReceiver(noisyReceiver)
             noisyReceiverRegistered = false
@@ -201,7 +175,7 @@ class MediaService : Service() {
 
         var actions = 0L
         if (state?.canNext == true) actions = actions or PlaybackStateCompat.ACTION_SKIP_TO_NEXT
-        if (state?.muted == true) {
+        if (state != null && (state.muted || !state.playing)) {
             actions = actions or PlaybackStateCompat.ACTION_PLAY
         } else if (state?.playing == true) {
             actions = actions or PlaybackStateCompat.ACTION_PAUSE
@@ -231,8 +205,9 @@ class MediaService : Service() {
             .setContentTitle(state?.title ?: "Lune · 一起听")
             .setContentText(
                 when {
-                    state == null -> "播放已被系统中断 · 点按返回房间"
+                    state == null -> "等待房间播放状态 · 点按返回房间"
                     state.muted -> "已在本机静音 · 房间仍在播放"
+                    !state.playing -> "本机尚未播放 · 点按恢复声音"
                     else -> state.artist
                 },
             )
@@ -249,7 +224,7 @@ class MediaService : Service() {
             serviceActionIntent(ACTION_FAVORITE, 1),
         )
         compactCount++
-        if (state?.muted == true) {
+        if (state != null && (state.muted || !state.playing)) {
             builder.addAction(
                 android.R.drawable.ic_lock_silent_mode_off,
                 "恢复声音",
@@ -281,15 +256,6 @@ class MediaService : Service() {
         style.setShowActionsInCompactView(*IntArray(minOf(compactCount, 3)) { it })
         builder.setStyle(style)
         return builder.build()
-    }
-
-    private fun requestAudioFocus() {
-        val result = AudioManagerCompat.requestAudioFocus(audioManager, focusRequest)
-        if (result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
-            audioDispatcher?.invoke("focus_gain")
-        } else if (result == AudioManager.AUDIOFOCUS_REQUEST_FAILED) {
-            audioDispatcher?.invoke("focus_loss")
-        }
     }
 
     private fun launchAppIntent(): PendingIntent? {

@@ -1,7 +1,7 @@
 import type { ClientMessage, PlaybackState, ProviderResolveResult } from '@lune/shared';
 import type { AudioEngine } from './AudioEngine';
 import { createAdvancePlaybackMessage, getTrackKey } from '../lib/playbackCommand';
-import { calcTargetPosition, shouldCorrect } from '../lib/sync';
+import { calcTargetPosition, PlaybackClock, shouldCorrect } from '../lib/sync';
 
 type SyncEngine = Pick<AudioEngine, 'load' | 'stop' | 'onEnd' | 'seek' | 'setRate' | 'currentMs'>;
 
@@ -12,6 +12,9 @@ export class PlaybackSync {
   private generation = 0;
   private loading = false;
   private rateTimer: ReturnType<typeof setTimeout> | undefined;
+  private readonly clock = new PlaybackClock();
+  private awaitingAdvance = false;
+  private recoveredSeq: number | null = null;
 
   constructor(
     private readonly engine: SyncEngine,
@@ -20,10 +23,17 @@ export class PlaybackSync {
     private readonly getRtt: () => number,
   ) {}
 
-  apply(pb: PlaybackState, options: { reset?: boolean; restart?: boolean } = {}): void {
+  apply(pb: PlaybackState, options: { reset?: boolean; restart?: boolean; recover?: boolean; serverTime?: number } = {}): void {
+    this.clock.observe(options.serverTime, this.getRtt());
     // 排序、增删队列及过期命令的 resync 都不能重新绑定音频的结束事件。
-    if (!options.reset && this.playback && pb.seq <= this.playback.seq) return;
+    if (!options.reset && this.playback && pb.seq <= this.playback.seq) {
+      if (pb.seq !== this.playback.seq || !options.recover || !this.awaitingAdvance || this.recoveredSeq === pb.seq) return;
+      // 服务端拒绝提前 ended/不可播报告后，按校准后的进度恢复一次，避免停在末尾或无限重试。
+      this.recoveredSeq = pb.seq;
+      options = { ...options, reset: true };
+    }
     this.playback = pb;
+    this.awaitingAdvance = false;
     const generation = ++this.generation;
     this.engine.onEnd(null);
     this.resetRate();
@@ -60,6 +70,7 @@ export class PlaybackSync {
     this.engine.onEnd(() => {
       if (generation !== this.generation || sent) return;
       sent = true;
+      this.awaitingAdvance = true;
       const message = createAdvancePlaybackMessage(pb, 'ended');
       if (message) this.send(message);
     });
@@ -71,7 +82,9 @@ export class PlaybackSync {
       const result = await this.resolve(track.id, track.provider);
       if (generation !== this.generation) return;
       if (!result.url) {
-        const message = createAdvancePlaybackMessage(pb, 'unplayable');
+        // 临时解析失败不是歌曲不可播，不能让一个成员的失败清空全房间队列。
+        const message = result.unplayable === true ? createAdvancePlaybackMessage(pb, 'unplayable') : null;
+        this.awaitingAdvance = message !== null;
         if (message) this.send(message);
         return;
       }
@@ -108,13 +121,15 @@ export class PlaybackSync {
     this.playback = null;
     this.loadedTrackKey = null;
     this.loading = false;
+    this.awaitingAdvance = false;
+    this.recoveredSeq = null;
     this.engine.onEnd(null);
     this.resetRate();
     this.engine.stop();
   }
 
   private target(pb: PlaybackState): number {
-    return calcTargetPosition(pb.position, pb.serverTimestamp, this.getRtt());
+    return calcTargetPosition(pb.position, pb.serverTimestamp, 0, this.clock.now());
   }
 
   private resetRate(): void {

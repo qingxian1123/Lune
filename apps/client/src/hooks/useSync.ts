@@ -35,9 +35,11 @@ export function useSync({ send, subscribe, getRtt, engine }: UseSyncOptions) {
       applyServerMessage(msg);
       if (msg.type === 'joined') {
         setConnected(true);
-        sync.apply(msg.payload.snapshot.playback, { reset: true });
+        sync.apply(msg.payload.snapshot.playback, { reset: true, serverTime: msg.payload.serverTime });
       } else if (msg.type === 'room_state_changed') {
         sync.apply(msg.payload.playback, {
+          serverTime: msg.payload.serverTime,
+          recover: msg.payload.cause === 'resync',
           // 队列允许重复歌曲，advance 即使歌曲 ID 相同也必须重新加载。
           restart: msg.payload.cause === 'advance' || msg.payload.cause === 'play',
         });

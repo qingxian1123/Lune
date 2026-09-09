@@ -1,4 +1,4 @@
-export type ClientPlatformKind = 'windows' | 'android' | 'browser';
+export type ClientPlatformKind = 'windows' | 'linux' | 'android' | 'browser';
 export type ClientLayout = 'desktop' | 'mobile';
 
 export interface PlatformCapabilities {

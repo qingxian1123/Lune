@@ -2,7 +2,7 @@
  * 同步时钟修正(移植 v1 lib/sync.ts,时间单位由秒改为毫秒)。
  *
  * 服务端在原子房间状态的 playback 中附 serverTimestamp + position(毫秒)。
- * 客户端用本地 now 与 serverTimestamp 的差,叠加单向 RTT 估算当前应处进度。
+ * 用消息携带的服务器时间建立本机单调时钟锚点，不比较两台设备的系统时间。
  */
 
 /** 估算目标播放进度(毫秒) */
@@ -10,11 +10,27 @@ export function calcTargetPosition(
   position: number,
   serverTimestamp: number,
   rtt: number,
+  now = Date.now(),
 ): number {
-  const now = Date.now();
   const oneWayDelay = rtt / 2;
   const elapsed = now - serverTimestamp - oneWayDelay;
   return Math.max(0, position + elapsed);
+}
+
+/** 服务器时钟估计；performance.now 不受用户改时间或系统校时影响。 */
+export class PlaybackClock {
+  private anchor: { serverTime: number; receivedAt: number } | null = null;
+
+  observe(serverTime: number | undefined, rtt: number): void {
+    if (serverTime === undefined || !Number.isFinite(serverTime)) return;
+    const delay = Number.isFinite(rtt) ? Math.max(0, rtt) / 2 : 0;
+    this.anchor = { serverTime: serverTime + delay, receivedAt: performance.now() };
+  }
+
+  now(): number {
+    if (!this.anchor) return Date.now(); // 兼容尚未携带 serverTime 的旧服务端。
+    return this.anchor.serverTime + performance.now() - this.anchor.receivedAt;
+  }
 }
 
 /** 修正指令:微调速或跳转 */
