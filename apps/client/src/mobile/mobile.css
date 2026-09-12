@@ -153,10 +153,14 @@
   flex: 1;
   flex-direction: column;
   min-height: 0;
+  width: min(100%, 460px);
+  margin-inline: auto;
+  gap: clamp(32px, 6vh, 56px);
+  padding-top: 32px;
 }
 
 .m-hero {
-  margin-top: 44px;
+  margin-top: 0;
 }
 
 .m-hero h1 {
@@ -169,20 +173,25 @@
 
 .m-hero-l1 {
   display: block;
+  max-width: 11ch;
+  text-wrap: balance;
   font-weight: 320;
   color: rgb(var(--lune-text));
 }
 
 .m-hero-l2 {
   display: block;
-  margin-top: 0.14em;
-  font-weight: 620;
+  margin-top: 20px;
+  font-size: 1.125rem;
+  line-height: 1.4;
+  letter-spacing: -0.02em;
+  font-weight: 500;
   color: #c7c0de;
 }
 
 .m-hero p {
   max-width: 32ch;
-  margin: 16px 0 0;
+  margin: 8px 0 0;
   font-size: var(--type-body);
   line-height: 1.8;
   letter-spacing: 0.01em;
@@ -191,20 +200,17 @@
 
 .m-access-card {
   margin-top: auto;
-  overflow: hidden;
-  border: 1px solid rgb(var(--lune-border) / 0.1);
-  border-radius: 20px;
-  background: rgb(var(--lune-bg-soft) / 0.94);
-  box-shadow: 0 24px 48px -28px rgb(0 0 0 / 0.55);
+  padding-top: 24px;
+  border-top: 1px solid rgb(var(--lune-border) / 0.14);
 }
 
 .m-card-head {
-  padding: 20px 20px 14px;
+  padding: 0 0 20px;
 }
 
 .m-card-head strong {
   display: block;
-  margin-top: 7px;
+  margin-top: 0;
   font-family: var(--font-display);
   font-size: var(--type-title-lg);
   font-weight: 620;
@@ -213,11 +219,16 @@
 }
 
 .m-access-card .access-tabs {
-  margin: 0 16px;
+  margin: 0;
+}
+
+.m-access-card .access-tabs button,
+.m-access-card .terminal-field input {
+  min-height: 48px;
 }
 
 .m-access-fields {
-  padding: 18px 20px 22px;
+  padding: 24px 0 0;
 }
 
 /* ---------- 通用 ---------- */
