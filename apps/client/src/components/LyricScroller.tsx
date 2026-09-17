@@ -4,6 +4,14 @@ import type { LyricLine } from '@lune/shared';
 interface LyricScrollerProps {
   lines: LyricLine[];
   activeIndex: number;
+  highlightCredits?: boolean;
+}
+
+const CREDIT_LINE_REGEX =
+  /^\s*(?:作\s*词|作\s*曲|编\s*曲|制\s*作(?:人)?|监\s*制|混\s*音(?:师)?|母\s*带|录\s*音(?:师)?|企\s*划|策\s*划|出\s*品(?:人)?|和\s*声|吉\s*他|贝\s*斯|鼓(?:手)?|键\s*盘(?:手)?|弦\s*乐(?:编写)?|词\s*[/／&,、]\s*曲|曲\s*[/／&,、]\s*词|词|曲|written\s+by|composed\s+by|lyrics(?:\s+by)?|produced\s+by|arranged\s+by|mixed\s+by|mastered\s+by|recorded\s+by|executive\s+producer|producer|music\s+by|words\s+by|vocals?|guitars?|bass|drums?|keyboards?|strings|programming|mixing|mastering)\s*[:：]/i;
+
+export function isProductionCredit(text: string): boolean {
+  return CREDIT_LINE_REGEX.test(text);
 }
 
 /**
@@ -21,6 +29,7 @@ interface LyricScrollerProps {
 export default function LyricScroller({
   lines,
   activeIndex,
+  highlightCredits = false,
 }: LyricScrollerProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -137,6 +146,7 @@ export default function LyricScroller({
                   ? 'near'
                   : 'far';
           const isFocus = index === focusIndex && activeIndex >= 0;
+          const isCredit = Boolean(highlightCredits && isProductionCredit(line.text));
 
           return (
             <div
@@ -148,6 +158,7 @@ export default function LyricScroller({
               role="listitem"
               data-role={role}
               data-focus={isFocus ? 'true' : undefined}
+              data-credit={isCredit ? 'true' : undefined}
               aria-current={isFocus ? 'true' : undefined}
             >
               <span className="lyric-item-text">{line.text}</span>

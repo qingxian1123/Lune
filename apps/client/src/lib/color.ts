@@ -152,6 +152,16 @@ export function darkenForBackground(rgb: RGB, targetL = 0.1): RGB {
   });
 }
 
+/** 封面局部光晕：保留色相，限制鲜艳封面的饱和度与亮度。 */
+export function deriveCoverGlow(rgb: RGB): string {
+  const { h, s } = rgbToHsl(rgb);
+  return toTriplet(hslToRgb({
+    h,
+    s: Math.min(s * 0.45, 0.28),
+    l: 0.22 - Math.min(s, 1) * 0.04,
+  }));
+}
+
 /**
  * 调整主色亮度让其在暗底上可读：太暗抬到 0.55，太亮压到 0.70。
  * 用于进度条填充、歌词描边等需要与暗背景对比的元素。
