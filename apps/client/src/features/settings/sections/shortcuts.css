@@ -1,0 +1,20 @@
+.shortcut-settings h2 { margin: 0; font-size: 20px; color: rgb(var(--lune-text)); }
+.shortcut-settings p { margin: 0; line-height: 1.7; color: rgb(var(--lune-muted)); font-size: 13px; }
+.shortcut-field { display: grid; gap: 12px; padding: 20px 0; border-block: 1px solid rgb(var(--lune-border) / 0.1); }
+.shortcut-field > span { font-size: 14px; color: rgb(var(--lune-text)); }
+.shortcut-recorder { min-height: 48px; padding: 12px 16px; border: 1px solid rgb(var(--lune-border) / 0.2); border-radius: 12px; background: rgb(var(--lune-surface)); color: rgb(var(--lune-text)); text-align: left; cursor: pointer; }
+.shortcut-recorder.is-recording { border-color: rgb(var(--lune-brand)); }
+.shortcut-actions { display: flex; flex-wrap: wrap; gap: 20px; }
+.shortcut-actions button { min-height: 36px; padding: 0; border: 0; color: rgb(var(--lune-text)); background: transparent; cursor: pointer; }
+.shortcut-actions button:hover { color: rgb(var(--lune-brand)); }
+.shortcut-save-row { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
+.shortcut-save-row span { color: rgb(var(--lune-muted)); font-size: 13px; }
+.shortcut-settings button:focus-visible { outline: 2px solid rgb(var(--lune-brand)); outline-offset: 3px; }
+.shortcut-settings .settings-error { color: #d9a3a8; }
+.settings-layer.has-sections:not(.is-mobile) .settings-surface { width: min(540px, 100%); }
+@media (max-width: 540px) {
+  .settings-layer.has-sections .settings-layout { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+  .settings-layer.has-sections .settings-nav { display: flex; gap: 8px; padding: 8px 16px; border-right: 0; border-bottom: 1px solid rgb(var(--lune-border) / 0.1); }
+  .settings-layer.has-sections .settings-nav button { width: auto; }
+  .settings-layer.has-sections .settings-content { padding: 24px 20px; }
+}

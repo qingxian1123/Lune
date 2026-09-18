@@ -1,0 +1,67 @@
+/* Scoped to the desktop room. The stage keeps its geometry when the library toggles. */
+.room-floating-library .room-workspace {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  isolation: isolate;
+}
+.room-floating-library .terminal-sidebar {
+  position: absolute;
+  inset: 16px 16px 16px auto;
+  z-index: 40;
+  width: min(380px, calc(100% - 32px));
+  overflow: hidden;
+  border: 1px solid rgb(var(--lune-border) / 0.12);
+  border-radius: 18px;
+  background: rgb(var(--lune-bg-soft));
+  box-shadow: 0 12px 36px rgb(0 0 0 / 0.24);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateX(calc(100% + 20px));
+  transition: transform 200ms cubic-bezier(.22, 1, .36, 1), opacity 200ms ease, visibility 200ms;
+}
+.windows-shell .room-floating-library .terminal-sidebar { top: 16px; }
+.room-floating-library .terminal-sidebar.is-open {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateX(0);
+}
+.room-floating-library .sidebar-header { padding: 12px; border-bottom: 1px solid rgb(var(--lune-border) / 0.08); }
+.room-floating-library .close-sidebar { display: grid; place-items: center; }
+.room-floating-library .close-sidebar svg,
+.room-floating-library .library-float-toggle svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.room-floating-library .library-float-toggle {
+  position: absolute;
+  top: calc(50% - 22px);
+  right: 16px;
+  z-index: 41;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid rgb(var(--lune-border) / 0.16);
+  border-radius: 14px;
+  color: rgb(var(--lune-muted));
+  background: rgb(var(--lune-surface));
+  cursor: pointer;
+  transition: opacity 160ms ease, visibility 160ms, color 160ms ease;
+}
+.room-floating-library .library-float-toggle:hover { color: rgb(var(--lune-text)); }
+.room-floating-library .library-float-toggle.is-hidden { visibility: hidden; opacity: 0; pointer-events: none; }
+.room-floating-library .library-float-toggle:focus-visible,
+.room-floating-library .close-sidebar:focus-visible { outline: 2px solid rgb(var(--lune-brand)); outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) {
+  .room-floating-library .terminal-sidebar,
+  .room-floating-library .library-float-toggle { transition: none; }
+}

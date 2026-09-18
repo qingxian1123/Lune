@@ -41,7 +41,7 @@ export default function SettingsShell({
   return (
     <dialog
       ref={dialogRef}
-      className={`settings-layer ${mobile ? 'is-mobile' : ''}`}
+      className={`settings-layer ${mobile ? 'is-mobile' : ''} ${showNavigation ? 'has-sections' : ''}`}
       aria-labelledby="settings-title"
       onCancel={(event) => {
         event.preventDefault();

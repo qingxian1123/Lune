@@ -6,14 +6,18 @@ import { settingsSections } from './registry';
 interface SettingsPanelProps {
   controller: SettingsController;
   mobile?: boolean;
+  sectionIds?: string[];
 }
 
 export default function SettingsPanel({
   controller,
   mobile = false,
+  sectionIds,
 }: SettingsPanelProps) {
-  const activeSection = settingsSections.find((section) => section.id === controller.activeSectionId)
-    ?? settingsSections[0];
+  const sections = sectionIds ? settingsSections.filter((section) => sectionIds.includes(section.id)) : settingsSections;
+  const activeSection = sections.find((section) => section.id === controller.activeSectionId)
+    ?? sections[0];
+  if (!activeSection) return null;
   const ActiveSection = activeSection.component;
 
   return (
@@ -21,7 +25,7 @@ export default function SettingsPanel({
       <SettingsShell
         open={controller.open}
         mobile={mobile}
-        sections={settingsSections}
+        sections={sections}
         activeSectionId={controller.activeSectionId}
         onSectionChange={controller.selectSection}
         onClose={controller.closeSettings}
