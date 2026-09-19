@@ -9,6 +9,7 @@ interface NowPlayingProps {
   lines: LyricLine[];
   currentIndex: number;
   isLoadingLyrics: boolean;
+  libraryOpen?: boolean;
 }
 
 interface BackdropLayer {
@@ -22,6 +23,7 @@ export default function NowPlaying({
   lines,
   currentIndex,
   isLoadingLyrics,
+  libraryOpen,
 }: NowPlayingProps) {
   const [coverError, setCoverError] = useState(false);
   const [layers, setLayers] = useState<BackdropLayer[]>([]);
@@ -149,7 +151,7 @@ export default function NowPlaying({
     <section className="now-playing-stage" aria-label="正在播放">
       <div className="stage-content">
         <div className="record-column">
-          <div className="cover-stack">
+          <div className="cover-stack" data-stage-motion="cover">
             <div className="stage-backdrop" aria-hidden="true">
               {layers.map((layer) => (
                 <div
@@ -174,14 +176,14 @@ export default function NowPlaying({
             </div>
           </div>
 
-          <div className="track-identity">
+          <div className="track-identity" data-stage-motion="identity">
             <h2 title={track.name}>{track.name}</h2>
             <p title={track.artists}>{track.artists}</p>
             {track.album && <span title={track.album}>{track.album}</span>}
           </div>
         </div>
 
-        <div className="lyric-terminal">
+        <div className="lyric-terminal" data-stage-motion="lyrics">
           {isLoadingLyrics ? (
             <div className="lyric-empty">
               <span className="loading-dots"><i /><i /><i /></span>
@@ -197,6 +199,7 @@ export default function NowPlaying({
               lines={lines}
               activeIndex={currentIndex}
               highlightCredits={true}
+              layoutKey={libraryOpen}
             />
           )}
         </div>

@@ -1,15 +1,20 @@
-/* Scoped to the desktop room. The stage keeps its geometry when the library toggles. */
+/* The panel and stage share one motion rhythm; geometry commits before FLIP. */
 .room-floating-library .room-workspace {
+  --library-width: clamp(320px, 28vw, 380px);
+  --library-motion-duration: 260ms;
+  --library-motion-ease: cubic-bezier(.22, 1, .36, 1);
   position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   isolation: isolate;
+  container: room-workspace / inline-size;
 }
+.room-floating-library .room-workspace[data-library-open="true"] { --library-motion-duration: 320ms; }
 .room-floating-library .terminal-sidebar {
   position: absolute;
   inset: 16px 16px 16px auto;
   z-index: 40;
-  width: min(380px, calc(100% - 32px));
+  width: min(var(--library-width), calc(100% - 32px));
   overflow: hidden;
   border: 1px solid rgb(var(--lune-border) / 0.12);
   border-radius: 18px;
@@ -19,7 +24,7 @@
   visibility: hidden;
   pointer-events: none;
   transform: translateX(calc(100% + 20px));
-  transition: transform 200ms cubic-bezier(.22, 1, .36, 1), opacity 200ms ease, visibility 200ms;
+  transition: transform var(--library-motion-duration) var(--library-motion-ease), opacity var(--library-motion-duration) ease, visibility var(--library-motion-duration);
 }
 .windows-shell .room-floating-library .terminal-sidebar { top: 16px; }
 .room-floating-library .terminal-sidebar.is-open {
@@ -61,6 +66,101 @@
 .room-floating-library .library-float-toggle.is-hidden { visibility: hidden; opacity: 0; pointer-events: none; }
 .room-floating-library .library-float-toggle:focus-visible,
 .room-floating-library .close-sidebar:focus-visible { outline: 2px solid rgb(var(--lune-brand)); outline-offset: 3px; }
+
+/* Query the actual stage width, not the window behind the open library. */
+.room-floating-library .now-playing-stage {
+  width: 100%;
+  container: playback-stage / inline-size;
+}
+@container room-workspace (min-width: 800px) {
+  .room-floating-library .room-workspace[data-library-open="true"] > .now-playing-stage {
+    width: calc(100% - var(--library-width) - 48px);
+  }
+}
+.room-floating-library .now-playing-stage .stage-content {
+  --stage-cover-size: min(clamp(220px, 29cqw, 380px), 40dvh);
+  display: grid;
+  grid-template-columns: minmax(0, var(--stage-cover-size)) minmax(0, 600px);
+  grid-template-rows: minmax(0, 1fr);
+  gap: clamp(24px, 4cqw, 64px);
+  align-items: center;
+  align-content: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 1200px;
+  height: 100%;
+  min-height: 0;
+  padding: 24px clamp(24px, 4cqw, 56px);
+}
+.room-floating-library .now-playing-stage .record-column {
+  display: flex;
+  flex-direction: column;
+  grid-column: 1;
+  grid-row: 1;
+  gap: 0;
+  width: 100%;
+  align-items: flex-start;
+}
+.room-floating-library .now-playing-stage .cover-stack {
+  width: 100%;
+  max-width: var(--stage-cover-size) !important;
+  transform-origin: top left;
+}
+.room-floating-library .now-playing-stage .track-identity {
+  width: 100%;
+  max-width: var(--stage-cover-size) !important;
+  margin: 18px 0 0;
+  transform-origin: top left;
+}
+.room-floating-library .now-playing-stage .track-identity h2 { font-size: clamp(20px, 2cqw, 26px); }
+.room-floating-library .now-playing-stage .lyric-terminal {
+  grid-column: 2;
+  grid-row: 1;
+  width: 100%;
+  max-width: 600px;
+  height: clamp(220px, 54dvh, 540px);
+  min-height: 0;
+  transform-origin: top left;
+}
+.room-floating-library .now-playing-stage .lyric-item-text {
+  font-size: clamp(22px, 2.4cqw, 28px);
+  overflow-wrap: anywhere;
+}
+.room-floating-library .now-playing-stage .lyric-item-trans { overflow-wrap: anywhere; }
+.room-floating-library .now-playing-stage .lyric-item[data-credit="true"] .lyric-item-text { font-size: 14px; }
+@container playback-stage (max-width: 719px) {
+  .room-floating-library .now-playing-stage .stage-content {
+    --stage-cover-size: 96px;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 24px;
+    max-width: 600px;
+    padding: 24px clamp(20px, 5cqw, 36px);
+  }
+  .room-floating-library .now-playing-stage .record-column {
+    display: grid;
+    grid-template-columns: var(--stage-cover-size) minmax(0, 1fr);
+    gap: 20px;
+    align-items: center;
+  }
+  .room-floating-library .now-playing-stage .track-identity { max-width: none !important; margin: 0; }
+  .room-floating-library .now-playing-stage .track-identity h2 { font-size: 20px; }
+  .room-floating-library .now-playing-stage .cover-main { border-radius: 14px; }
+  .room-floating-library .now-playing-stage .lyric-terminal {
+    grid-column: 1;
+    grid-row: 2;
+    height: 100%;
+    max-height: 540px;
+  }
+}
+@media (max-height: 580px) {
+  .room-floating-library .now-playing-stage .stage-content { padding-block: 12px; gap: 16px; }
+  .room-floating-library .now-playing-stage .lyric-terminal { height: 100%; max-height: 360px; }
+  @container playback-stage (max-width: 719px) {
+    .room-floating-library .now-playing-stage .stage-content { --stage-cover-size: 64px; }
+    .room-floating-library .now-playing-stage .track-identity > span { display: none; }
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   .room-floating-library .terminal-sidebar,
   .room-floating-library .library-float-toggle { transition: none; }

@@ -5,6 +5,7 @@ interface LyricScrollerProps {
   lines: LyricLine[];
   activeIndex: number;
   highlightCredits?: boolean;
+  layoutKey?: boolean;
 }
 
 const CREDIT_LINE_REGEX =
@@ -30,6 +31,7 @@ export default function LyricScroller({
   lines,
   activeIndex,
   highlightCredits = false,
+  layoutKey,
 }: LyricScrollerProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -104,6 +106,11 @@ export default function LyricScroller({
     positionedRef.current = true;
     prevFocusRef.current = focusIndex;
   }, [focusIndex, lines]);
+
+  // Sidebar layout commits once; pin before the parent measures its visual transition.
+  useLayoutEffect(() => {
+    measureAndPin(false);
+  }, [layoutKey]);
 
   // Re-pin on viewport/content resize and after fonts settle, without motion.
   useEffect(() => {

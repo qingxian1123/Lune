@@ -12,6 +12,7 @@ import { formatShortcut, matchesShortcut, useDesktopPreferences } from '../featu
 import '../desktop/room/floating-library.css';
 import SettingsPanel from '../features/settings/SettingsPanel';
 import { useSettingsController } from '../features/settings/model/useSettingsController';
+import { useStageTransition } from '../desktop/room/useStageTransition';
 
 type LuneThemeStyle = CSSProperties & {
   '--lune-accent': string;
@@ -28,12 +29,14 @@ export default function Room() {
   const libraryShortcut = useDesktopPreferences((state) => state.bindings.toggleLibrary);
   const libraryButtonRef = useRef<HTMLButtonElement>(null);
   const workspaceRef = useRef<HTMLElement>(null);
+  const captureStage = useStageTransition(workspaceRef, panelOpen);
   const focusRequested = useRef(false);
   const changePanel = useCallback((open: boolean) => {
     if (useDesktopPreferences.getState().libraryOpen === open) return;
+    captureStage();
     focusRequested.current = true;
     setPanelOpen(open);
-  }, [setPanelOpen]);
+  }, [setPanelOpen, captureStage]);
   useLayoutEffect(() => {
     if (!focusRequested.current) return;
     focusRequested.current = false;
@@ -95,7 +98,7 @@ export default function Room() {
 
   const selectSideTab = (tab: DesktopRoomTab) => {
     setSideTab(tab);
-    setPanelOpen(true);
+    changePanel(true);
   };
 
   return (
@@ -116,12 +119,13 @@ export default function Room() {
         </div>
       )}
 
-      <main className="room-workspace" ref={workspaceRef}>
+      <main className="room-workspace" ref={workspaceRef} data-library-open={panelOpen}>
         <NowPlaying
           track={track}
           lines={lines}
           currentIndex={currentIndex}
           isLoadingLyrics={isLoadingLyrics}
+          libraryOpen={panelOpen}
         />
 
         <button ref={libraryButtonRef} type="button"
