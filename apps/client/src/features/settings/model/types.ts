@@ -19,6 +19,13 @@ export interface SettingsController {
 export interface SettingsSectionDefinition {
   id: string;
   label: string;
+  categoryId: string;
   order: number;
   component: ComponentType;
+}
+
+export interface SettingsCategoryDefinition {
+  id: string;
+  label: string;
+  order: number;
 }

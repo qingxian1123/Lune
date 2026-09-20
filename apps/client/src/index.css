@@ -236,8 +236,8 @@
 .settings-surface {
   position: relative;
   display: grid;
-  grid-template-rows: 64px minmax(0, 1fr);
-  width: min(420px, 100%);
+  grid-template-rows: 72px minmax(0, 1fr);
+  width: min(680px, 100%);
   height: 100dvh;
   border-left: 1px solid rgb(var(--lune-border) / 0.1);
   color: rgb(var(--lune-text));
@@ -249,13 +249,13 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 18px 0 22px;
+  padding: 0 20px 0 28px;
   border-bottom: 1px solid rgb(var(--lune-border) / 0.09);
 }
 
 .settings-header strong {
   font-family: var(--font-display);
-  font-size: var(--type-title-lg);
+  font-size: var(--type-heading);
   font-weight: 620;
   letter-spacing: -0.02em;
 }
@@ -271,6 +271,7 @@
   color: rgb(var(--lune-muted));
   background: transparent;
   cursor: pointer;
+  transition: color 160ms ease, background 160ms ease;
 }
 
 .settings-close:hover {
@@ -280,7 +281,7 @@
 
 .settings-layout {
   display: grid;
-  grid-template-columns: 116px minmax(0, 1fr);
+  grid-template-columns: 184px minmax(0, 1fr);
   min-height: 0;
 }
 
@@ -289,13 +290,30 @@
 }
 
 .settings-nav {
-  padding: 20px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 30px 16px;
   border-right: 1px solid rgb(var(--lune-border) / 0.08);
+  overflow-y: auto;
+}
+
+.settings-nav-group {
+  display: grid;
+  gap: 7px;
+}
+
+.settings-nav-label {
+  padding: 0 12px;
+  font-size: var(--type-micro);
+  line-height: 1.4;
+  letter-spacing: 0.1em;
+  color: rgb(var(--lune-muted));
 }
 
 .settings-nav button {
   width: 100%;
-  height: 40px;
+  min-height: 42px;
   padding: 0 12px;
   border: 0;
   border-radius: 10px;
@@ -304,38 +322,58 @@
   color: rgb(var(--lune-muted));
   background: transparent;
   cursor: pointer;
+  transition: color 160ms ease, background 160ms ease;
+}
+
+.settings-nav button:hover {
+  color: rgb(var(--lune-text));
+  background: rgb(var(--lune-border) / 0.035);
 }
 
 .settings-nav button.is-active {
   color: rgb(var(--lune-text));
-  background: rgb(var(--lune-border) / 0.06);
+  background: rgb(var(--lune-border) / 0.065);
 }
 
 .settings-content {
   min-width: 0;
-  padding: 30px 26px;
+  padding: 42px 44px;
   overflow-y: auto;
 }
 
 .settings-form {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 22px;
+  width: 100%;
+  min-width: 0;
+  max-width: 420px;
+}
+
+.settings-form h2 {
+  margin: 0 0 12px;
+  font-family: var(--font-display);
+  font-size: var(--type-heading);
+  font-weight: 620;
+  line-height: 1.3;
+  letter-spacing: -0.02em;
 }
 
 .settings-field {
   display: block;
+  min-width: 0;
 }
 
 .settings-field > span {
   display: block;
-  margin-bottom: 9px;
+  margin-bottom: 10px;
   font-size: var(--type-label);
   color: rgb(var(--lune-muted));
 }
 
 .settings-field input {
   width: 100%;
+  max-width: 100%;
   height: 48px;
   padding: 0 14px;
   border: 1px solid rgb(var(--lune-border) / 0.14);
@@ -354,7 +392,7 @@
 }
 
 .settings-field input::placeholder {
-  color: rgb(var(--lune-muted) / 0.52);
+  color: rgb(var(--lune-muted));
 }
 
 .settings-error {
@@ -378,6 +416,76 @@
   background: rgb(var(--lune-brand));
   cursor: pointer;
   transition: color 160ms ease, background 160ms ease, opacity 160ms ease;
+}
+
+.shortcut-field {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding-block: 2px 22px;
+  border-bottom: 1px solid rgb(var(--lune-border) / 0.08);
+}
+
+.shortcut-field > span {
+  font-size: var(--type-label);
+  color: rgb(var(--lune-muted));
+}
+
+.shortcut-recorder {
+  width: 100%;
+  max-width: 100%;
+  min-height: 50px;
+  padding: 0 15px;
+  border: 1px solid rgb(var(--lune-border) / 0.14);
+  border-radius: 12px;
+  text-align: left;
+  color: rgb(var(--lune-text));
+  background: rgb(var(--lune-surface));
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
+}
+
+.shortcut-recorder:hover {
+  background: rgb(var(--lune-surface-2));
+}
+
+.shortcut-recorder.is-recording {
+  border-color: rgb(var(--lune-brand) / 0.72);
+  background: rgb(var(--lune-surface-2));
+  box-shadow: 0 0 0 3px rgb(var(--lune-brand) / 0.1);
+}
+
+.shortcut-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.shortcut-actions button {
+  min-height: 36px;
+  padding: 0;
+  border: 0;
+  color: rgb(var(--lune-muted));
+  background: transparent;
+  cursor: pointer;
+  transition: color 160ms ease;
+}
+
+.shortcut-actions button:hover {
+  color: rgb(var(--lune-brand));
+}
+
+.shortcut-save-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+}
+
+.shortcut-save-row span {
+  font-size: var(--type-meta);
+  color: rgb(var(--lune-muted));
 }
 
 .settings-save:hover:not(:disabled) {
@@ -2275,6 +2383,10 @@
 
 @media (prefers-reduced-motion: reduce) {
   .home-particles i {
+    animation: none !important;
+  }
+
+  .settings-surface {
     animation: none !important;
   }
 

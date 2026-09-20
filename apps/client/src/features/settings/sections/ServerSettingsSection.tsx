@@ -13,6 +13,7 @@ export default function ServerSettingsSection() {
         void controller.saveServer();
       }}
     >
+      <h2>服务连接</h2>
       <label className="settings-field">
         <span>服务器地址</span>
         <input

@@ -1,7 +1,7 @@
 import SettingsShell from './SettingsShell';
 import { SettingsControllerContext } from './model/SettingsControllerContext';
 import type { SettingsController } from './model/types';
-import { settingsSections } from './registry';
+import { settingsCategories, settingsSections } from './registry';
 
 interface SettingsPanelProps {
   controller: SettingsController;
@@ -25,6 +25,7 @@ export default function SettingsPanel({
       <SettingsShell
         open={controller.open}
         mobile={mobile}
+        categories={settingsCategories}
         sections={sections}
         activeSectionId={controller.activeSectionId}
         onSectionChange={controller.selectSection}

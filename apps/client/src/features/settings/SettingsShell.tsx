@@ -1,12 +1,13 @@
 import { useLayoutEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
-import type { SettingsSectionDefinition } from './model/types';
+import type { SettingsCategoryDefinition, SettingsSectionDefinition } from './model/types';
 import { useClientRuntime } from '../../app/ClientRuntimeProvider';
 import WindowTitlebar from '../../desktop/WindowTitlebar';
 
 interface SettingsShellProps {
   open: boolean;
   mobile: boolean;
+  categories: SettingsCategoryDefinition[];
   sections: SettingsSectionDefinition[];
   activeSectionId: string;
   onSectionChange: (sectionId: string) => void;
@@ -17,6 +18,7 @@ interface SettingsShellProps {
 export default function SettingsShell({
   open,
   mobile,
+  categories,
   sections,
   activeSectionId,
   onSectionChange,
@@ -26,6 +28,12 @@ export default function SettingsShell({
   const dialogRef = useRef<HTMLDialogElement>(null);
   const isWindows = useClientRuntime().kind === 'windows';
   const showNavigation = sections.length > 1;
+  const visibleCategories = categories
+    .map((category) => ({
+      ...category,
+      sections: sections.filter((section) => section.categoryId === category.id),
+    }))
+    .filter((category) => category.sections.length > 0);
 
   useLayoutEffect(() => {
     const dialog = dialogRef.current;
@@ -65,16 +73,21 @@ export default function SettingsShell({
         <div className={`settings-layout ${showNavigation ? '' : 'has-single-section'}`}>
           {showNavigation && (
             <nav className="settings-nav" aria-label="设置分类">
-              {sections.map((section) => (
-                <button
-                  key={section.id}
-                  type="button"
-                  className={section.id === activeSectionId ? 'is-active' : undefined}
-                  aria-current={section.id === activeSectionId ? 'page' : undefined}
-                  onClick={() => onSectionChange(section.id)}
-                >
-                  {section.label}
-                </button>
+              {visibleCategories.map((category) => (
+                <div className="settings-nav-group" key={category.id}>
+                  <span className="settings-nav-label">{category.label}</span>
+                  {category.sections.map((section) => (
+                    <button
+                      key={section.id}
+                      type="button"
+                      className={section.id === activeSectionId ? 'is-active' : undefined}
+                      aria-current={section.id === activeSectionId ? 'page' : undefined}
+                      onClick={() => onSectionChange(section.id)}
+                    >
+                      {section.label}
+                    </button>
+                  ))}
+                </div>
               ))}
             </nav>
           )}
