@@ -129,6 +129,24 @@ export class Room {
     return this.queue;
   }
 
+  /** 批量加入；房间空闲时立即播放队首，其余歌曲保留在队列中。 */
+  enqueueManyAndStartIfIdle(tracks: Track[], addedBy: string): boolean {
+    if (tracks.length === 0) return false;
+
+    const items = tracks.map((track) => ({ id: randomUUID(), track, addedBy }));
+    if (this.playback.status === 'idle') {
+      const [nextItem, ...rest] = [...this.queue, ...items];
+      this.queue = rest;
+      this.queueRevision += 1;
+      this.bumpPlayback({ status: 'playing', track: nextItem.track, position: 0 });
+      return true;
+    }
+
+    this.queue.push(...items);
+    this.queueRevision += 1;
+    return false;
+  }
+
   /** 按稳定条目 ID 删除；队列版本过期时不执行。 */
   remove(itemId: string, expectedQueueRevision: number): boolean {
     if (expectedQueueRevision !== this.queueRevision) return false;

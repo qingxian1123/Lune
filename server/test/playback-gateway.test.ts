@@ -15,7 +15,7 @@ import type { HeartStore } from '../src/charts/heart.store';
 const track = (id: string): Track => ({ id, provider: 'test', name: id, artists: '', album: '', coverUrl: '', duration: 180_000 });
 const flush = () => new Promise<void>((resolve) => setImmediate(resolve));
 
-function setup(resolve: (id: string) => Promise<ProviderResolveResult>) {
+function setup(resolve: (id: string) => Promise<ProviderResolveResult>, seedPlayback = true) {
   const store = new RoomStore();
   const room = store.createRoom();
   const conns = new ConnectionRegistry();
@@ -34,8 +34,10 @@ function setup(resolve: (id: string) => Promise<ProviderResolveResult>) {
     send({ type: 'join', payload: { token: jwt.sign({ roomCode: room.code, memberId: member.id, nickname: name }) } });
     return { messages, send };
   });
-  room.play(track('A'), 0, 0);
-  room.enqueueMany(['B', 'C', 'D'].map(track), 'Alice');
+  if (seedPlayback) {
+    room.play(track('A'), 0, 0);
+    room.enqueueMany(['B', 'C', 'D'].map(track), 'Alice');
+  }
   const advance = (reason: 'manual' | 'ended' | 'unplayable'): ClientMessage => ({
     type: 'advance_playback', payload: {
       requestId: `request-${reason}`, reason,
@@ -45,6 +47,25 @@ function setup(resolve: (id: string) => Promise<ProviderResolveResult>) {
   });
   return { room, clients, advance };
 }
+
+test('真实网关分发：空闲房间全部加入歌单后自动播放第一首', () => {
+  const { room, clients } = setup(async (id) => ({ track: track(id), url: id }), false);
+
+  clients[0].send({ type: 'add_songs', payload: { tracks: ['A', 'B', 'C'].map(track) } });
+
+  assert.equal(room.playback.status, 'playing');
+  assert.equal(room.playback.track?.id, 'A');
+  assert.deepEqual(room.queue.map((item) => item.track.id), ['B', 'C']);
+  for (const client of clients) {
+    const message = client.messages.at(-1);
+    assert.equal(message?.type, 'room_state_changed');
+    if (message?.type === 'room_state_changed') {
+      assert.equal(message.payload.cause, 'play');
+      assert.equal(message.payload.playback.track?.id, 'A');
+      assert.deepEqual(message.payload.queue.map((item) => item.track.id), ['B', 'C']);
+    }
+  }
+});
 
 test('真实网关分发：排序后阻止有效版本的提前结束，广播提供独立服务器时间', async (t) => {
   let now = 1_800_000_000_000;

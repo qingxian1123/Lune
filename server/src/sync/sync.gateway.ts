@@ -319,9 +319,9 @@ export class SyncGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const room = this.store.getRoom(info.roomCode);
     if (!room) return;
     if (tracks.length === 0) return;
-    // 批量入队(歌单"全部加入"),只产生一次原子房间状态事件
-    room.enqueueMany(tracks, info.memberId);
-    this.broadcastRoomState(info.roomCode, room, 'enqueue');
+    // 歌单“全部加入”保持原子广播；空闲房间直接播放队首，其余歌曲进入队列。
+    const startedPlayback = room.enqueueManyAndStartIfIdle(tracks, info.memberId);
+    this.broadcastRoomState(info.roomCode, room, startedPlayback ? 'play' : 'enqueue');
   }
 
   private handleRemoveQueueItem(ws: WebSocket, itemId: string, expectedQueueRevision: number): void {

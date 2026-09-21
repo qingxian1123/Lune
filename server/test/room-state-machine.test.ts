@@ -48,6 +48,20 @@ test('队列条目 ID 能区分重复加入的同一首歌', () => {
   assert.equal(room.queue[0].track.id, duplicate.id);
 });
 
+test('空闲房间批量加入歌单时自动播放队首并保留其余歌曲', () => {
+  const room = new Room('PLAYLIST');
+
+  assert.equal(room.enqueueManyAndStartIfIdle([track('A'), track('B'), track('C')], 'member-1'), true);
+  assert.equal(room.playback.status, 'playing');
+  assert.equal(room.playback.track?.id, 'A');
+  assert.equal(room.playback.position, 0);
+  assert.deepEqual(room.queue.map((item) => item.track.id), ['B', 'C']);
+
+  assert.equal(room.enqueueManyAndStartIfIdle([track('D'), track('E')], 'member-1'), false);
+  assert.equal(room.playback.track?.id, 'A');
+  assert.deepEqual(room.queue.map((item) => item.track.id), ['B', 'C', 'D', 'E']);
+});
+
 test('过期队列版本不能删除或重排新队列中的条目', () => {
   const room = new Room('ROOM03');
   room.enqueueMany([track('A'), track('B')], 'member-1');
