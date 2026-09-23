@@ -148,7 +148,14 @@ export function useRoomController(options: RoomControllerOptions = {}) {
 
   const onSeek = useCallback(
     (position: number) => {
-      if (!track) return;
+      if (!track || !Number.isFinite(position)) return;
+      // 在点击手势中恢复本机媒体；服务端 seek 本身不会解除系统暂停或自动播放拦截。
+      // 耳机断开/系统静音的显式锁定仍需通过恢复按钮解除。
+      if (!engine.isOutputSuppressed && (playerState.playbackIssue || !engine.isPlaying)) {
+        void engine.resume().catch((error) => {
+          console.warn('跳转时恢复本机播放失败', error);
+        });
+      }
       send({
         type: 'seek',
         payload: {
@@ -157,7 +164,7 @@ export function useRoomController(options: RoomControllerOptions = {}) {
         },
       });
     },
-    [send, track],
+    [engine, playerState.playbackIssue, send, track],
   );
 
   const displayRoomCode = roomCode || code || '';

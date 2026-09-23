@@ -7,6 +7,7 @@ class FakeAudio extends EventTarget {
   currentTime = 0;
   ended = false;
   paused = true;
+  readyState = 4;
   error: { code: number } | null = null;
   failure: Error | null = null;
   pending: Array<() => void> = [];
@@ -110,6 +111,22 @@ test('音频引擎：加载竞态与本机打断恢复', async (t) => {
     assert.equal(issue, null);
   });
 
+  await t.test('暂停期间 seek 仍回传进度，媒体事件在没有 RAF 时也能更新位置', () => {
+    const positions: number[] = [];
+    engine.onTick((ms) => positions.push(ms));
+    audio.pause();
+    engine.seek(31_000);
+    assert.equal(positions.at(-1), 31_000, '暂停时点击进度条不能停留在旧位置');
+    assert.equal(audio.paused, true, '同步跳转本身不能抢回播放');
+    audio.currentTime = 31.25;
+    audio.dispatchEvent(new Event('seeked'));
+    assert.equal(positions.at(-1), 31_250, '回传媒体实际完成跳转的位置');
+    audio.currentTime = 32;
+    audio.dispatchEvent(new Event('timeupdate'));
+    assert.equal(positions.at(-1), 32_000, '不依赖动画帧回传进度');
+    engine.onTick(null);
+  });
+
   await t.test('耳机断开后必须明确解锁，恢复中的再次断开仍保持暂停', async () => {
     const volume = engine.getVolume();
     engine.setOutputSuppressed(true, { immediate: true });
@@ -168,5 +185,43 @@ test('音频引擎：加载竞态与本机打断恢复', async (t) => {
     assert.equal(audio.currentTime, 42);
     audio.pending.at(-1)!();
     await resume;
+  });
+
+  await t.test('无媒体 error 的持续缓冲也能识别，恢复时重新加载并保留位置', async (t) => {
+    t.mock.timers.enable({ apis: ['setTimeout'] });
+    let issue: string | null = null;
+    engine.onPlaybackIssue((value) => { issue = value; });
+    audio.readyState = 2;
+    audio.currentTime = 56;
+    const reload = t.mock.method(audio, 'load');
+    audio.dispatchEvent(new Event('waiting'));
+    t.mock.timers.tick(10_000);
+    audio.dispatchEvent(new Event('stalled'));
+    t.mock.timers.tick(5_000);
+    assert.equal(issue, 'error', '重复缓冲事件不能无限延后卡住检测');
+    assert.equal(audio.error, null, '覆盖媒体未报告 error 的卡住');
+    const resume = engine.resume();
+    assert.equal(reload.mock.callCount(), 1);
+    assert.equal(audio.currentTime, 56);
+    audio.readyState = 4;
+    audio.pending.at(-1)!();
+    await resume;
+    assert.equal(issue, null);
+  });
+
+  await t.test('有可播放缓冲的 stalled 事件不能误报，停止后取消检测', (t) => {
+    t.mock.timers.enable({ apis: ['setTimeout'] });
+    let issue: string | null = null;
+    engine.onPlaybackIssue((value) => { issue = value; });
+    audio.readyState = 4;
+    audio.dispatchEvent(new Event('stalled'));
+    t.mock.timers.tick(15_000);
+    assert.equal(issue, null);
+    audio.readyState = 2;
+    audio.dispatchEvent(new Event('waiting'));
+    engine.stop();
+    t.mock.timers.tick(15_000);
+    assert.equal(issue, null);
+    audio.readyState = 4;
   });
 });

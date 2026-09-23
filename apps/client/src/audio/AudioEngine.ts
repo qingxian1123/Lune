@@ -33,6 +33,8 @@ export class AudioEngine {
   private wantsPlayback = false;
   private playbackHeld = false;
   private playbackIssue: PlaybackIssue = null;
+  private stalled = false;
+  private stallTimer: ReturnType<typeof setTimeout> | undefined;
   private issueCb: ((issue: PlaybackIssue) => void) | null = null;
   private rafId = 0;
   private tickCb: ((ms: number) => void) | null = null;
@@ -55,9 +57,11 @@ export class AudioEngine {
     if (this.outputSuppressed) return;
     this.playbackHeld = false;
     const gen = this.loadGen;
-    // 网络/解码错误后单独 play 会继续拒绝；重新加载当前源后才能重试。
-    if (this.wantsPlayback && this.audio.error) {
+    // 媒体错误或持续缓冲后，仅调用 play 不足以恢复；重新加载当前源再重试。
+    if (this.wantsPlayback && (this.audio.error || this.stalled)) {
       const position = this.currentMs;
+      this.clearStallTimer();
+      this.stalled = false;
       this.audio.load();
       this.seek(position);
     }
@@ -106,6 +110,12 @@ export class AudioEngine {
   }
 
   private bindEvents(): void {
+    // RAF 在后台会挂起，暂停时也会退出；媒体事件仍需回传跳转后的真实位置。
+    const publishPosition = () => {
+      if (this.wantsPlayback) this.tickCb?.(this.currentMs);
+    };
+    this.audio.addEventListener('timeupdate', publishPosition);
+    this.audio.addEventListener('seeked', publishPosition);
     this.audio.addEventListener('loadedmetadata', () => {
       const d = Number.isFinite(this.audio.duration) ? this.audio.duration * 1000 : 0;
       this.durationCb?.(d);
@@ -116,11 +126,17 @@ export class AudioEngine {
         return;
       }
       this.playbackHeld = false;
+      this.clearStallTimer();
+      this.stalled = false;
       this.setPlaybackIssue(this.ctx?.state === 'running' ? null : 'paused');
       this.bufferingCb?.(false);
       this.startTicker();
     });
-    this.audio.addEventListener('waiting', () => this.bufferingCb?.(true));
+    this.audio.addEventListener('waiting', () => {
+      this.bufferingCb?.(true);
+      this.watchForStall();
+    });
+    this.audio.addEventListener('stalled', () => this.watchForStall());
     this.audio.addEventListener('pause', () => {
       if (this.wantsPlayback && this.audio.paused && !this.audio.ended && !this.audio.error) {
         this.playbackHeld = true;
@@ -135,10 +151,28 @@ export class AudioEngine {
       this.endCb?.();
     });
     this.audio.addEventListener('error', () => {
+      this.clearStallTimer();
       if (this.wantsPlayback && this.audio.error) this.setPlaybackIssue('error');
       this.stopTicker();
       this.bufferingCb?.(false);
     });
+  }
+
+  private clearStallTimer(): void {
+    clearTimeout(this.stallTimer);
+    this.stallTimer = undefined;
+  }
+
+  private watchForStall(): void {
+    // stalled 也可能只是后台下载停止；只有无法继续播放时才认定卡住。
+    if (this.stallTimer !== undefined || !this.wantsPlayback) return;
+    this.stallTimer = setTimeout(() => {
+      this.stallTimer = undefined;
+      if (!this.wantsPlayback || this.outputSuppressed || this.audio.paused || this.audio.ended
+        || this.ctx?.state !== 'running' || this.audio.readyState >= 3) return;
+      this.stalled = true;
+      this.setPlaybackIssue('error');
+    }, 15_000);
   }
 
   private startTicker(): void {
@@ -166,6 +200,8 @@ export class AudioEngine {
     await this.ensureGraph();
     if (gen !== this.loadGen) return;
     this.stopTicker();
+    this.clearStallTimer();
+    this.stalled = false;
     this.wantsPlayback = true;
     if (!this.playbackHeld && !this.outputSuppressed) this.setPlaybackIssue(null);
     this.audio.src = url;
@@ -191,11 +227,14 @@ export class AudioEngine {
   seek(ms: number): void {
     if (!Number.isFinite(ms)) return;
     this.audio.currentTime = ms / 1000;
+    this.tickCb?.(this.currentMs);
   }
 
   /** 停止播放并清空 src */
   stop(): void {
     this.loadGen++;
+    this.clearStallTimer();
+    this.stalled = false;
     this.wantsPlayback = false;
     this.setPlaybackIssue(null);
     this.stopTicker();
@@ -285,6 +324,18 @@ export class AudioEngine {
   }
 
   private setPlaybackIssue(issue: PlaybackIssue): void {
+    if (issue && issue !== this.playbackIssue) {
+      console.warn('本机播放中断', {
+        issue,
+        contextState: this.ctx?.state,
+        paused: this.audio.paused,
+        ended: this.audio.ended,
+        readyState: this.audio.readyState,
+        networkState: this.audio.networkState,
+        mediaErrorCode: this.audio.error?.code,
+        positionMs: this.currentMs,
+      });
+    }
     this.playbackIssue = issue;
     this.issueCb?.(issue);
   }

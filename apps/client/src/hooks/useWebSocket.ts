@@ -26,53 +26,81 @@ export function useWebSocket(url: string): UseWebSocketReturn {
   const reconnectDelay = useRef(1000);
   const reconnectTimer = useRef<number>(0);
   const pingSentTime = useRef(0);
+  const pendingHeartbeat = useRef<number | null>(null);
   const mountedRef = useRef(true);
 
   const connect = useCallback(() => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) return;
+    if (wsRef.current && (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)) return;
     const ws = new WebSocket(url);
     wsRef.current = ws;
+    const isCurrent = () => mountedRef.current && wsRef.current === ws;
+    const reconnect = () => {
+      if (!isCurrent()) return;
+      // 先退役旧连接；close 事件可能迟到甚至不再到达。
+      wsRef.current = null;
+      pendingHeartbeat.current = null;
+      setReadyState(WebSocket.CLOSED);
+      window.clearInterval(heartbeatTimer.current);
+      window.clearTimeout(reconnectTimer.current);
+      reconnectTimer.current = window.setTimeout(() => {
+        if (mountedRef.current) connect();
+      }, reconnectDelay.current);
+      reconnectDelay.current = Math.min(reconnectDelay.current * 2, 8000);
+      ws.close();
+    };
 
     ws.onopen = () => {
-      if (!mountedRef.current) return;
+      if (!isCurrent()) return;
       setReadyState(WebSocket.OPEN);
       reconnectDelay.current = 1000;
+      pendingHeartbeat.current = null;
+      rttRef.current = 0;
       heartbeatTimer.current = window.setInterval(() => {
+        if (!isCurrent()) return;
+        if (pendingHeartbeat.current !== null) {
+          if (performance.now() - pendingHeartbeat.current >= 15_000) {
+            console.warn('房间连接心跳超时，重新连接');
+            reconnect();
+          }
+          return;
+        }
         if (ws.readyState === WebSocket.OPEN) {
           pingSentTime.current = Date.now();
-          ws.send(JSON.stringify({ type: 'heartbeat', payload: { clientTime: Date.now() } }));
+          pendingHeartbeat.current = performance.now();
+          try {
+            ws.send(JSON.stringify({ type: 'heartbeat', payload: { clientTime: pingSentTime.current } }));
+          } catch {
+            reconnect();
+          }
         }
       }, 5000);
     };
 
     ws.onmessage = (e) => {
-      if (!mountedRef.current) return;
+      if (!isCurrent()) return;
+      let msg: ServerMessage;
       try {
-        const msg = JSON.parse(e.data) as ServerMessage;
-        if (msg.type === 'heartbeat_ack') {
-          rttRef.current = Date.now() - pingSentTime.current;
-          return;
-        }
-        // 实时分发,不经过 React state,避免批处理丢消息
-        listenersRef.current.forEach((fn) => fn(msg));
+        msg = JSON.parse(e.data) as ServerMessage;
       } catch {
-        // 忽略解析失败
+        return;
       }
+      if (!msg || typeof msg !== 'object') return;
+      if (msg.type === 'heartbeat_ack') {
+        if (pendingHeartbeat.current !== null && msg.payload?.clientTime === pingSentTime.current) {
+          rttRef.current = Math.max(0, performance.now() - pendingHeartbeat.current);
+          pendingHeartbeat.current = null;
+        }
+        return;
+      }
+      // 单个订阅者失败不能阻断其他订阅者，也不能被当成 JSON 错误静默吞掉。
+      listenersRef.current.forEach((fn) => {
+        try { fn(msg); }
+        catch (error) { console.error('房间消息处理失败', msg.type, error); }
+      });
     };
 
-    ws.onclose = () => {
-      if (!mountedRef.current) return;
-      setReadyState(WebSocket.CLOSED);
-      window.clearInterval(heartbeatTimer.current);
-      reconnectTimer.current = window.setTimeout(() => {
-        if (mountedRef.current) connect();
-      }, reconnectDelay.current);
-      reconnectDelay.current = Math.min(reconnectDelay.current * 2, 8000);
-    };
-
-    ws.onerror = () => {
-      ws.close();
-    };
+    ws.onclose = reconnect;
+    ws.onerror = reconnect;
   }, [url]);
 
   useEffect(() => {
@@ -82,7 +110,10 @@ export function useWebSocket(url: string): UseWebSocketReturn {
       mountedRef.current = false;
       window.clearInterval(heartbeatTimer.current);
       window.clearTimeout(reconnectTimer.current);
-      wsRef.current?.close();
+      const ws = wsRef.current;
+      wsRef.current = null;
+      pendingHeartbeat.current = null;
+      ws?.close();
     };
   }, [connect]);
 
