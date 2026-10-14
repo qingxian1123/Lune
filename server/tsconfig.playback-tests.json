@@ -1,0 +1,17 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["node"],
+    "baseUrl": ".",
+    "paths": { "@lune/shared": ["../apps/shared/src/index.ts"] },
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "isolatedModules": false
+  },
+  "include": [
+    "test/audio-engine.test.ts", "test/playback-sync.test.ts", "test/playback-gateway.test.ts",
+    "test/playback-recovery.test.ts", "test/room-connection.test.ts", "test/resolve-pool.test.ts"
+  ]
+}

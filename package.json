@@ -12,6 +12,7 @@
     "deploy:server": "npm --prefix server run deploy:pack",
     "deploy:server:clean": "npm --prefix server run deploy:clean",
     "typecheck": "pnpm -r run typecheck",
+    "verify:playback": "pnpm typecheck && pnpm --filter @lune/server typecheck:playback-tests && pnpm --filter @lune/server test:local",
     "tauri": "pnpm --filter @lune/client tauri"
   },
   "devDependencies": {
