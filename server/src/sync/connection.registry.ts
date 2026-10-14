@@ -24,6 +24,7 @@ export class ConnectionRegistry {
   private readonly roomConns = new Map<string, Set<WebSocket>>();
 
   bind(ws: WebSocket, info: ConnInfo): void {
+    this.unbind(ws);
     this.connToInfo.set(ws, info);
     let set = this.roomConns.get(info.roomCode);
     if (!set) {
@@ -64,7 +65,19 @@ export class ConnectionRegistry {
 
   /** 房间内连接数,用于 close 时判断是否清房 */
   connCount(roomCode: string): number {
-    return this.roomConns.get(roomCode)?.size ?? 0;
+    const set = this.roomConns.get(roomCode);
+    return set ? [...set].filter((ws) => ws.readyState === ws.OPEN).length : 0;
+  }
+
+  closeMember(roomCode: string, memberId: string): void {
+    const set = this.roomConns.get(roomCode);
+    if (!set) return;
+    for (const ws of [...set]) {
+      if (this.connToInfo.get(ws)?.memberId === memberId) {
+        this.unbind(ws);
+        ws.close(1000, 'Member left');
+      }
+    }
   }
 
   hasMemberConnection(roomCode: string, memberId: string): boolean {

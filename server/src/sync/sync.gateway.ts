@@ -1,4 +1,4 @@
-import { Logger } from '@nestjs/common';
+import { HttpException, Logger } from '@nestjs/common';
 import { HeartStore } from '../charts/heart.store';
 import { ProviderRegistry } from '../providers/provider.registry';
 import {
@@ -15,6 +15,7 @@ import type {
   ProviderResolveResult,
   RoomStateChangeCause,
   RoomTokenPayload,
+  RoomErrorCode,
   Track,
 } from '@lune/shared';
 import { RoomStore } from '../rooms/room.store';
@@ -35,15 +36,13 @@ import { ConnectionRegistry } from './connection.registry';
  *  2. 网关验 JWT,绑定 memberId→room,回 `joined { snapshot, memberId }`
  *  3. 其他成员收到 `member_joined`
  *  4. 播放/队列命令经版本校验后原子修改 Room 状态，广播单条 `room_state_changed`
- *  5. 断开:unbind + rooms.leave,空房删除,他人收到 `member_left`
+ *  5. 断开:清在线状态，30秒后广播离线；空房保留24小时。
  *
  * 无 pause 消息(产品决定)。
  */
 @WebSocketGateway({ path: '/ws', maxPayload: 1024 * 1024 })
 export class SyncGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private readonly logger = new Logger(SyncGateway.name);
-  private readonly disconnectGraceMs = 30_000;
-  private readonly pendingLeaves = new Map<string, ReturnType<typeof setTimeout>>();
   private readonly heartRates = new WeakMap<WebSocket, { at: number; count: number }>();
   private heartPending = 0;
   private readonly unplayableChecks = new WeakMap<Room, { seq: number; result: Promise<ProviderResolveResult | null> }>();
@@ -58,7 +57,13 @@ export class SyncGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private readonly conns: ConnectionRegistry,
     private readonly hearts: HeartStore,
     private readonly providers: ProviderRegistry,
-  ) {}
+  ) {
+    this.store.setPresenceListener((room, memberIds) => {
+      for (const memberId of memberIds) this.conns.broadcast(room.code, {
+        type: 'member_left', payload: { memberId, ownerId: room.ownerId },
+      });
+    });
+  }
 
   handleConnection(ws: WebSocket): void {
     this.logger.log(`WS 连接进入,等待 join`);
@@ -68,27 +73,18 @@ export class SyncGateway implements OnGatewayConnection, OnGatewayDisconnect {
   handleDisconnect(ws: WebSocket): void {
     const info = this.conns.unbind(ws);
     if (!info) return;
-    const key = this.memberConnectionKey(info.roomCode, info.memberId);
-    const previous = this.pendingLeaves.get(key);
-    if (previous) clearTimeout(previous);
-    const timer = setTimeout(() => {
-      this.pendingLeaves.delete(key);
-      if (this.conns.hasMemberConnection(info.roomCode, info.memberId)) return;
-      const { empty, ownerChanged } = this.rooms.leave(info.roomCode, info.memberId);
-      if (empty) return;
-      const room = this.store.getRoom(info.roomCode);
-      const ownerId = room?.ownerId ?? '';
-      this.conns.broadcast(info.roomCode, {
-        type: 'member_left',
-        payload: { memberId: info.memberId, ownerId },
-      });
-      if (ownerChanged) this.logger.log(`owner 转移至 ${ownerId}`);
-    }, this.disconnectGraceMs);
-    timer.unref?.();
-    this.pendingLeaves.set(key, timer);
+    if (this.conns.hasMemberConnection(info.roomCode, info.memberId)) return;
+    try { this.rooms.disconnect(info.roomCode, info.memberId); }
+    catch (error) { this.logger.error(`Disconnect persistence failed: ${(error as Error).message}`); }
   }
 
   private onMessage(ws: WebSocket, text: string): void {
+    if (ws.readyState !== ws.OPEN) return;
+    try { this.dispatchMessage(ws, text); }
+    catch (error) { this.reportError(ws, error); }
+  }
+
+  private dispatchMessage(ws: WebSocket, text: string): void {
     let msg: ClientMessage;
     try {
       msg = JSON.parse(text);
@@ -103,6 +99,9 @@ export class SyncGateway implements OnGatewayConnection, OnGatewayDisconnect {
         break;
       case 'join':
         this.handleJoin(ws, msg.payload.token);
+        break;
+      case 'leave':
+        this.handleLeave(ws);
         break;
       case 'play':
         this.handlePlay(ws, msg.payload.track, msg.payload.position, msg.payload.expectedPlaybackSeq);
@@ -121,7 +120,7 @@ export class SyncGateway implements OnGatewayConnection, OnGatewayDisconnect {
           msg.payload.expectedPlaybackSeq,
           msg.payload.expectedTrackKey,
           msg.payload.reason,
-        );
+        ).catch((error) => this.reportError(ws, error));
         break;
       case 'add_song':
         this.handleAddSong(ws, msg.payload.track);
@@ -156,42 +155,49 @@ export class SyncGateway implements OnGatewayConnection, OnGatewayDisconnect {
     try {
       payload = this.jwt.verify<RoomTokenPayload>(token);
     } catch {
-      this.conns.send(ws, { type: 'error', payload: { message: 'token 无效或已过期' } });
+      this.error(ws, 'AUTH_INVALID', 'token 无效或已过期，请重新加入');
       return;
     }
-    const room = this.store.getRoom(payload.roomCode);
-    if (!room) {
-      this.conns.send(ws, { type: 'error', payload: { message: '房间不存在' } });
+    const existing = this.conns.infoOf(ws);
+    if (existing && (existing.roomCode !== payload.roomCode || existing.memberId !== payload.memberId)) {
+      this.error(ws, 'MEMBER_INVALID', '请先退出当前房间');
       return;
     }
-    if (!room.members.has(payload.memberId)) {
-      this.conns.send(ws, { type: 'error', payload: { message: '成员已不在房间,请重新加入' } });
-      return;
-    }
-    const reconnecting = this.cancelPendingLeave(payload.roomCode, payload.memberId) ||
-      this.conns.hasMemberConnection(payload.roomCode, payload.memberId);
+    const { room, member, reconnecting } = this.rooms.connect(payload.roomCode, payload.memberId, payload.roomId);
     this.conns.bind(ws, {
       memberId: payload.memberId,
-      roomCode: payload.roomCode,
-      nickname: payload.nickname,
+      roomCode: room.code,
+      nickname: member.nickname,
     });
     this.conns.send(ws, {
       type: 'joined',
-      payload: { snapshot: room.toSnapshot(), memberId: payload.memberId, serverTime: Date.now() },
+      payload: { snapshot: room.toSnapshot(), memberId: payload.memberId, serverTime: Date.now(), token: this.rooms.signToken(room, member) },
     });
     if (!reconnecting) {
-      this.conns.broadcast(payload.roomCode, {
+      this.conns.broadcast(room.code, {
         type: 'member_joined',
         payload: {
           member: {
             id: payload.memberId,
-            nickname: payload.nickname,
+            nickname: member.nickname,
             isOwner: room.ownerId === payload.memberId,
           },
         },
       });
     }
     this.logger.log(`${payload.nickname} joined ${payload.roomCode}`);
+  }
+
+  private handleLeave(ws: WebSocket): void {
+    const info = this.conns.infoOf(ws);
+    if (!info) { this.error(ws, 'NOT_JOINED', '请先加入房间'); return; }
+    this.rooms.leave(info.roomCode, info.memberId);
+    this.conns.send(ws, { type: 'left', payload: { roomCode: info.roomCode } });
+    this.conns.closeMember(info.roomCode, info.memberId);
+    const room = this.store.getRoom(info.roomCode);
+    this.conns.broadcast(info.roomCode, {
+      type: 'member_left', payload: { memberId: info.memberId, ownerId: room?.ownerId ?? '' },
+    });
   }
 
   private async handleHeart(ws: WebSocket, payload: { requestId: string; track: Track }, size: number): Promise<void> {
@@ -233,7 +239,7 @@ export class SyncGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const info = this.conns.infoOf(ws)!;
     const room = this.store.getRoom(info.roomCode);
     if (!room) return;
-    if (!room.play(track, position ?? 0, expectedPlaybackSeq)) {
+    if (!this.store.transact(room, () => room.play(track, position ?? 0, expectedPlaybackSeq))) {
       this.sendRoomState(ws, room, 'resync');
       return;
     }
@@ -249,7 +255,7 @@ export class SyncGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const info = this.conns.infoOf(ws)!;
     const room = this.store.getRoom(info.roomCode);
     if (!room) return;
-    if (!room.seek(position, expectedTrackKey)) {
+    if (!this.store.transact(room, () => room.seek(position, expectedTrackKey))) {
       this.sendRoomState(ws, room, 'resync');
       return;
     }
@@ -294,7 +300,7 @@ export class SyncGateway implements OnGatewayConnection, OnGatewayDisconnect {
         return;
       }
     }
-    if (!room.advance(expectedPlaybackSeq, expectedTrackKey, reason)) {
+    if (!this.store.transact(room, () => room.advance(expectedPlaybackSeq, expectedTrackKey, reason))) {
       this.logger.warn(`忽略切歌 room=${room.code} seq=${expectedPlaybackSeq} track=${expectedTrackKey} reason=${reason}`);
       this.sendRoomState(ws, room, 'resync');
       return;
@@ -304,23 +310,25 @@ export class SyncGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   private handleAddSong(ws: WebSocket, track: Track): void {
+    if (!this.assertJoined(ws)) return;
     const info = this.conns.infoOf(ws);
     if (!info) return;
     const room = this.store.getRoom(info.roomCode);
     if (!room) return;
     // 任何成员都可加歌(沿用 V1)
-    room.enqueue(track, info.memberId);
+    this.store.transact(room, () => room.enqueue(track, info.memberId));
     this.broadcastRoomState(info.roomCode, room, 'enqueue');
   }
 
   private handleAddSongs(ws: WebSocket, tracks: Track[]): void {
+    if (!this.assertJoined(ws)) return;
     const info = this.conns.infoOf(ws);
     if (!info) return;
     const room = this.store.getRoom(info.roomCode);
     if (!room) return;
-    if (tracks.length === 0) return;
+    if (!Array.isArray(tracks) || tracks.length === 0 || tracks.length > 5000) return;
     // 歌单“全部加入”保持原子广播；空闲房间直接播放队首，其余歌曲进入队列。
-    const startedPlayback = room.enqueueManyAndStartIfIdle(tracks, info.memberId);
+    const startedPlayback = this.store.transact(room, () => room.enqueueManyAndStartIfIdle(tracks, info.memberId));
     this.broadcastRoomState(info.roomCode, room, startedPlayback ? 'play' : 'enqueue');
   }
 
@@ -329,7 +337,7 @@ export class SyncGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const info = this.conns.infoOf(ws)!;
     const room = this.store.getRoom(info.roomCode);
     if (!room) return;
-    if (!room.remove(itemId, expectedQueueRevision)) {
+    if (!this.store.transact(room, () => room.remove(itemId, expectedQueueRevision))) {
       this.sendRoomState(ws, room, 'resync');
       return;
     }
@@ -342,6 +350,7 @@ export class SyncGateway implements OnGatewayConnection, OnGatewayDisconnect {
     beforeItemId: string | null,
     expectedQueueRevision: number,
   ): void {
+    if (!this.assertJoined(ws)) return;
     const info = this.conns.infoOf(ws);
     if (!info) {
       this.conns.send(ws, { type: 'error', payload: { message: '请先 join 房间' } });
@@ -352,7 +361,7 @@ export class SyncGateway implements OnGatewayConnection, OnGatewayDisconnect {
       this.conns.send(ws, { type: 'error', payload: { message: '房间不存在' } });
       return;
     }
-    if (!room.reorder(itemId, beforeItemId, expectedQueueRevision)) {
+    if (!this.store.transact(room, () => room.reorder(itemId, beforeItemId, expectedQueueRevision))) {
       this.sendRoomState(ws, room, 'resync');
       return;
     }
@@ -399,26 +408,34 @@ export class SyncGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private assertJoined(ws: WebSocket): boolean {
     const info = this.conns.infoOf(ws);
     if (!info) {
-      this.conns.send(ws, { type: 'error', payload: { message: '请先 join 房间' } });
+      this.error(ws, 'NOT_JOINED', '请先加入房间');
       return false;
     }
-    if (!this.store.getRoom(info.roomCode)) {
-      this.conns.send(ws, { type: 'error', payload: { message: '房间不存在' } });
+    const room = this.store.getRoom(info.roomCode);
+    if (!room) {
+      this.error(ws, 'ROOM_NOT_FOUND', '房间不存在或已过期');
+      return false;
+    }
+    if (!room.onlineMembers.has(info.memberId)) {
+      this.error(ws, 'MEMBER_INVALID', '成员身份已失效，请重新加入');
       return false;
     }
     return true;
   }
 
-  private memberConnectionKey(roomCode: string, memberId: string): string {
-    return `${roomCode}:${memberId}`;
+  private error(ws: WebSocket, code: RoomErrorCode, message: string): void {
+    this.conns.send(ws, { type: 'error', payload: { code, message } });
   }
 
-  private cancelPendingLeave(roomCode: string, memberId: string): boolean {
-    const key = this.memberConnectionKey(roomCode, memberId);
-    const timer = this.pendingLeaves.get(key);
-    if (!timer) return false;
-    clearTimeout(timer);
-    this.pendingLeaves.delete(key);
-    return true;
+  private reportError(ws: WebSocket, error: unknown): void {
+    if (error instanceof HttpException) {
+      const response = error.getResponse();
+      if (typeof response === 'object' && 'code' in response && 'message' in response) {
+        this.error(ws, response.code as RoomErrorCode, String(response.message));
+        return;
+      }
+    }
+    this.logger.warn(`Room command failed: ${(error as Error).message}`);
+    this.conns.send(ws, { type: 'error', payload: { message: '房间操作未完成，请稍后重试' } });
   }
 }

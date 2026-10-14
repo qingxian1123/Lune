@@ -4,46 +4,206 @@ import type { Member, PlaybackAdvanceReason, PlaybackState, QueueItem, RoomSnaps
 const getTrackKey = (track: Pick<Track, 'id' | 'provider'>): string =>
   `${track.provider || ''}:${track.id}`;
 
-/**
- * 房间管理器(内存态)
- *
- * P1 沿用 v1 的内存模型:进程重启房间清空,不接入 Prisma。
- * 进程内单例,由 NestJS DI 生命周期持有。
- */
+export interface RoomRecord {
+  version: 1;
+  id: string;
+  code: string;
+  createdAt: number;
+  lastSeenAt: number;
+  emptySince: number | null;
+  expiresAt: number | null;
+  dormant: boolean;
+  identities: Array<[string, { nickname: string; expiresAt: number; lastConnectedAt?: number }]>;
+  members: Array<[string, { nickname: string; isOwner: boolean }]>;
+  onlineMembers: string[];
+  memberDeadlines: Array<[string, number]>;
+  ownerId: string;
+  playback: PlaybackState;
+  queue: QueueItem[];
+  queueRevision: number;
+}
+
+/** 在线成员与可恢复身份分离；休眠房间保留歌曲、队列和稳定版本。 */
 export class Room {
+  id: string = randomUUID();
   readonly code: string;
   readonly members = new Map<string, { nickname: string; isOwner: boolean }>();
+  readonly identities = new Map<string, { nickname: string; expiresAt: number; lastConnectedAt?: number }>();
+  readonly onlineMembers = new Set<string>();
+  readonly memberDeadlines = new Map<string, number>();
+  emptySince: number | null;
+  expiresAt: number | null = null;
+  dormant = false;
+  lastSeenAt: number;
   ownerId = '';
   playback: PlaybackState;
   queue: QueueItem[] = [];
   queueRevision = 0;
-  private readonly bornAt = Date.now();
+  private bornAt: number;
 
-  constructor(code: string) {
+  constructor(code: string, now = Date.now()) {
     this.code = code;
+    this.bornAt = now;
+    this.lastSeenAt = now;
+    this.emptySince = now;
     this.playback = {
       status: 'idle',
       track: null,
       position: 0,
-      serverTimestamp: Date.now(),
+      serverTimestamp: now,
       seq: 0,
     };
   }
 
-  addMember(nickname: string): Member {
+  addMember(nickname: string, now = Date.now()): Member {
     const id = randomUUID();
     const isOwner = this.members.size === 0;
     this.members.set(id, { nickname, isOwner });
+    this.identities.set(id, { nickname, expiresAt: now + 7 * 24 * 60 * 60 * 1000 });
+    // HTTP 入场尚不算在线，防止没有建立 WS 的成员永久占据房间。
+    this.memberDeadlines.set(id, now + 60_000);
     if (isOwner) this.ownerId = id;
     return { id, nickname, isOwner };
+  }
+
+  hasIdentity(memberId: string, now = Date.now()): boolean {
+    const identity = this.identities.get(memberId);
+    return !!identity && identity.expiresAt > now;
+  }
+
+  markConnected(memberId: string, now = Date.now()): Member {
+    const identity = this.identities.get(memberId);
+    if (!identity || identity.expiresAt <= now) throw new Error('成员身份已失效');
+    if (this.dormant) {
+      this.dormant = false;
+      const track = this.playback.track;
+      if (track && track.duration > 0 && this.playback.position >= track.duration) {
+        this.advance(this.playback.seq, getTrackKey(track), 'manual');
+      } else {
+        this.playback = { ...this.playback, seq: this.playback.seq + 1, serverTimestamp: now };
+      }
+      // advance uses the live clock; recovery always publishes this activation's anchor.
+      this.playback = { ...this.playback, serverTimestamp: now };
+    }
+    this.onlineMembers.add(memberId);
+    this.memberDeadlines.delete(memberId);
+    this.emptySince = null;
+    this.expiresAt = null;
+    this.lastSeenAt = now;
+    identity.expiresAt = now + 7 * 24 * 60 * 60 * 1000;
+    identity.lastConnectedAt = now;
+    if (!this.ownerId || !this.members.has(this.ownerId)) this.ownerId = memberId;
+    const member = { nickname: identity.nickname, isOwner: this.ownerId === memberId };
+    this.members.set(memberId, member);
+    return { id: memberId, ...member };
+  }
+
+  markDisconnected(memberId: string, now: number, graceMs: number, retentionMs: number): void {
+    this.onlineMembers.delete(memberId);
+    if (this.members.has(memberId)) this.memberDeadlines.set(memberId, now + graceMs);
+    if (this.onlineMembers.size === 0 && this.emptySince === null) {
+      this.emptySince = now;
+      this.expiresAt = now + retentionMs;
+    }
+  }
+
+  revokeMember(memberId: string, now: number, graceMs: number, retentionMs: number) {
+    this.markDisconnected(memberId, now, graceMs, retentionMs);
+    this.identities.delete(memberId);
+    this.memberDeadlines.delete(memberId);
+    return this.removeMember(memberId);
+  }
+
+  /** 移除在线列表只影响 presence，身份可在有效期内恢复。 */
+  maintain(now: number, graceMs: number): string[] {
+    const removed: string[] = [];
+    for (const [id, deadline] of this.memberDeadlines) {
+      if (deadline <= now && !this.onlineMembers.has(id)) {
+        this.memberDeadlines.delete(id);
+        if (this.members.has(id)) {
+          this.removeMember(id);
+          removed.push(id);
+        }
+      }
+    }
+    for (const [id, identity] of this.identities) {
+      if (identity.expiresAt <= now && !this.onlineMembers.has(id)) this.identities.delete(id);
+    }
+    if (this.onlineMembers.size === 0 && this.emptySince !== null && now >= this.emptySince + graceMs) {
+      this.freeze(this.emptySince + graceMs);
+    }
+    return removed;
+  }
+
+  private freeze(at: number): void {
+    if (this.dormant) return;
+    const track = this.playback.track;
+    const position = this.playback.status === 'playing'
+      ? this.playback.position + Math.max(0, at - this.playback.serverTimestamp)
+      : this.playback.position;
+    this.playback = {
+      ...this.playback,
+      position: track && track.duration > 0 ? Math.min(position, track.duration) : position,
+      serverTimestamp: at,
+      seq: this.playback.seq + 1,
+    };
+    this.dormant = true;
+  }
+
+  toRecord(): RoomRecord {
+    return structuredClone({
+      version: 1 as const, id: this.id, code: this.code, createdAt: this.bornAt,
+      lastSeenAt: this.lastSeenAt, emptySince: this.emptySince, expiresAt: this.expiresAt,
+      dormant: this.dormant, identities: [...this.identities], members: [...this.members],
+      onlineMembers: [...this.onlineMembers], memberDeadlines: [...this.memberDeadlines],
+      ownerId: this.ownerId, playback: this.playback, queue: this.queue, queueRevision: this.queueRevision,
+    });
+  }
+
+  restore(record: RoomRecord): void {
+    this.id = record.id;
+    this.bornAt = record.createdAt;
+    this.lastSeenAt = record.lastSeenAt;
+    this.emptySince = record.emptySince;
+    this.expiresAt = record.expiresAt;
+    this.dormant = record.dormant;
+    this.ownerId = record.ownerId;
+    this.playback = structuredClone(record.playback);
+    this.queue = structuredClone(record.queue);
+    this.queueRevision = record.queueRevision;
+    this.identities.clear();
+    this.members.clear();
+    this.onlineMembers.clear();
+    this.memberDeadlines.clear();
+    for (const [id, value] of record.identities) this.identities.set(id, { ...value });
+    for (const [id, value] of record.members) this.members.set(id, { ...value });
+    for (const id of record.onlineMembers) this.onlineMembers.add(id);
+    for (const [id, deadline] of record.memberDeadlines) this.memberDeadlines.set(id, deadline);
+  }
+
+  static fromRecord(record: RoomRecord, retentionMs: number): Room {
+    const room = new Room(record.code, record.createdAt);
+    room.restore(record);
+    // Restart restores identities, never live sockets or a fresh retention window.
+    if (room.emptySince === null) {
+      room.emptySince = room.lastSeenAt;
+      room.expiresAt = room.lastSeenAt + retentionMs;
+      room.freeze(room.lastSeenAt);
+    }
+    room.onlineMembers.clear();
+    room.members.clear();
+    room.memberDeadlines.clear();
+    room.ownerId = '';
+    return room;
   }
 
   removeMember(memberId: string): { empty: boolean; ownerChanged: boolean } {
     if (!this.members.has(memberId)) return { empty: this.members.size === 0, ownerChanged: false };
     this.members.delete(memberId);
+    this.onlineMembers.delete(memberId);
     let ownerChanged = false;
     if (this.ownerId === memberId) {
-      const next = this.members.keys().next();
+      const next = this.onlineMembers.size > 0 ? this.onlineMembers.values().next() : this.members.keys().next();
       if (next.done) {
         this.ownerId = '';
       } else {
@@ -186,6 +346,8 @@ export class Room {
       playback: this.playback,
       queue: this.queue,
       queueRevision: this.queueRevision,
+      lifecycle: this.dormant ? 'dormant' : this.emptySince === null ? 'active' : 'grace',
+      expiresAt: this.expiresAt,
     };
   }
 

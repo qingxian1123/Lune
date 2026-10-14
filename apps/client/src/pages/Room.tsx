@@ -71,6 +71,8 @@ export default function Room() {
     ownerId,
     displayRoomCode,
     errorMessage,
+    needsRejoin,
+    rejoinRoom,
     playerState,
     lines,
     currentIndex,
@@ -116,6 +118,7 @@ export default function Room() {
       {errorMessage && (
         <div className="room-error" role="alert">
           {errorMessage}
+          {needsRejoin && <button type="button" className="room-error-rejoin" onClick={rejoinRoom}>重新加入</button>}
         </div>
       )}
 

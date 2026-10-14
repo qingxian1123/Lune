@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import type { RefObject } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { AudioEngine } from '../../audio/AudioEngine';
 import { createRoom, joinRoom } from '../../lib/api';
 import { getUiErrorMessage } from '../../lib/uiError';
+import { getInitialServerUrl } from '../../lib/serverConfig';
+import { readRoomSession, saveRoomSession } from '../../lib/roomSession';
 import { useSettingsController } from '../settings/model/useSettingsController';
 import type { SettingsController } from '../settings/model/types';
 
@@ -26,13 +28,22 @@ export interface AccessController {
 
 export function useAccessController(): AccessController {
   const navigate = useNavigate();
+  const location = useLocation();
+  const rejoinCode = (location.state as { rejoinRoomCode?: string } | null)?.rejoinRoomCode;
   const settings = useSettingsController();
-  const [mode, setMode] = useState<AccessMode>('create');
+  const [mode, setMode] = useState<AccessMode>(rejoinCode ? 'join' : 'create');
   const [nickname, setNicknameState] = useState('');
-  const [roomCode, setRoomCodeState] = useState('');
+  const [roomCode, setRoomCodeState] = useState(rejoinCode ?? '');
   const [error, setError] = useState<AccessError | null>(null);
   const [busy, setBusy] = useState(false);
   const roomCodeInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (rejoinCode) return;
+    const serverUrl = getInitialServerUrl();
+    const session = serverUrl ? readRoomSession(serverUrl) : null;
+    if (session) navigate(`/room/${session.roomCode}`, { replace: true });
+  }, [navigate, rejoinCode]);
 
   useEffect(() => {
     if (mode === 'join') roomCodeInputRef.current?.focus();
@@ -78,6 +89,7 @@ export function useAccessController(): AccessController {
         ? await createRoom(nickname.trim())
         : await joinRoom(roomCode.trim(), nickname.trim());
 
+      saveRoomSession({ roomCode: response.code, token: response.token, memberId: response.member.id });
       navigate(`/room/${response.code}`, {
         state: { token: response.token, memberId: response.member.id },
       });

@@ -51,6 +51,8 @@ export interface PlaybackState {
 /** 房间完整快照(发给刚加入的客户端) */
 export interface RoomSnapshot {
   code: string;
+  lifecycle?: 'active' | 'grace' | 'dormant';
+  expiresAt?: number | null;
   members: Member[];
   ownerId: string;
   playback: PlaybackState;
@@ -82,6 +84,8 @@ export interface RoomStateChangedPayload {
 
 /** JWT payload 内容 */
 export interface RoomTokenPayload {
+  /** 不可复用的房间身份；旧 token 可缺省，由服务端升级。 */
+  roomId?: string;
   memberId: string;
   roomCode: string;
   nickname: string;
@@ -163,6 +167,7 @@ export interface MusicProvider {
 export type ClientMessage =
   | { type: 'send_heart'; payload: { requestId: string; track: Track } }
   | { type: 'join'; payload: { token: string } }
+  | { type: 'leave'; payload: Record<string, never> }
   | { type: 'play'; payload: { track: Track; position?: number; expectedPlaybackSeq: number } }
   | {
       type: 'seek';
@@ -187,15 +192,23 @@ export type ClientMessage =
   | { type: 'heartbeat'; payload: { clientTime: number } };
 
 /** 服务端 → 客户端 */
+export type RoomErrorCode =
+  | 'AUTH_INVALID'
+  | 'ROOM_NOT_FOUND'
+  | 'MEMBER_INVALID'
+  | 'NOT_JOINED'
+  | 'STORAGE_UNAVAILABLE';
+
 export type ServerMessage =
   | { type: 'heart_recorded'; payload: { requestId: string } }
   | { type: 'heart_failed'; payload: { requestId: string; message: string } }
-  | { type: 'joined'; payload: { snapshot: RoomSnapshot; memberId: string; serverTime?: number } }
+  | { type: 'joined'; payload: { snapshot: RoomSnapshot; memberId: string; serverTime?: number; token?: string } }
+  | { type: 'left'; payload: { roomCode: string } }
   | { type: 'room_state_changed'; payload: RoomStateChangedPayload }
   | { type: 'member_joined'; payload: { member: Member } }
   | { type: 'member_left'; payload: { memberId: string; ownerId: string } }
   | { type: 'heartbeat_ack'; payload: { serverTime: number; clientTime: number } }
-  | { type: 'error'; payload: { message: string } };
+  | { type: 'error'; payload: { message: string; code?: RoomErrorCode } };
 
 // ============ 每日最佳(接口预留,P4 仅类型 + 路由签名) ============
 

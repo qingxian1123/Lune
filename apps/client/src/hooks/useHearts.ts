@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import type { ClientMessage, ServerMessage, Track } from '@lune/shared';
 
 export function useHearts(
-  send: (message: ClientMessage) => void,
+  send: (message: ClientMessage) => boolean,
   subscribe: (listener: (message: ServerMessage) => void) => () => void,
   connected: boolean,
 ) {
@@ -35,7 +35,11 @@ export function useHearts(
       fail();
     }, 12000);
     pending.current.set(requestId, { resolve, reject: fail, timer });
-    try { send({ type: 'send_heart', payload: { requestId, track } }); }
+    try {
+      if (!send({ type: 'send_heart', payload: { requestId, track } })) {
+        window.clearTimeout(timer); pending.current.delete(requestId); fail();
+      }
+    }
     catch { window.clearTimeout(timer); pending.current.delete(requestId); fail(); }
   }), [connected, send]);
 }

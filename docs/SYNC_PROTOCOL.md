@@ -15,13 +15,15 @@ Lune 房间同步通过 WebSocket 完成。连接地址：`ws://<host>/ws`。所
 1. 客户端通过 HTTP 创建或加入房间并取得 JWT `token`。
 2. 建立 WebSocket 连接后立即发送 `join { token }`。
 3. 服务端返回 `joined { snapshot, memberId }`，快照包含完整播放状态、队列和版本。
-4. token 无效或成员已离开时返回 `error`。
+4. token 无效、身份已主动退出或房间已过期时返回 `error`。只有收到 `joined` 才算加入成功，WebSocket 打开本身不代表房间鉴权成功。
+5. 新 token 绑定不可复用的内部房间 ID；旧 token 仅在存储中仍存在对应成员身份时兼容恢复。
 
 ## 客户端 → 服务端
 
 | type | payload | 说明 |
 |---|---|---|
 | `join` | `{ token }` | 鉴权并加入房间 |
+| `leave` | `{}` | 主动退出并撤销当前成员身份；后续使用该 token 无法恢复 |
 | `play` | `{ track, position?, expectedPlaybackSeq }` | 仅当房间仍为空闲且播放版本匹配时开始播放 |
 | `seek` | `{ position, expectedTrackKey }` | 仅当当前曲目 key 匹配时调整进度 |
 | `advance_playback` | `{ requestId, expectedPlaybackSeq, expectedTrackKey, reason }` | 版本化推进；`reason` 为 `ended`、`manual` 或 `unplayable` |
@@ -39,14 +41,19 @@ Lune 房间同步通过 WebSocket 完成。连接地址：`ws://<host>/ws`。所
 
 | type | payload | 说明 |
 |---|---|---|
-| `joined` | `{ snapshot, memberId }` | 加入成功并取得完整房间快照 |
+| `joined` | `{ snapshot, memberId, serverTime?, token? }` | 加入成功并取得完整房间快照；可返回更新后的身份令牌 |
+| `left` | `{ roomCode }` | 主动退出成功，身份已撤销 |
 | `room_state_changed` | `{ playback, queue, queueRevision, cause, appliedRequestId? }` | 播放与队列的原子权威状态 |
 | `member_joined` | `{ member }` | 成员加入 |
 | `member_left` | `{ memberId, ownerId }` | 成员离开以及最新 owner 标识 |
 | `heartbeat_ack` | `{ serverTime, clientTime }` | 心跳响应 |
-| `error` | `{ message }` | 鉴权、房间或消息错误 |
+| `error` | `{ message, code? }` | 鉴权、房间或存储错误；错误码便于客户端恢复 |
 
 当命令所携带的播放或队列版本已经过期时，服务端不执行命令，只向发送者返回 `cause: 'resync'` 的 `room_state_changed`。
+
+错误码包括 `AUTH_INVALID`（令牌无效）、`ROOM_NOT_FOUND`（房间不存在或已过期）、`MEMBER_INVALID`（身份失效）、`NOT_JOINED`（尚未加入）和 `STORAGE_UNAVAILABLE`（持久化失败）。存储失败不能作为成功加入或状态变更广播。
+
+房间快照可包含 `lifecycle: 'active' | 'grace' | 'dormant'` 和 `expiresAt: number | null`，分别表示生命周期与离线过期时间。
 
 ## 状态结构
 
@@ -82,5 +89,9 @@ interface QueueItem {
 
 - 客户端使用 `serverTimestamp`、本地时间与心跳 RTT 估算播放进度。
 - WebSocket 保证单连接消息有序；连续 seek 使用曲目 key 防止旧曲目命令作用到新曲目。
-- 客户端断开后服务端保留成员身份 30 秒；同一成员在宽限期内重连会取消离房清理并取得最新快照。
-- 宽限期结束仍未重连时服务端移除成员；房间为空时删除内存房间。
+- 同一成员最后一条 WebSocket 断开后，服务端保留在线列表标识 30 秒；重连会取消离线清理并取得最新快照。旧连接延迟关闭不能清理新连接。
+- 宽限结束从在线列表移除成员，但保留可恢复身份。全员离线的房间从最后断线时刻起保留 24 小时，房间码、队列和当前歌曲仍可恢复。
+- 进入休眠时冻结内部播放进度；鉴权加入成功后唤醒并递增播放版本。休眠不增加产品暂停操作。
+- HTTP 查询、未建立 WebSocket 的入场请求和失败鉴权不延长房间保留时间。达到过期时间后删除房间与可恢复身份。
+- HTTP 创建或加入取得的成员在 60 秒内未建立 WebSocket 会移出在线列表，避免没有实际连接的成员阻止过期。
+- 房间原子持久化于 `LUNE_DATA_DIR/rooms/`；服务重启按已有离线期限恢复，在线房间使用周期检查点限定异常退出后的恢复误差。

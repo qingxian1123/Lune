@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Member, PlaybackState, QueueItem, RoomSnapshot, ServerMessage } from '@lune/shared';
+import type { Member, PlaybackState, QueueItem, RoomSnapshot, ServerMessage, RoomErrorCode } from '@lune/shared';
 
 interface RoomState {
   memberId: string | null;
@@ -11,6 +11,7 @@ interface RoomState {
   ownerId: string;
   connected: boolean;
   lastError: string | null;
+  lastErrorCode: RoomErrorCode | null;
 
   setIdentity: (memberId: string, roomCode: string) => void;
   setConnected: (b: boolean) => void;
@@ -38,6 +39,7 @@ export const useRoomStore = create<RoomState>((set) => ({
   ownerId: '',
   connected: false,
   lastError: null,
+  lastErrorCode: null,
 
   setIdentity: (memberId, roomCode) => set({ memberId, roomCode }),
   setConnected: (b) => set({ connected: b }),
@@ -53,6 +55,10 @@ export const useRoomStore = create<RoomState>((set) => ({
     switch (msg.type) {
       case 'joined':
         set({
+          memberId: msg.payload.memberId,
+          roomCode: msg.payload.snapshot.code,
+          lastError: null,
+          lastErrorCode: null,
           playback: msg.payload.snapshot.playback,
           queue: msg.payload.snapshot.queue,
           queueRevision: msg.payload.snapshot.queueRevision,
@@ -86,13 +92,16 @@ export const useRoomStore = create<RoomState>((set) => ({
         }));
         break;
       case 'error':
-        set({ lastError: msg.payload.message });
+        set({ lastError: msg.payload.message, lastErrorCode: msg.payload.code ?? null });
+        break;
+      case 'left':
+        set({ connected: false });
         break;
       default:
         break;
     }
   },
-  clearError: () => set({ lastError: null }),
+  clearError: () => set({ lastError: null, lastErrorCode: null }),
   reset: () =>
     set({
       memberId: null,
@@ -104,5 +113,6 @@ export const useRoomStore = create<RoomState>((set) => ({
       ownerId: '',
       connected: false,
       lastError: null,
+      lastErrorCode: null,
     }),
 }));

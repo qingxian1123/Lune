@@ -46,6 +46,8 @@ npm run provider -- config validate
 npm start
 ```
 
-首次部署必须先设置 `LUNE_MASTER_KEY`、`LUNE_ADMIN_TOKEN` 和 `JWT_SECRET`，再通过 Provider CLI 登录音乐源。服务端只能运行一个实例；进程重启会清空房间状态。
+首次部署必须先设置 `LUNE_MASTER_KEY`、`LUNE_ADMIN_TOKEN` 和 `JWT_SECRET`，再通过 Provider CLI 登录音乐源。服务端只能运行一个实例。房间保存于 `LUNE_DATA_DIR/rooms/`，空房默认保留 24 小时，重启后恢复未过期房间；发布时保留数据目录和原 `JWT_SECRET`。
+
+`LUNE_ROOM_RETENTION_MS=86400000`、`LUNE_ROOM_GRACE_MS=30000`、`LUNE_ROOM_CHECKPOINT_MS=30000` 分别设置离线保留、断线宽限和检查点周期。首次从旧版内存模型升级仍会丢失没有导出的旧房间，应安排无活跃房间的窗口。
 
 Ubuntu、systemd、Nginx、登录、更新与备份的完整流程见 [`docs/DEPLOYMENT.md`](../docs/DEPLOYMENT.md)。干净发布包会把该文档复制为包内 `README.md`。

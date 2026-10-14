@@ -171,7 +171,7 @@ const main = async () => {
   assert.equal(bRejoined.payload.snapshot.members.length, 2);
   log('bob', `rejoined as=${bRejoined.payload.memberId} members=${bRejoined.payload.snapshot.members.length}`);
 
-  // 12. 两端断开；房间会在宽限期结束后清理
+  // 12. 两端断开；宽限后移除在线成员，房间与身份保留 24 小时
   b2.ws.close();
   a.ws.close();
   await Promise.all([a.closed, b2.closed]);

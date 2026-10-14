@@ -4,7 +4,7 @@ import type { ClientMessage, ServerMessage } from '@lune/shared';
 type Listener = (msg: ServerMessage) => void;
 
 interface UseWebSocketReturn {
-  send: (msg: ClientMessage) => void;
+  send: (msg: ClientMessage) => boolean;
   /** 订阅服务端消息,返回取消订阅函数。每条消息实时回调,不丢消息 */
   subscribe: (fn: Listener) => () => void;
   readyState: number;
@@ -19,6 +19,8 @@ interface UseWebSocketReturn {
  */
 export function useWebSocket(url: string): UseWebSocketReturn {
   const wsRef = useRef<WebSocket | null>(null);
+  const joinedRef = useRef(false);
+  const leavingRef = useRef(false);
   const listenersRef = useRef<Set<Listener>>(new Set());
   const [readyState, setReadyState] = useState<number>(WebSocket.CONNECTING);
   const rttRef = useRef(0);
@@ -32,12 +34,15 @@ export function useWebSocket(url: string): UseWebSocketReturn {
   const connect = useCallback(() => {
     if (wsRef.current && (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)) return;
     const ws = new WebSocket(url);
+    joinedRef.current = false;
+    leavingRef.current = false;
     wsRef.current = ws;
     const isCurrent = () => mountedRef.current && wsRef.current === ws;
     const reconnect = () => {
       if (!isCurrent()) return;
       // 先退役旧连接；close 事件可能迟到甚至不再到达。
       wsRef.current = null;
+      joinedRef.current = false;
       pendingHeartbeat.current = null;
       setReadyState(WebSocket.CLOSED);
       window.clearInterval(heartbeatTimer.current);
@@ -85,6 +90,12 @@ export function useWebSocket(url: string): UseWebSocketReturn {
         return;
       }
       if (!msg || typeof msg !== 'object') return;
+      if (leavingRef.current && msg.type !== 'left' && msg.type !== 'error' && msg.type !== 'heartbeat_ack') return;
+      if (msg.type === 'joined') joinedRef.current = true;
+      else if (msg.type === 'left' || (msg.type === 'error' && msg.payload.code
+        && ['AUTH_INVALID', 'ROOM_NOT_FOUND', 'MEMBER_INVALID', 'NOT_JOINED'].includes(msg.payload.code))) {
+        joinedRef.current = false;
+      }
       if (msg.type === 'heartbeat_ack') {
         if (pendingHeartbeat.current !== null && msg.payload?.clientTime === pingSentTime.current) {
           rttRef.current = Math.max(0, performance.now() - pendingHeartbeat.current);
@@ -112,15 +123,27 @@ export function useWebSocket(url: string): UseWebSocketReturn {
       window.clearTimeout(reconnectTimer.current);
       const ws = wsRef.current;
       wsRef.current = null;
+      joinedRef.current = false;
       pendingHeartbeat.current = null;
       ws?.close();
     };
   }, [connect]);
 
   const send = useCallback((msg: ClientMessage) => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
+    if (wsRef.current?.readyState !== WebSocket.OPEN) return false;
+    if (msg.type !== 'join' && msg.type !== 'heartbeat' && !joinedRef.current) return false;
+    try {
       wsRef.current.send(JSON.stringify(msg));
+    } catch {
+      joinedRef.current = false;
+      wsRef.current.close();
+      return false;
     }
+    if (msg.type === 'leave') {
+      joinedRef.current = false;
+      leavingRef.current = true;
+    }
+    return true;
   }, []);
 
   const subscribe = useCallback((fn: Listener) => {

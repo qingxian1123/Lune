@@ -1,13 +1,14 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import type { Track } from '@lune/shared';
+import type { ClientMessage, Track } from '@lune/shared';
 import { useLyric } from '../../hooks/useLyric';
 import { usePlayer } from '../../hooks/usePlayer';
 import { useRoomStore } from '../../hooks/useRoomStore';
 import { useSync } from '../../hooks/useSync';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import { useHearts } from '../../hooks/useHearts';
-import { getWebSocketUrl } from '../../lib/serverConfig';
+import { getServerBaseUrl, getWebSocketUrl } from '../../lib/serverConfig';
+import { clearRoomSession, readRoomSession, saveRoomSession } from '../../lib/roomSession';
 import { getUiErrorMessage } from '../../lib/uiError';
 import { createAdvancePlaybackMessage, getTrackKey } from '../../lib/playbackCommand';
 
@@ -29,24 +30,38 @@ export function useRoomController(options: RoomControllerOptions = {}) {
   const location = useLocation();
   const navigate = useNavigate();
   const routeState = location.state as RoomRouteState | null;
-  const token = routeState?.token ?? '';
-  const memberId = routeState?.memberId ?? '';
+  const serverUrl = useMemo(() => getServerBaseUrl(), []);
+  const identity = useMemo(() => {
+    const session = readRoomSession(serverUrl);
+    if (session && session.roomCode === code && (!routeState?.memberId || routeState.memberId === session.memberId)) return session;
+    if (routeState?.token && routeState.memberId) return routeState;
+    return session?.roomCode === code ? session : null;
+  }, [code, routeState, serverUrl]);
+  const token = identity?.token ?? '';
+  const memberId = identity?.memberId ?? '';
+  const tokenRef = useRef(token);
+  const leavingRef = useRef(false);
+  const leaveTimer = useRef<number>();
+  const [hasConnected, setHasConnected] = useState(false);
+  const [joinFailure, setJoinFailure] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token || !memberId || !code) {
-      navigate('/', { replace: true });
+      navigate('/', { replace: true, state: code ? { rejoinRoomCode: code } : null });
     }
   }, [code, memberId, navigate, token]);
 
   const wsUrl = useMemo(() => getWebSocketUrl(), []);
   const ws = useWebSocket(wsUrl);
-  const { send } = ws;
-  const onSendHeart = useHearts(send, ws.subscribe, ws.readyState === WebSocket.OPEN);
+  const { send: transportSend } = ws;
 
   const setIdentity = useRoomStore((state) => state.setIdentity);
   const reset = useRoomStore((state) => state.reset);
+  const connected = useRoomStore((state) => state.connected);
+  const setConnected = useRoomStore((state) => state.setConnected);
   const playback = useRoomStore((state) => state.playback);
   const queue = useRoomStore((state) => state.queue);
   const queueRevision = useRoomStore((state) => state.queueRevision);
@@ -54,36 +69,87 @@ export function useRoomController(options: RoomControllerOptions = {}) {
   const ownerId = useRoomStore((state) => state.ownerId);
   const roomCode = useRoomStore((state) => state.roomCode);
   const lastError = useRoomStore((state) => state.lastError);
+  const lastErrorCode = useRoomStore((state) => state.lastErrorCode);
   const clearError = useRoomStore((state) => state.clearError);
+  const send = useCallback((message: ClientMessage) => {
+    if (leavingRef.current || !transportSend(message)) {
+      setActionError('尚未加入房间，请等待连接恢复后重试');
+      return false;
+    }
+    setActionError(null);
+    return true;
+  }, [transportSend]);
+  const onSendHeart = useHearts(send, ws.subscribe, connected);
 
   const { state: playerState, engine } = usePlayer();
   const { resyncFromLatestPlayback } = useSync({
-    send,
+    send: transportSend,
     subscribe: ws.subscribe,
     getRtt: ws.getRtt,
     engine,
   });
 
   useEffect(() => {
+    tokenRef.current = token;
+    if (code && token && memberId) saveRoomSession({ roomCode: code, token, memberId }, serverUrl);
+  }, [code, memberId, serverUrl, token]);
+
+  const finishLeave = useCallback(() => {
+    window.clearTimeout(leaveTimer.current);
+    navigate('/', { replace: true });
+  }, [navigate]);
+
+  useEffect(() => ws.subscribe((message) => {
+    if (message.type === 'joined' && !leavingRef.current) {
+      tokenRef.current = message.payload.token || tokenRef.current;
+      saveRoomSession({ roomCode: message.payload.snapshot.code, token: tokenRef.current,
+        memberId: message.payload.memberId }, serverUrl);
+      setHasConnected(true);
+      setJoinFailure(null);
+      setActionError(null);
+    } else if (message.type === 'left' && leavingRef.current) {
+      finishLeave();
+    } else if (message.type === 'error') {
+      const needsRejoin = message.payload.code
+        && ['AUTH_INVALID', 'ROOM_NOT_FOUND', 'MEMBER_INVALID', 'NOT_JOINED'].includes(message.payload.code);
+      if (needsRejoin || !useRoomStore.getState().connected) {
+        setConnected(false);
+        setJoinFailure(message.payload.message);
+      }
+      if (message.payload.code && ['AUTH_INVALID', 'ROOM_NOT_FOUND', 'MEMBER_INVALID'].includes(message.payload.code)) {
+        clearRoomSession(serverUrl);
+      }
+    }
+  }), [finishLeave, serverUrl, setConnected, ws.subscribe]);
+
+  useEffect(() => {
+    setConnected(false);
+    if (leavingRef.current) return;
     if (ws.readyState !== WebSocket.OPEN || !code || !token || !memberId) {
       return;
     }
     setIdentity(memberId, code);
-    send({ type: 'join', payload: { token } });
-  }, [code, memberId, send, setIdentity, token, ws.readyState]);
+    setJoinFailure(null);
+    transportSend({ type: 'join', payload: { token: tokenRef.current } });
+    const timer = window.setTimeout(() => {
+      if (!useRoomStore.getState().connected) setJoinFailure('加入房间超时，请重新加入');
+    }, 10_000);
+    return () => window.clearTimeout(timer);
+  }, [code, memberId, transportSend, setConnected, setIdentity, token, ws.readyState]);
 
   useEffect(() => {
     return () => {
       engine.stop();
       reset();
+      window.clearTimeout(leaveTimer.current);
     };
   }, [engine, reset]);
 
   useEffect(() => {
-    if (!lastError) return;
+    if (!lastError || lastErrorCode || joinFailure) return;
     const timeout = window.setTimeout(() => clearError(), 5000);
     return () => window.clearTimeout(timeout);
-  }, [clearError, lastError]);
+  }, [clearError, joinFailure, lastError, lastErrorCode]);
 
   useEffect(() => {
     if (!copied) return;
@@ -101,15 +167,13 @@ export function useRoomController(options: RoomControllerOptions = {}) {
   const onPickTrack = useCallback(
     (nextTrack: Track) => {
       const action: TrackAction = playback.status === 'idle' ? 'play' : 'queue';
-      if (action === 'play') {
-        send({
+      const sent = action === 'play'
+        ? send({
           type: 'play',
           payload: { track: nextTrack, position: 0, expectedPlaybackSeq: playback.seq },
-        });
-      } else {
-        send({ type: 'add_song', payload: { track: nextTrack } });
-      }
-      onTrackAction?.(nextTrack, action);
+        })
+        : send({ type: 'add_song', payload: { track: nextTrack } });
+      if (sent) onTrackAction?.(nextTrack, action);
     },
     [onTrackAction, playback.seq, playback.status, send],
   );
@@ -117,8 +181,7 @@ export function useRoomController(options: RoomControllerOptions = {}) {
   const onAddMany = useCallback(
     (tracks: Track[]) => {
       if (tracks.length === 0) return;
-      send({ type: 'add_songs', payload: { tracks } });
-      onTracksAdded?.(tracks);
+      if (send({ type: 'add_songs', payload: { tracks } })) onTracksAdded?.(tracks);
     },
     [onTracksAdded, send],
   );
@@ -148,6 +211,10 @@ export function useRoomController(options: RoomControllerOptions = {}) {
 
   const onSeek = useCallback(
     (position: number) => {
+      if (!connected) {
+        setActionError('尚未加入房间，请等待连接恢复后重试');
+        return;
+      }
       if (!track || !Number.isFinite(position)) return;
       // 在点击手势中恢复本机媒体；服务端 seek 本身不会解除系统暂停或自动播放拦截。
       // 耳机断开/系统静音的显式锁定仍需通过恢复按钮解除。
@@ -164,7 +231,7 @@ export function useRoomController(options: RoomControllerOptions = {}) {
         },
       });
     },
-    [engine, playerState.playbackIssue, send, track],
+    [connected, engine, playerState.playbackIssue, send, track],
   );
 
   const displayRoomCode = roomCode || code || '';
@@ -188,16 +255,35 @@ export function useRoomController(options: RoomControllerOptions = {}) {
     [playback.status, playerState.currentTime, playerState.duration, track?.duration],
   );
 
-  const [hasConnected, setHasConnected] = useState(false);
-  useEffect(() => {
-    if (ws.readyState === WebSocket.OPEN) setHasConnected(true);
-  }, [ws.readyState]);
+  const leaveToHome = useCallback(() => {
+    if (leavingRef.current) return;
+    leavingRef.current = true;
+    clearRoomSession(serverUrl);
+    engine.stop();
+    const sent = transportSend({ type: 'leave', payload: {} });
+    setConnected(false);
+    if (!sent) finishLeave();
+    else leaveTimer.current = window.setTimeout(finishLeave, 1500);
+  }, [engine, finishLeave, serverUrl, setConnected, transportSend]);
 
-  const leaveToHome = useCallback(() => navigate('/'), [navigate]);
+  const rejoinRoom = useCallback(() => {
+    clearRoomSession(serverUrl);
+    navigate('/', { replace: true, state: { rejoinRoomCode: code } });
+  }, [code, navigate, serverUrl]);
+
+  const protocolErrorMessage = lastErrorCode === 'ROOM_NOT_FOUND'
+    ? '房间已过期或不存在，请重新加入或创建房间'
+    : lastErrorCode === 'AUTH_INVALID' || lastErrorCode === 'MEMBER_INVALID'
+      ? '房间身份已失效，请重新加入'
+      : lastErrorCode === 'NOT_JOINED'
+        ? '尚未加入房间，请重新加入'
+        : lastErrorCode === 'STORAGE_UNAVAILABLE'
+          ? '服务器暂时无法保存房间，请稍后重试'
+          : null;
 
   return {
     code: code ?? '',
-    connected: ws.readyState === WebSocket.OPEN,
+    connected: connected && ws.readyState === WebSocket.OPEN,
     hasConnected,
     playback,
     track,
@@ -205,7 +291,9 @@ export function useRoomController(options: RoomControllerOptions = {}) {
     members,
     ownerId,
     displayRoomCode,
-    errorMessage: lastError ? getUiErrorMessage(lastError) : copyError,
+    errorMessage: protocolErrorMessage || joinFailure || (lastError ? getUiErrorMessage(lastError) : actionError || copyError),
+    needsRejoin: Boolean(joinFailure) || Boolean(lastErrorCode && lastErrorCode !== 'STORAGE_UNAVAILABLE'),
+    rejoinRoom,
     playerState,
     lines,
     currentIndex,

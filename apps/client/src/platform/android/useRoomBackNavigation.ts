@@ -8,6 +8,7 @@ interface RoomBackNavigationOptions {
   closeSheet: () => void;
   showPlayer: () => void;
   requestLeave: () => void;
+  onLeave: () => void;
 }
 
 export function useRoomBackNavigation({
@@ -18,6 +19,7 @@ export function useRoomBackNavigation({
   closeSheet,
   showPlayer,
   requestLeave,
+  onLeave,
 }: RoomBackNavigationOptions) {
   const leavingRef = useRef(false);
   const backActionRef = useRef<() => void>(() => {});
@@ -58,6 +60,6 @@ export function useRoomBackNavigation({
   return useCallback(() => {
     if (leavingRef.current) return;
     leavingRef.current = true;
-    window.history.go(-2);
-  }, []);
+    onLeave();
+  }, [onLeave]);
 }

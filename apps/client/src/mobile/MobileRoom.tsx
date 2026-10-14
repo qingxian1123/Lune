@@ -58,6 +58,9 @@ export default function MobileRoom() {
     ownerId,
     displayRoomCode,
     errorMessage,
+    needsRejoin,
+    rejoinRoom,
+    leaveToHome,
     playerState,
     lines,
     currentIndex,
@@ -156,6 +159,7 @@ export default function MobileRoom() {
     closeSheet,
     showPlayer,
     requestLeave,
+    onLeave: leaveToHome,
   });
 
   const canShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
@@ -204,7 +208,7 @@ export default function MobileRoom() {
     <div className="m-room-shell">
       <div className="m-room-glow" aria-hidden="true" />
 
-      {hasConnected && !connected && (
+      {hasConnected && !connected && !needsRejoin && (
         <div className="m-reconnect" role="status">
           <i aria-hidden="true" />
           连接已中断，正在重新连接
@@ -246,6 +250,7 @@ export default function MobileRoom() {
       {errorMessage && (
         <div className="m-room-error" role="alert">
           {errorMessage}
+          {needsRejoin && <button type="button" className="room-error-rejoin" onClick={rejoinRoom}>重新加入</button>}
         </div>
       )}
 

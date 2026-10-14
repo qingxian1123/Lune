@@ -57,6 +57,9 @@ HOST=127.0.0.1
 NODE_OPTIONS=--dns-result-order=ipv4first
 LUNE_CONFIG_FILE=/etc/lune/providers.json
 LUNE_DATA_DIR=/var/lib/lune
+LUNE_ROOM_RETENTION_MS=86400000
+LUNE_ROOM_GRACE_MS=30000
+LUNE_ROOM_CHECKPOINT_MS=30000
 LUNE_MASTER_KEY=<32 字节 Base64 或 64 位十六进制>
 LUNE_ADMIN_TOKEN=<高强度随机值>
 JWT_SECRET=<高强度随机值>
@@ -71,6 +74,8 @@ sudo rm -f /opt/lune/current/.env.provider.generated
 ```
 
 `LUNE_MASTER_KEY` 丢失后无法解密 Provider 凭据；必须与 `/var/lib/lune` 一起备份。`JWT_SECRET` 和管理 Token 不应与主密钥复用。
+
+房间原子保存于 `LUNE_DATA_DIR/rooms/`。该目录必须可写，发布或清理发行目录时不得删除。空房保留时间默认 24 小时，从最后一条连接断开时计算；断线宽限和恢复检查点默认 30 秒。以上三个 `LUNE_ROOM_*_MS` 参数均为毫秒正整数。
 
 ## 登录 Provider
 
@@ -149,8 +154,11 @@ curl --fail http://127.0.0.1:9527/api/health/ready
 - `/etc/lune/lune.env`
 - `/etc/lune/providers.json`
 - `/var/lib/lune/provider-credentials.enc.json`
+- `/var/lib/lune/rooms/`
 
-如新进程无法启动，把 `current` 链接切回上一发行目录并重启服务。房间状态在内存中，任何重启都会清空现有房间。
+如新进程无法启动，把 `current` 链接切回上一发行目录并重启服务。支持持久化的版本会恢复未过期房间；保留原 `JWT_SECRET` 才能继续使用原成员 token。重启不会重新获得完整的 24 小时保留期，异常退出恢复使用最后一次检查点。
+
+首次从旧版内存模型升级，旧进程没有可恢复文件；应在无活跃房间时更新，或先完成明确的旧状态导出迁移。回滚到只支持内存房间的旧版本不会读取新房间文件，应保留数据目录供后续恢复。
 
 ## 备份
 
@@ -192,4 +200,5 @@ sudo -u lune lune-provider doctor
 - 无法解密凭据：确认 `LUNE_MASTER_KEY` 与创建凭据时完全一致。
 - 配置校验失败：确认默认 Provider 已存在且启用，数值字段均为正整数。
 - 客户端 HTTP 正常但 WebSocket 断开：检查 Nginx 的 Upgrade/Connection 请求头和 `/ws` 转发。
-- 服务重启后房间消失：这是当前内存房间模型的预期行为。
+- 房间搜不到：检查休眠和过期删除日志、`LUNE_DATA_DIR/rooms/` 的权限及文件、实际保留配置；查询不会延长 24 小时离线期限。
+- 服务重启无法恢复：确认数据目录路径与升级前一致，未覆盖 `JWT_SECRET`；检查启动日志中的房间恢复或文件损坏错误，不要删除损坏文件后直接重启来掩盖数据问题。

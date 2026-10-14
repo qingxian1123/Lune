@@ -960,6 +960,29 @@
   transform: translateX(-50%);
 }
 
+.room-error-rejoin {
+  display: block;
+  min-height: 48px;
+  margin-top: 6px;
+  padding: 8px 12px;
+  border: 1px solid currentColor;
+  border-radius: 8px;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+
+.room-error-rejoin:hover,
+.room-error-rejoin:focus-visible {
+  background: rgb(217 163 168 / 0.12);
+}
+
+.room-error-rejoin:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+}
+
 .room-workspace {
   display: grid;
   grid-template-columns: minmax(0, 1fr) clamp(300px, 34vw, 380px);
