@@ -5,12 +5,16 @@ import { useVolumeStore } from '../hooks/useVolumeStore';
 import { formatTime } from '../lib/format';
 import VolumeIcon from './VolumeIcon';
 import { getServerBaseUrl } from '../lib/serverConfig';
+import type { RecoveryState } from '../audio/playbackTypes';
+import { playbackLabel } from './PlaybackNotice';
 
 interface TransportBarProps {
   track: Track | null;
   currentTime: number;
   duration: number;
   isBuffering: boolean;
+  recoveryState: RecoveryState;
+  connected: boolean;
   isOwner: boolean;
   membersCount: number;
   onSeek: (ms: number) => void;
@@ -23,6 +27,8 @@ export default function TransportBar({
   currentTime,
   duration,
   isBuffering,
+  recoveryState,
+  connected,
   isOwner,
   membersCount,
   onSeek,
@@ -66,16 +72,16 @@ export default function TransportBar({
           {track?.coverUrl ? <img src={track.coverUrl} alt="" /> : <span>L</span>}
         </div>
         <div className="transport-copy">
-          <span>{isBuffering ? '正在缓冲' : track ? '正在播放' : '未播放'}</span>
+          <span>{muted && recoveryState.phase === 'playing' ? '本机静音' : isBuffering && recoveryState.phase === 'playing' ? '正在缓冲' : playbackLabel(recoveryState)}</span>
           <strong>{track?.name || '还没有音乐'}</strong>
           {track?.artists && <small>{track.artists}</small>}
         </div>
       </div>
 
       <div className="transport-sync">
-        <span className={`sync-state-dot ${track ? 'is-active' : ''}`} />
+        <span className={`sync-state-dot ${connected ? 'is-active' : ''}`} />
         <div>
-          <strong>同步播放</strong>
+          <strong>{connected ? '已连接房间' : '房间连接中断'}</strong>
           <small>{membersCount} 人正在听</small>
         </div>
       </div>

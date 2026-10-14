@@ -82,7 +82,8 @@ export function useRoomController(options: RoomControllerOptions = {}) {
   const onSendHeart = useHearts(send, ws.subscribe, connected);
 
   const { state: playerState, engine } = usePlayer();
-  const { resyncFromLatestPlayback } = useSync({
+  const { resyncFromLatestPlayback, recoveryState, retryPlayback, holdPlayback, stopPlayback } = useSync({
+    subscribeConnection: ws.subscribeConnection,
     send: transportSend,
     subscribe: ws.subscribe,
     getRtt: ws.getRtt,
@@ -111,16 +112,17 @@ export function useRoomController(options: RoomControllerOptions = {}) {
       finishLeave();
     } else if (message.type === 'error') {
       const needsRejoin = message.payload.code
-        && ['AUTH_INVALID', 'ROOM_NOT_FOUND', 'MEMBER_INVALID', 'NOT_JOINED'].includes(message.payload.code);
+        && ['AUTH_INVALID', 'ROOM_NOT_FOUND', 'MEMBER_INVALID'].includes(message.payload.code);
       if (needsRejoin || !useRoomStore.getState().connected) {
         setConnected(false);
         setJoinFailure(message.payload.message);
       }
       if (message.payload.code && ['AUTH_INVALID', 'ROOM_NOT_FOUND', 'MEMBER_INVALID'].includes(message.payload.code)) {
         clearRoomSession(serverUrl);
+        engine.stop();
       }
     }
-  }), [finishLeave, serverUrl, setConnected, ws.subscribe]);
+  }), [engine, finishLeave, serverUrl, setConnected, ws.subscribe]);
 
   useEffect(() => {
     setConnected(false);
@@ -131,10 +133,6 @@ export function useRoomController(options: RoomControllerOptions = {}) {
     setIdentity(memberId, code);
     setJoinFailure(null);
     transportSend({ type: 'join', payload: { token: tokenRef.current } });
-    const timer = window.setTimeout(() => {
-      if (!useRoomStore.getState().connected) setJoinFailure('加入房间超时，请重新加入');
-    }, 10_000);
-    return () => window.clearTimeout(timer);
   }, [code, memberId, transportSend, setConnected, setIdentity, token, ws.readyState]);
 
   useEffect(() => {
@@ -219,9 +217,7 @@ export function useRoomController(options: RoomControllerOptions = {}) {
       // 在点击手势中恢复本机媒体；服务端 seek 本身不会解除系统暂停或自动播放拦截。
       // 耳机断开/系统静音的显式锁定仍需通过恢复按钮解除。
       if (!engine.isOutputSuppressed && (playerState.playbackIssue || !engine.isPlaying)) {
-        void engine.resume().catch((error) => {
-          console.warn('跳转时恢复本机播放失败', error);
-        });
+        void retryPlayback(true);
       }
       send({
         type: 'seek',
@@ -231,7 +227,7 @@ export function useRoomController(options: RoomControllerOptions = {}) {
         },
       });
     },
-    [connected, engine, playerState.playbackIssue, send, track],
+    [connected, engine, playerState.playbackIssue, retryPlayback, send, track],
   );
 
   const displayRoomCode = roomCode || code || '';
@@ -259,12 +255,12 @@ export function useRoomController(options: RoomControllerOptions = {}) {
     if (leavingRef.current) return;
     leavingRef.current = true;
     clearRoomSession(serverUrl);
-    engine.stop();
+    stopPlayback();
     const sent = transportSend({ type: 'leave', payload: {} });
     setConnected(false);
     if (!sent) finishLeave();
     else leaveTimer.current = window.setTimeout(finishLeave, 1500);
-  }, [engine, finishLeave, serverUrl, setConnected, transportSend]);
+  }, [finishLeave, serverUrl, setConnected, stopPlayback, transportSend]);
 
   const rejoinRoom = useCallback(() => {
     clearRoomSession(serverUrl);
@@ -292,7 +288,12 @@ export function useRoomController(options: RoomControllerOptions = {}) {
     ownerId,
     displayRoomCode,
     errorMessage: protocolErrorMessage || joinFailure || (lastError ? getUiErrorMessage(lastError) : actionError || copyError),
-    needsRejoin: Boolean(joinFailure) || Boolean(lastErrorCode && lastErrorCode !== 'STORAGE_UNAVAILABLE'),
+    needsRejoin: Boolean(lastErrorCode && ['AUTH_INVALID', 'MEMBER_INVALID', 'ROOM_NOT_FOUND'].includes(lastErrorCode)),
+    connectionPhase: ws.status.phase,
+    reconnectNow: ws.reconnectNow,
+    recoveryState,
+    retryPlayback,
+    holdPlayback,
     rejoinRoom,
     playerState,
     lines,

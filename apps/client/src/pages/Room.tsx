@@ -13,6 +13,8 @@ import '../desktop/room/floating-library.css';
 import SettingsPanel from '../features/settings/SettingsPanel';
 import { useSettingsController } from '../features/settings/model/useSettingsController';
 import { useStageTransition } from '../desktop/room/useStageTransition';
+import PlaybackNotice from '../components/PlaybackNotice';
+import { useVolumeStore } from '../hooks/useVolumeStore';
 
 type LuneThemeStyle = CSSProperties & {
   '--lune-accent': string;
@@ -72,6 +74,10 @@ export default function Room() {
     displayRoomCode,
     errorMessage,
     needsRejoin,
+    connectionPhase,
+    reconnectNow,
+    recoveryState,
+    retryPlayback,
     rejoinRoom,
     playerState,
     lines,
@@ -104,7 +110,7 @@ export default function Room() {
   };
 
   return (
-    <div className={`room-shell room-floating-library${isWindows ? ' room-frameless' : ''}`} style={themeStyle}>
+    <div className={`room-shell room-recovery room-floating-library${isWindows ? ' room-frameless' : ''}`} style={themeStyle}>
       {!isWindows && <DesktopRoomHeader
         roomCode={displayRoomCode}
         copied={copied}
@@ -121,6 +127,11 @@ export default function Room() {
           {needsRejoin && <button type="button" className="room-error-rejoin" onClick={rejoinRoom}>重新加入</button>}
         </div>
       )}
+
+      <div className="room-connection-slot">{!connected && !needsRejoin && connectionPhase !== 'closed' && <div className="connection-notice" role="status">
+        <span>{recoveryState.phase === 'playing' ? '房间连接已断开，本机仍在播放' : '正在连接房间，恢复后将同步进度'}</span>
+        <button type="button" onClick={reconnectNow}>立即重连</button>
+      </div>}</div>
 
       <main className="room-workspace" ref={workspaceRef} data-library-open={panelOpen}>
         <NowPlaying
@@ -164,7 +175,14 @@ export default function Room() {
         />
       </main>
 
+      <div className="room-playback-slot"><PlaybackNotice state={recoveryState} provider={track?.provider} disabled={needsRejoin}
+        onRetry={() => { void retryPlayback(); }} onResume={() => {
+          const volume = useVolumeStore.getState(); if (volume.muted) volume.toggleMute();
+          void retryPlayback(true);
+        }} /></div>
       <TransportBar
+        recoveryState={recoveryState}
+        connected={connected}
         onSendHeart={onSendHeart}
         track={track}
         currentTime={timeline.currentTime}
