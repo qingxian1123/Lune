@@ -2,7 +2,7 @@
 
 Lune 是一个自托管的多人同步听歌应用。用户在 Windows 或 Android 客户端连接自己的 Lune 服务，创建房间或通过六位房间码加入；房间成员可以共同选歌、调整进度、切歌和维护队列。
 
-项目不提供公共服务器、预置账号或固定音乐源登录态。部署需要自行运行服务端，并通过 Provider CLI 登录音乐平台账号。
+项目不提供公共服务器、预置账号或固定音乐源登录态。使用前需要部署服务端，并由服务管理员登录音乐平台账号。
 
 ## 界面预览
 
@@ -11,118 +11,45 @@ Lune 是一个自托管的多人同步听歌应用。用户在 Windows 或 Andro
 ## 功能
 
 - Windows 与 Android 双平台
-- WebSocket 实时同步播放状态、队列和成员列表
+- 实时同步播放状态、队列和成员列表，全员平等控制
 - 全员离线后房间与歌单默认保留 24 小时，支持原身份重连与服务重启恢复
 - 单曲搜索、歌单搜索、整单加入、歌词和收藏
-- 完整的歌曲列表体验
-- 网易云音乐和酷狗音乐 Provider
-- Android 后台播放、锁屏媒体卡、音频焦点与耳机断开处理
+- 网易云音乐和酷狗音乐源
+- Android 后台播放、锁屏媒体卡与耳机断开保护
+- 播放故障有界重试、失效地址重新解析和本地诊断导出
 - 客户端首次启动配置自建服务器地址
 
-## 技术栈
+## 开始使用
 
-- 客户端：Tauri 2、React 18、TypeScript、Vite、Zustand、TanStack Query
-- 服务端：NestJS 10、原生 `ws` WebSocket adapter、JWT
-- 工作区：pnpm monorepo
-- 音乐源：服务端进程内 Provider，登录凭据使用 AES-256-GCM 加密落盘
+1. 服务管理员按 [部署与运维指南](docs/DEPLOYMENT.md) 部署单实例服务端。
+2. 按 [音乐源配置与管理](docs/PROVIDERS.md) 登录音乐平台账号并检查状态。
+3. 在客户端填写服务地址，输入昵称后创建房间，或通过朋友提供的六位房间码加入。
+4. 搜索歌曲或歌单，加入播放队列，即可一起听歌。
 
-## 目录
-
-```text
-Lune/
-├─ apps/client/       Windows / Android 客户端
-├─ apps/shared/       前后端共享协议与数据类型
-├─ server/            NestJS 服务端、Provider 与测试
-├─ server-deploy/     部署模板、systemd、Nginx 与 PM2 配置
-├─ docs/              当前版本文档
-└─ package.json       工作区命令入口
-```
-
-## 本地开发
-
-需要 Node.js 18 或更高版本、pnpm 9 或更高版本。Tauri 桌面构建还需要 Rust；Android 环境见 [Android 开发与构建](docs/android.md)。
-
-```bash
-pnpm install
-
-pnpm dev:server
-pnpm dev:client
-
-pnpm typecheck
-pnpm build
-```
-
-默认地址：
-
-- Web 客户端：`http://127.0.0.1:5173`
-- HTTP API：`http://127.0.0.1:9527/api`
-- WebSocket：`ws://127.0.0.1:9527/ws`
-
-复制 `server/.env.example` 为 `server/.env`，先初始化 Provider 文件和随机密钥：
-
-```bash
-pnpm --filter @lune/server provider init
-```
-
-把 `server/.env.provider.generated` 中的变量合并到 `server/.env`，删除生成文件后登录并检查音乐源：
-
-```bash
-pnpm --filter @lune/server provider login netease
-pnpm --filter @lune/server provider login kugou
-pnpm --filter @lune/server provider doctor
-```
-
-客户端可在首次启动时填写服务地址；本地开发也可复制 `apps/client/.env.example` 为 `apps/client/.env` 并设置 `VITE_SERVER_URL`。
-
-## 构建
-
-```bash
-pnpm build:client
-pnpm build:server
-
-pnpm tauri build
-pnpm tauri android build --apk
-```
-
-生成不包含环境变量、登录凭据和运行数据的服务端发布目录：
-
-```bash
-npm run deploy:server:clean
-```
-
-产物位于 `server-release-clean/`。完整生产部署步骤见 [服务端部署与运维](docs/DEPLOYMENT.md)。
-
-## 验证
-
-```bash
-pnpm typecheck
-pnpm --filter @lune/server test:room
-pnpm --filter @lune/server test:providers
-pnpm --filter @lune/server test:kugou
-pnpm build
-```
-
-端到端脚本需要先启动服务端，并保证相应 Provider 已登录：
-
-```bash
-node server/test/sync-e2e.mjs
-```
+房间没有暂停操作；本机静音和系统打断不会暂停其他成员的播放。具体操作见 [使用说明](docs/USAGE.md)，连接或声音异常见 [播放与连接故障处理](docs/playback-reliability.md)。
 
 ## 文档
 
 - [文档索引](docs/README.md)
-- [系统架构](docs/ARCHITECTURE.md)
-- [Provider 配置与开发](docs/PROVIDERS.md)
-- [WebSocket 同步协议](docs/SYNC_PROTOCOL.md)
-- [Android 开发与构建](docs/android.md)
+- [使用说明](docs/USAGE.md)
+- [播放与连接故障处理](docs/playback-reliability.md)
+- [音乐源配置与管理](docs/PROVIDERS.md)
 - [服务端部署与运维](docs/DEPLOYMENT.md)
+- [部署模板说明](server-deploy/README.md)
+
+仓库维护使用与运维文档。内部开发资料保留在本地并由 Git 忽略，不随仓库分发。
+
+## 技术组成
+
+客户端使用 Tauri 2、React 和 TypeScript；服务端使用 NestJS 与 WebSocket。音乐源以进程内 Provider 接入，登录凭据加密保存。服务端配置与部署模板位于 `server-deploy/`。
 
 ## 当前限制
 
-- 房间、可恢复成员身份、播放和队列保存于 `LUNE_DATA_DIR/rooms/`；空房默认在连续离线 24 小时后过期。
+- 房间和可恢复身份保存于服务端数据目录；空房默认在连续离线 24 小时后过期。
 - 服务端必须单实例运行，多实例之间不会共享房间状态。
 - 音乐可用性受上游账号、会员、版权和地区限制。
 - 当前不提供用户账号体系或跨服务发现。
+- 播放恢复首版已完成静态检查，运行回归与 Windows／Android 真机验收尚待完成。
 
 ## License
 
