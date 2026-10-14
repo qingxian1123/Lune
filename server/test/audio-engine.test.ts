@@ -1,18 +1,16 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { AudioEngine } from '../../apps/client/src/audio/AudioEngine';
+import type { MediaResult } from '../../apps/client/src/audio/playbackTypes';
 
 class FakeAudio extends EventTarget {
-  src = '';
-  currentTime = 0;
-  ended = false;
-  paused = true;
-  readyState = 4;
+  src = ''; currentTime = 0; duration = 180; ended = false; paused = true;
+  readyState = 4; seeking = false; volume = 1;
   error: { code: number } | null = null;
   failure: Error | null = null;
   pending: Array<() => void> = [];
   load() { this.currentTime = 0; this.ended = false; this.error = null; }
-  play() {
+  play(): Promise<void> {
     if (this.failure) return Promise.reject(this.failure);
     this.paused = false;
     return new Promise<void>((resolve) => this.pending.push(resolve));
@@ -21,207 +19,145 @@ class FakeAudio extends EventTarget {
   removeAttribute() { this.src = ''; }
 }
 
-test('音频引擎：加载竞态与本机打断恢复', async (t) => {
+test('音频执行器：取消、实际进度确认、系统限制及旧事件隔离', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'setInterval'] });
+  let now = 100;
+  t.mock.method(performance, 'now', () => now);
   const audio = new FakeAudio();
-  let context: FakeAudioContext;
-  class FakeAudioContext extends EventTarget {
-    state = 'running';
-    currentTime = 0;
-    resumes = 0;
+  let context: FakeContext;
+  class FakeContext extends EventTarget {
+    state = 'running'; currentTime = 0; resumes = 0;
     constructor() { super(); context = this; }
     resume() { this.resumes++; this.state = 'running'; return Promise.resolve(); }
     createGain() { return { gain: { value: 1, cancelAndHoldAtTime() {}, setValueAtTime() {}, linearRampToValueAtTime() {} }, connect() {} }; }
     createMediaElementSource() { return { connect: (gain: unknown) => gain }; }
   }
-  // Node 没有 DOM；只替换此测试实际使用的浏览器边界。
-  const originalAudio = Object.getOwnPropertyDescriptor(globalThis, 'Audio');
-  const originalWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
-  Object.defineProperty(globalThis, 'Audio', { configurable: true, value: function () { return audio; } });
-  Object.defineProperty(globalThis, 'window', { configurable: true, value: { AudioContext: FakeAudioContext } });
-  t.after(() => {
-    if (originalAudio) Object.defineProperty(globalThis, 'Audio', originalAudio);
-    else Reflect.deleteProperty(globalThis, 'Audio');
-    if (originalWindow) Object.defineProperty(globalThis, 'window', originalWindow);
-    else Reflect.deleteProperty(globalThis, 'window');
-  });
+  const replacements = {
+    Audio: function () { return audio; },
+    window: { AudioContext: FakeContext },
+    requestAnimationFrame: () => 0,
+    cancelAnimationFrame: () => {},
+  };
+  const originals = Object.fromEntries(Object.keys(replacements).map((key) => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
+  for (const [key, value] of Object.entries(replacements)) Object.defineProperty(globalThis, key, { configurable: true, value });
   const engine = AudioEngine.instance();
-  t.after(() => engine.stop());
-
-  const oldLoad = engine.load('A', 170_000);
-  await Promise.resolve();
-  const newLoad = engine.load('B', 0);
-  await Promise.resolve();
-  audio.pending[1]();
-  await newLoad;
-  audio.pending[0]();
-  await oldLoad;
-  assert.equal(audio.src, 'B');
-  assert.equal(audio.currentTime, 0, '旧曲目的 170 秒进度不能写入新曲目');
-
-  const stoppedLoad = engine.load('C', 160_000);
-  engine.stop();
-  await stoppedLoad;
-  assert.equal(audio.src, '', 'stop 必须取消尚未越过 ensureGraph 的加载');
-  assert.equal(audio.currentTime, 0);
-
-  let ends = 0;
-  engine.onEnd(() => ends++);
-  audio.dispatchEvent(new Event('ended'));
-  assert.equal(ends, 0, '换源后迟到的 ended 不属于当前音频');
-  audio.ended = true;
-  audio.dispatchEvent(new Event('ended'));
-  assert.equal(ends, 1);
-
-  await t.test('恢复同时启动挂起的 AudioContext 和暂停的媒体，保留进度', async () => {
-    audio.ended = false;
-    const load = engine.load('resume-track', 12_000);
-    await Promise.resolve();
-    audio.pending.at(-1)!();
-    await load;
-    audio.pause();
-    context.state = 'suspended';
-    let issue: string | null = null;
-    engine.onPlaybackIssue((value) => { issue = value; });
-    assert.equal(issue, 'paused');
-    const count = audio.pending.length;
-    const resume = engine.resume();
-    assert.equal(context.resumes, 1, 'AudioContext.resume 必须在当前调用中发起');
-    assert.equal(audio.pending.length, count + 1, 'HTMLAudio.play 也必须在当前调用中发起');
-    audio.pending.at(-1)!();
-    await resume;
-    assert.equal(issue, null);
-    assert.equal(audio.currentTime, 12);
-  });
-
-  await t.test('暂停期间切歌和回前台不能自动抢回播放', async () => {
-    audio.pause();
-    const count = audio.pending.length;
+  t.after(() => {
     engine.stop();
-    await engine.load('next-during-interruption', 20_000);
-    engine.seek(25_000);
-    assert.equal(audio.pending.length, count);
-    let issue: string | null = null;
-    engine.onPlaybackIssue((value) => { issue = value; });
-    assert.equal(issue, 'paused');
-    const resume = engine.resume();
-    audio.pending.at(-1)!();
-    await resume;
-    assert.equal(audio.src, 'next-during-interruption');
-    assert.equal(audio.currentTime, 25);
-    assert.equal(issue, null);
+    for (const key of Object.keys(replacements)) {
+      if (originals[key]) Object.defineProperty(globalThis, key, originals[key]!);
+      else Reflect.deleteProperty(globalThis, key);
+    }
+  });
+  const flush = async () => { for (let i = 0; i < 12; i++) await Promise.resolve(); };
+  const tick = (ms: number) => { now += ms; t.mock.timers.tick(ms); };
+  const complete = async (operation: Promise<MediaResult>) => {
+    audio.pending.at(-1)!(); await flush();
+    audio.currentTime += 0.1; tick(100); await flush();
+    return operation;
+  };
+  const reset = () => {
+    engine.stop(); engine.releaseHold(); audio.failure = null; audio.error = null; audio.readyState = 4;
+  };
+
+  await t.test('新加载和 stop 取消旧任务；旧位置不会写入新源', async () => {
+    const first = engine.load('A', 170000);
+    const second = engine.load('B', 0);
+    assert.equal((await first).status, 'cancelled');
+    audio.pending[0](); await flush();
+    assert.equal((await complete(second)).status, 'playing');
+    assert.equal(audio.src, 'B'); assert.ok(audio.currentTime < 1);
+    const stopped = engine.load('C'); engine.stop();
+    assert.equal((await stopped).status, 'cancelled');
+    assert.equal(audio.src, '');
   });
 
-  await t.test('暂停期间 seek 仍回传进度，媒体事件在没有 RAF 时也能更新位置', () => {
-    const positions: number[] = [];
-    engine.onTick((ms) => positions.push(ms));
-    audio.pause();
-    engine.seek(31_000);
-    assert.equal(positions.at(-1), 31_000, '暂停时点击进度条不能停留在旧位置');
-    assert.equal(audio.paused, true, '同步跳转本身不能抢回播放');
-    audio.currentTime = 31.25;
-    audio.dispatchEvent(new Event('seeked'));
-    assert.equal(positions.at(-1), 31_250, '回传媒体实际完成跳转的位置');
-    audio.currentTime = 32;
-    audio.dispatchEvent(new Event('timeupdate'));
-    assert.equal(positions.at(-1), 32_000, '不依赖动画帧回传进度');
-    engine.onTick(null);
-  });
-
-  await t.test('耳机断开后必须明确解锁，恢复中的再次断开仍保持暂停', async () => {
-    const volume = engine.getVolume();
-    engine.setOutputSuppressed(true, { immediate: true });
-    const count = audio.pending.length;
-    await engine.resume();
-    await engine.load('headphone-track');
-    assert.equal(audio.pending.length, count);
-    engine.setOutputSuppressed(false);
-    const resume = engine.resume();
-    engine.setOutputSuppressed(true, { immediate: true });
-    audio.pending.at(-1)!();
-    await resume;
+  await t.test('play Promise 完成但没有自然进度不能宣称恢复成功', async () => {
+    reset();
+    const operation = engine.load('stuck');
+    audio.pending.at(-1)!(); await flush();
+    assert.equal(engine.isPlaying, false);
+    tick(3000);
+    assert.deepEqual(await operation, { status: 'failed', code: 'MEDIA_START_TIMEOUT' });
     assert.equal(audio.paused, true);
-    assert.equal(engine.isOutputSuppressed, true);
-    assert.equal(engine.getVolume(), volume);
-    engine.setOutputSuppressed(false);
-    const finalResume = engine.resume();
-    audio.pending.at(-1)!();
-    await finalResume;
+    audio.paused = false; audio.dispatchEvent(new Event('playing'));
+    assert.equal(audio.paused, true, '超时任务的迟到 playing 必须被阻止');
   });
 
-  await t.test('播放被策略拦截时暴露可重试状态，失败不能伪装恢复成功', async () => {
-    audio.pause();
-    audio.failure = new DOMException('gesture required', 'NotAllowedError');
-    let issue: string | null = null;
-    engine.onPlaybackIssue((value) => { issue = value; });
-    await assert.rejects(engine.resume(), { name: 'NotAllowedError' });
-    assert.equal(issue, 'blocked');
-    audio.failure = null;
-    const resume = engine.resume();
-    audio.pending.at(-1)!();
-    await resume;
-    assert.equal(issue, null);
+  await t.test('请求取消立刻停止未完成启动，旧取消不影响新任务', async () => {
+    reset();
+    const controller = new AbortController();
+    const old = engine.load('cancel', 0, controller.signal);
+    const current = engine.load('current', 42000);
+    controller.abort();
+    assert.equal((await old).status, 'cancelled');
+    assert.equal((await complete(current)).status, 'playing');
+    assert.ok(engine.currentMs >= 42000);
   });
 
-  await t.test('媒体错误与系统暂停区分，主动 stop 的 pause 事件不报打断', () => {
-    let issue: string | null = null;
-    engine.onPlaybackIssue((value) => { issue = value; });
-    audio.error = { code: 2 };
-    audio.dispatchEvent(new Event('error'));
-    assert.equal(issue, 'error');
-    engine.stop();
-    assert.equal(issue, null);
-    audio.error = null;
+  await t.test('耳机锁定跨切歌保持，恢复途中再次断开仍不外放', async () => {
+    reset();
+    await complete(engine.load('before'));
+    engine.setHold('noisy');
+    const count = audio.pending.length;
+    assert.equal((await engine.load('after', 12000)).status, 'held');
+    assert.equal(audio.pending.length, count);
+    engine.releaseHold();
+    const pending = engine.resume();
+    engine.setHold('noisy');
+    audio.pending.at(-1)!(); await flush();
+    assert.equal((await pending).status, 'cancelled');
+    assert.equal(engine.snapshot.hold, 'noisy');
+    assert.equal(audio.paused, true);
   });
 
-  await t.test('网络错误后恢复会重新加载媒体源并保留房间进度', async () => {
-    const load = engine.load('retry-network', 42_000);
-    await Promise.resolve();
-    audio.pending.at(-1)!();
-    await load;
-    audio.error = { code: 2 };
-    audio.dispatchEvent(new Event('error'));
-    const resume = engine.resume();
-    assert.equal(audio.error, null, '必须先清除媒体错误再调用 play');
-    assert.equal(audio.currentTime, 42);
-    audio.pending.at(-1)!();
-    await resume;
+  await t.test('系统暂停期间换源不抢焦点，显式恢复启动 Context 和媒体', async () => {
+    reset(); await complete(engine.load('first'));
+    audio.pause(); context.state = 'suspended';
+    context.dispatchEvent(new Event('statechange'));
+    assert.equal(engine.snapshot.hold, 'system');
+    const count = audio.pending.length;
+    assert.equal((await engine.load('second', 30000)).status, 'held');
+    assert.equal(audio.pending.length, count);
+    const resume = engine.resume(undefined, () => 31000);
+    assert.equal(context.state, 'running');
+    assert.equal(audio.pending.length, count + 1);
+    assert.equal((await complete(resume)).status, 'playing');
+    assert.ok(engine.currentMs >= 31000);
   });
 
-  await t.test('无媒体 error 的持续缓冲也能识别，恢复时重新加载并保留位置', async (t) => {
-    t.mock.timers.enable({ apis: ['setTimeout'] });
-    let issue: string | null = null;
-    engine.onPlaybackIssue((value) => { issue = value; });
-    audio.readyState = 2;
-    audio.currentTime = 56;
-    const reload = t.mock.method(audio, 'load');
-    audio.dispatchEvent(new Event('waiting'));
-    t.mock.timers.tick(10_000);
-    audio.dispatchEvent(new Event('stalled'));
-    t.mock.timers.tick(5_000);
-    assert.equal(issue, 'error', '重复缓冲事件不能无限延后卡住检测');
-    assert.equal(audio.error, null, '覆盖媒体未报告 error 的卡住');
-    const resume = engine.resume();
-    assert.equal(reload.mock.callCount(), 1);
-    assert.equal(audio.currentTime, 56);
-    audio.readyState = 4;
-    audio.pending.at(-1)!();
-    await resume;
-    assert.equal(issue, null);
+  await t.test('启动中的外部 pause 属于系统限制，不按网络故障自动重试', async () => {
+    reset();
+    const operation = engine.load('interrupted');
+    audio.pause(); tick(100);
+    assert.deepEqual(await operation, { status: 'held', reason: 'system' });
   });
 
-  await t.test('有可播放缓冲的 stalled 事件不能误报，停止后取消检测', (t) => {
-    t.mock.timers.enable({ apis: ['setTimeout'] });
-    let issue: string | null = null;
-    engine.onPlaybackIssue((value) => { issue = value; });
-    audio.readyState = 4;
-    audio.dispatchEvent(new Event('stalled'));
-    t.mock.timers.tick(15_000);
-    assert.equal(issue, null);
-    audio.readyState = 2;
-    audio.dispatchEvent(new Event('waiting'));
-    engine.stop();
-    t.mock.timers.tick(15_000);
-    assert.equal(issue, null);
-    audio.readyState = 4;
+  await t.test('策略拒绝和不支持格式返回不同结果', async () => {
+    reset(); audio.failure = new DOMException('blocked', 'NotAllowedError');
+    assert.deepEqual(await engine.load('gesture'), { status: 'held', reason: 'gesture' });
+    reset(); audio.failure = new DOMException('format', 'NotSupportedError');
+    assert.deepEqual(await engine.load('format'), { status: 'failed', code: 'MEDIA_UNSUPPORTED' });
+  });
+
+  await t.test('持续缓冲识别依赖实际进度；有缓冲的 stalled 不误报', async () => {
+    reset(); await complete(engine.load('buffer'));
+    audio.dispatchEvent(new Event('stalled')); tick(15000);
+    assert.equal(engine.snapshot.failure, null);
+    audio.readyState = 2; audio.dispatchEvent(new Event('waiting'));
+    tick(10000); audio.dispatchEvent(new Event('stalled')); tick(5000);
+    assert.equal(engine.snapshot.failure, 'MEDIA_STALL');
+    const position = engine.currentMs;
+    assert.equal((await complete(engine.resume())).status, 'playing');
+    assert.ok(engine.currentMs >= position);
+  });
+
+  await t.test('停止后的旧 ended 被忽略，音量零不属于故障', async () => {
+    reset(); let ends = 0; engine.onEnd(() => ends++);
+    engine.setVolume(0); await complete(engine.load('muted'));
+    assert.equal(engine.isPlaying, true); assert.equal(engine.getVolume(), 0);
+    audio.ended = true; audio.dispatchEvent(new Event('ended'));
+    assert.equal(ends, 1);
+    engine.stop(); audio.ended = true; audio.dispatchEvent(new Event('ended'));
+    assert.equal(ends, 1);
   });
 });

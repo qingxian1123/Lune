@@ -1,9 +1,12 @@
 import type { ClientMessage, PlaybackState, ProviderResolveResult } from '@lune/shared';
 import type { AudioEngine } from './AudioEngine';
+import { PlaybackRecovery, type RecoveryEngine } from './PlaybackRecovery';
+import type { RecoveryState } from './playbackTypes';
 import { createAdvancePlaybackMessage, getTrackKey } from '../lib/playbackCommand';
 import { calcTargetPosition, PlaybackClock, shouldCorrect } from '../lib/sync';
+import { recordPlaybackEvent } from '../lib/playbackDiagnostics';
 
-type SyncEngine = Pick<AudioEngine, 'load' | 'stop' | 'onEnd' | 'seek' | 'setRate' | 'currentMs'>;
+type SyncEngine = RecoveryEngine & Pick<AudioEngine, 'onEnd' | 'seek' | 'setRate' | 'currentMs'>;
 
 /** 音频事件属于本机实际加载的播放版本，不能借用 React 中最新的房间版本。 */
 export class PlaybackSync {
@@ -15,13 +18,27 @@ export class PlaybackSync {
   private readonly clock = new PlaybackClock();
   private awaitingAdvance = false;
   private recoveredSeq: number | null = null;
+  private connected = true;
+  readonly recovery: PlaybackRecovery;
 
   constructor(
     private readonly engine: SyncEngine,
-    private readonly resolve: (id: string, provider?: string) => Promise<ProviderResolveResult>,
-    private readonly send: (message: ClientMessage) => void,
+    resolve: (id: string, provider?: string, signal?: AbortSignal) => Promise<ProviderResolveResult>,
+    private readonly send: (message: ClientMessage) => boolean | void,
     private readonly getRtt: () => number,
-  ) {}
+    onState?: (state: RecoveryState) => void,
+  ) {
+    this.recovery = new PlaybackRecovery(engine, resolve, () => {
+      if (!this.playback || !this.connected) return;
+      const message = createAdvancePlaybackMessage(this.playback, 'unplayable');
+      if (message) this.awaitingAdvance = this.send(message) !== false;
+    });
+    this.recovery.subscribe((state) => {
+      onState?.(state);
+      // Automatic and OS resumes also need calibration, without waiting for the next 5 s tick.
+      if (state.phase === 'playing') queueMicrotask(() => this.resync());
+    });
+  }
 
   apply(pb: PlaybackState, options: { reset?: boolean; restart?: boolean; recover?: boolean; serverTime?: number } = {}): void {
     this.clock.observe(options.serverTime, this.getRtt());
@@ -32,6 +49,7 @@ export class PlaybackSync {
       this.recoveredSeq = pb.seq;
       options = { ...options, reset: true };
     }
+    const newInstance = Boolean(options.restart || !this.playback?.track || (pb.track && getTrackKey(pb.track) !== getTrackKey(this.playback.track)));
     this.playback = pb;
     this.awaitingAdvance = false;
     const generation = ++this.generation;
@@ -41,7 +59,7 @@ export class PlaybackSync {
     if (pb.status !== 'playing' || !pb.track) {
       this.loadedTrackKey = null;
       this.loading = false;
-      this.engine.stop();
+      this.recovery.stop();
       return;
     }
 
@@ -49,18 +67,14 @@ export class PlaybackSync {
     if (sameLoadedTrack && !options.reset && !options.restart) {
       // 同一音轨 seek 后，只接受修正完成后的这个播放版本的结束事件。
       this.bindEnd(pb, generation);
-      const correction = shouldCorrect(this.engine.currentMs, this.target(pb));
-      if (correction?.type === 'seek') this.engine.seek(correction.target);
-      if (correction?.type === 'rate') {
-        this.engine.setRate(correction.rate);
-        this.rateTimer = setTimeout(() => this.engine.setRate(1), 2000);
-      }
+      this.resync();
       return;
     }
 
     // 收到切歌就停止旧音频，不能让它在新 URL 解析期间继续触发 ended。
     this.loadedTrackKey = null;
     this.loading = true;
+    this.recovery.prepare(pb, () => this.target(this.playback ?? pb), newInstance);
     this.engine.stop();
     void this.load(pb, generation);
   }
@@ -70,49 +84,44 @@ export class PlaybackSync {
     this.engine.onEnd(() => {
       if (generation !== this.generation || sent) return;
       sent = true;
+      this.recovery.ended();
+      if (!this.connected) return;
       this.awaitingAdvance = true;
       const message = createAdvancePlaybackMessage(pb, 'ended');
-      if (message) this.send(message);
+      if (message && this.send(message) === false) this.awaitingAdvance = false;
     });
   }
 
   private async load(pb: PlaybackState, generation: number): Promise<void> {
-    const track = pb.track!;
     try {
-      const result = await this.resolve(track.id, track.provider);
-      if (generation !== this.generation) return;
-      if (!result.url) {
-        // 临时解析失败不是歌曲不可播，不能让一个成员的失败清空全房间队列。
-        const message = result.unplayable === true ? createAdvancePlaybackMessage(pb, 'unplayable') : null;
-        this.awaitingAdvance = message !== null;
-        if (message) this.send(message);
-        return;
-      }
       this.bindEnd(pb, generation);
-      // URL 解析可能很慢；以加载时的时间估算进度。
-      await this.engine.load(result.url, this.target(pb));
+      const result = await this.recovery.start();
       if (generation !== this.generation) return;
-      this.loadedTrackKey = getTrackKey(track);
-    } catch (error) {
-      if (generation === this.generation) {
-        console.warn('歌曲加载失败', error);
-      }
+      if (result.status === 'playing' || result.status === 'held') this.loadedTrackKey = getTrackKey(pb.track!);
     } finally {
-      if (generation === this.generation) this.loading = false;
+      if (generation === this.generation) { this.loading = false; this.resync(); }
     }
   }
 
   resync(): boolean {
     const pb = this.playback;
-    if (!pb || pb.status !== 'playing' || !pb.track || this.loading) return false;
+    this.recovery.sample();
+    if (!this.connected || !pb || pb.status !== 'playing' || !pb.track || this.loading
+      || !this.engine.snapshot.playing || this.engine.snapshot.buffering || this.engine.snapshot.seeking) return false;
     if (this.loadedTrackKey !== getTrackKey(pb.track)) {
-      this.apply(pb, { reset: true });
-      return true;
+      this.loadedTrackKey = getTrackKey(pb.track);
     }
     const target = this.target(pb);
-    if (Math.abs(this.engine.currentMs - target) < 200) return false;
+    recordPlaybackEvent({ event: 'drift', seq: pb.seq, drift: this.engine.currentMs - target, rtt: this.getRtt() });
+    if (pb.track.duration > 0 && target >= pb.track.duration) return false;
+    const correction = shouldCorrect(this.engine.currentMs, target);
+    if (!correction) return false;
     this.resetRate();
-    this.engine.seek(target);
+    if (correction.type === 'seek') this.engine.seek(correction.target);
+    else {
+      this.engine.setRate(correction.rate);
+      this.rateTimer = setTimeout(() => this.engine.setRate(1), 2000);
+    }
     return true;
   }
 
@@ -125,8 +134,23 @@ export class PlaybackSync {
     this.recoveredSeq = null;
     this.engine.onEnd(null);
     this.resetRate();
-    this.engine.stop();
+    this.recovery.dispose();
+    this.engine.releaseHold();
   }
+
+  setConnected(connected: boolean): void {
+    this.connected = connected;
+    this.recovery.setConnected(connected);
+    if (!connected) this.resetRate();
+  }
+
+  observeClock(serverTime: number): void {
+    if (this.connected && this.getRtt() < 5000) this.clock.observe(serverTime, this.getRtt());
+  }
+
+  retry(resumeSound = false) { return this.recovery.retry(resumeSound); }
+
+  hold(reason: 'manual' | 'noisy'): void { this.recovery.hold(reason); }
 
   private target(pb: PlaybackState): number {
     return calcTargetPosition(pb.position, pb.serverTimestamp, 0, this.clock.now());

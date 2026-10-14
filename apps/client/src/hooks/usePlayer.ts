@@ -34,6 +34,9 @@ export function usePlayer() {
     engine.onPlaybackIssue((playbackIssue) => setState((s) => ({ ...s, playbackIssue })));
     return () => {
       engine.onPlaybackIssue(null);
+      engine.onTick(null);
+      engine.onDuration(null);
+      engine.onBuffering(null);
       // 组件卸载不 dispose 引擎(单例,跨页面复用)
     };
   }, []);

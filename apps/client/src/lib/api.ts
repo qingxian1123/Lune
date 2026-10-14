@@ -8,6 +8,7 @@ import type {
   Track,
 } from '@lune/shared';
 import { getServerBaseUrl } from './serverConfig';
+import { ApiError, boundedRequest, retryAfterMs } from './apiError';
 
 function endpoint(path: string): string {
   return `${getServerBaseUrl()}${path}`;
@@ -25,7 +26,11 @@ async function json<T>(resP: Promise<Response> | Response): Promise<T> {
   const res = await resP;
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error(body.message || `HTTP ${res.status}`);
+    throw new ApiError(typeof body?.message === 'string' ? body.message : `HTTP ${res.status}`,
+      res.status, typeof body?.code === 'string' ? body.code : `HTTP_${res.status}`,
+      typeof body?.retryable === 'boolean' ? body.retryable : res.status === 429 || res.status >= 500,
+      retryAfterMs(res.headers.get('Retry-After')) || (Number(body?.retryAfterMs) > 0 ? Number(body.retryAfterMs) : 0),
+      typeof body?.provider === 'string' ? body.provider : undefined);
   }
   return res.json() as Promise<T>;
 }
@@ -61,6 +66,14 @@ export async function getProviders(): Promise<string[]> {
   return result.providers;
 }
 
+export async function checkProviderReady(provider?: string): Promise<boolean> {
+  const data = await boundedRequest((signal) => json<{
+    defaultProvider?: string; details?: Array<{ id: string; status: string }>;
+  }>(fetch(endpoint('/api/providers'), { signal })));
+  const status = data.details?.find((entry) => entry.id === (provider || data.defaultProvider))?.status;
+  return status === 'ready' || status === 'degraded';
+}
+
 export async function searchTracks(kw: string, limit = 20, provider?: string): Promise<Track[]> {
   const r: ProviderSearchResult = await json(
     fetch(endpoint(`/api/providers/search?kw=${encodeURIComponent(kw)}&limit=${limit}${providerParam(provider)}`)),
@@ -68,8 +81,10 @@ export async function searchTracks(kw: string, limit = 20, provider?: string): P
   return r.songs;
 }
 
-export async function resolveTrack(id: string, provider?: string): Promise<ProviderResolveResult> {
-  return json(fetch(endpoint(`/api/providers/resolve?id=${encodeURIComponent(id)}${providerParam(provider)}`)));
+export async function resolveTrack(id: string, provider?: string, signal?: AbortSignal): Promise<ProviderResolveResult> {
+  return boundedRequest((requestSignal) => json(fetch(
+    endpoint(`/api/providers/resolve?id=${encodeURIComponent(id)}${providerParam(provider)}`), { signal: requestSignal },
+  )), signal);
 }
 
 export async function getLyric(id: string, provider?: string): Promise<ProviderLyricResult> {

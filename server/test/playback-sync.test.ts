@@ -3,6 +3,7 @@ import test from 'node:test';
 import type { ClientMessage, PlaybackState, ProviderResolveResult, Track } from '@lune/shared';
 import { PlaybackSync } from '../../apps/client/src/audio/PlaybackSync';
 import { Room } from '../src/rooms/room.model';
+import type { EngineSnapshot, MediaResult } from '../../apps/client/src/audio/playbackTypes';
 
 const track = (id: string): Track => ({
   id, provider: 'test', name: id, artists: '', album: '', coverUrl: '', duration: 180_000,
@@ -22,7 +23,16 @@ class FakeEngine {
   stop() { this.stops++; this.currentMs = 0; }
   setRate(_rate: number) {}
   seek(ms: number) { this.seeks.push(ms); this.currentMs = ms; }
-  async load(url: string, offset: number) { this.loads.push(url); this.currentMs = offset; }
+  async load(url: string, offset: number | (() => number)): Promise<MediaResult> {
+    this.loads.push(url); this.currentMs = typeof offset === 'function' ? offset() : offset;
+    return { status: 'playing' };
+  }
+  get snapshot(): EngineSnapshot { return { playing: true, buffering: false, hold: 'none', failure: null, position: this.currentMs, readyState: 4, seeking: false }; }
+  subscribe(_listener: (state: EngineSnapshot) => void) { return () => {}; }
+  async resume(): Promise<MediaResult> { return { status: 'playing' }; }
+  unlock() {}
+  releaseHold() {}
+  setHold(_reason: 'manual' | 'noisy') {}
 }
 
 function deferredResolver() {
@@ -78,7 +88,7 @@ test('三人房间排序后，旧歌曲的延迟结束事件不能连续跳过�
   assert.equal(room.playback.track?.id, 'D');
   assert.deepEqual(room.queue.map((item) => item.track.id), ['B', 'C', 'E']);
   for (const client of clients) {
-    assert.equal(client.engine.end, null);
+    assert.notEqual(client.engine.end, oldEnds[clients.indexOf(client)], '旧结束回调已退役，新回调由引擎的有效源事件触发');
     assert.equal(client.sync.resync(), false);
     client.resolver.requests[1].finish('D');
   }
@@ -95,7 +105,7 @@ test('换歌和离开后，过期 URL 与不可播结果都不能影响新播放
   const engine = new FakeEngine();
   const resolver = deferredResolver();
   const sent: ClientMessage[] = [];
-  const sync = new PlaybackSync(engine, resolver.resolve, (msg) => sent.push(msg), () => 0);
+  const sync = new PlaybackSync(engine, resolver.resolve, (msg) => { sent.push(msg); }, () => 0);
   sync.apply(playback('A', 1));
   sync.apply(playback('B', 2), { restart: true });
   resolver.requests[1].finish('B');
@@ -115,7 +125,7 @@ test('加载期间 seek 不会丢失歌曲，结束事件使用 seek 后的版�
   const engine = new FakeEngine();
   const resolver = deferredResolver();
   const sent: ClientMessage[] = [];
-  const sync = new PlaybackSync(engine, resolver.resolve, (msg) => sent.push(msg), () => 0);
+  const sync = new PlaybackSync(engine, resolver.resolve, (msg) => { sent.push(msg); }, () => 0);
   t.after(() => sync.dispose());
   sync.apply(playback('A', 1));
   sync.apply(playback('A', 2, 60_000));
@@ -139,7 +149,7 @@ test('重复入队的同一歌曲切换时重新加载；旧版本广播不能�
   const engine = new FakeEngine();
   const resolver = deferredResolver();
   const sent: ClientMessage[] = [];
-  const sync = new PlaybackSync(engine, resolver.resolve, (msg) => sent.push(msg), () => 0);
+  const sync = new PlaybackSync(engine, resolver.resolve, (msg) => { sent.push(msg); }, () => 0);
   t.after(() => sync.dispose());
   sync.apply(playback('A', 1, 170_000));
   resolver.requests[0].finish('first-A');
@@ -185,18 +195,48 @@ test('成员设备快十分钟，排序及新歌加载仍使用服务器时间�
 test('临时 URL 解析失败不能上报全房间切歌', async (t) => {
   const engine = new FakeEngine();
   const sent: ClientMessage[] = [];
-  const sync = new PlaybackSync(engine, async () => ({ track: track('A'), url: null, unplayable: false }), (msg) => sent.push(msg), () => 0);
+  const sync = new PlaybackSync(engine, async () => ({ track: track('A'), url: null, unplayable: false }), (msg) => { sent.push(msg); }, () => 0);
   t.after(() => sync.dispose());
   sync.apply(playback('A', 1));
   await flush();
   assert.deepEqual(sent, []);
 });
 
+test('启动确认耗时后立即校准；断线结束不补发切歌命令', async (t) => {
+  const time = 1_800_000_000_000;
+  let monotonic = 100;
+  t.mock.method(Date, 'now', () => time);
+  t.mock.method(performance, 'now', () => monotonic);
+  let finish: (result: MediaResult) => void = () => {};
+  class SlowEngine extends FakeEngine {
+    override async load(url: string, offset: number | (() => number)): Promise<MediaResult> {
+      await super.load(url, offset);
+      return new Promise((resolve) => { finish = resolve; });
+    }
+  }
+  const engine = new SlowEngine();
+  const messages: ClientMessage[] = [];
+  const sync = new PlaybackSync(engine, async () => ({ track: track('A'), url: 'A' }), (msg) => { messages.push(msg); }, () => 0);
+  t.after(() => sync.dispose());
+  sync.apply(playback('A', 1), { serverTime: time });
+  await flush();
+  monotonic += 2000;
+  finish({ status: 'playing' }); await flush();
+  assert.equal(engine.currentMs, 2000, '无需等周期定时器就校准启动期间的偏差');
+  sync.setConnected(false);
+  engine.end!();
+  assert.equal(sync.recovery.state.code, 'CONNECTION');
+  assert.equal(messages.length, 0);
+  sync.setConnected(true);
+  engine.end!();
+  assert.equal(messages.length, 0, '重连不能补发旧 ended');
+});
+
 test('提前 ended 被拒后，同版本 resync 恢复一次，不反复加载或跳歌', async (t) => {
   const engine = new FakeEngine();
   const resolver = deferredResolver();
   const sent: ClientMessage[] = [];
-  const sync = new PlaybackSync(engine, resolver.resolve, (msg) => sent.push(msg), () => 0);
+  const sync = new PlaybackSync(engine, resolver.resolve, (msg) => { sent.push(msg); }, () => 0);
   t.after(() => sync.dispose());
   const pb = playback('A', 1);
   sync.apply(pb, { serverTime: pb.serverTimestamp });
