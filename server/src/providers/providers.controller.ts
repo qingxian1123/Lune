@@ -4,10 +4,12 @@ import {
   Inject,
   NotFoundException,
   Query,
+  Res,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ProviderRegistry } from './provider.registry';
 import { IsOptional, IsString, MinLength } from 'class-validator';
+import { providerResolvePool, ResolveUnavailable } from './application/resolve-pool';
 
 class SearchQueryDto {
   @IsString()
@@ -94,9 +96,15 @@ export class ProvidersController {
 
   /** 解析为可播 URL */
   @Get('resolve')
-  async resolve(@Query() q: ResolveQueryDto) {
+  async resolve(@Query() q: ResolveQueryDto, @Res({ passthrough: true }) response?: { setHeader: (name: string, value: string) => void }) {
     const provider = this.pick(q.provider);
-    return provider.resolve(q.id);
+    try { return await providerResolvePool.resolve(provider, q.id); }
+    catch (error) {
+      if (!(error instanceof ResolveUnavailable)) throw error;
+      response?.setHeader('Retry-After', '3');
+      throw new ServiceUnavailableException({ code: error.code, message: error.message,
+        retryable: true, retryAfterMs: 3000, provider: provider.id });
+    }
   }
 
   /** 歌词 */

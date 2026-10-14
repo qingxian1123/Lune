@@ -1,6 +1,7 @@
 import { HttpException, Logger } from '@nestjs/common';
 import { HeartStore } from '../charts/heart.store';
 import { ProviderRegistry } from '../providers/provider.registry';
+import { providerResolvePool } from '../providers/application/resolve-pool';
 import {
   OnGatewayConnection,
   OnGatewayDisconnect,
@@ -287,7 +288,7 @@ export class SyncGateway implements OnGatewayConnection, OnGatewayDisconnect {
         const provider = currentTrack.provider
           ? this.providers.getActiveById(currentTrack.provider)
           : this.providers.getActive();
-        const result = Promise.resolve().then(() => provider?.resolve(currentTrack.id) ?? null).catch(() => null);
+        const result = Promise.resolve().then(() => provider ? providerResolvePool.resolve(provider, currentTrack.id) : null).catch(() => null);
         check = { seq: expectedPlaybackSeq, result };
         this.unplayableChecks.set(room, check);
       }

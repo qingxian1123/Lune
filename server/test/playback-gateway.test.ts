@@ -20,7 +20,7 @@ function setup(resolve: (id: string) => Promise<ProviderResolveResult>, seedPlay
   const room = store.createRoom();
   const conns = new ConnectionRegistry();
   const jwt = new JwtService({ secret: 'test-only' });
-  const provider = { resolve };
+  const provider = { id: 'test', resolve };
   const registry = { getActiveById: () => provider, getActive: () => provider } as unknown as ProviderRegistry;
   const gateway = new SyncGateway(jwt, new RoomsService(store, jwt), store, conns, {} as HeartStore, registry);
   const clients = ['Alice', 'Bob', 'Carol'].map((name) => {
