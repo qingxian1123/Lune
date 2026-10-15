@@ -9,6 +9,7 @@
 
 ## 部署与运维
 
+- [Docker Compose 部署](../server-deploy/README.compose.md)：Linux 云服务器、Caddy 或已有反向代理、管理入口
 - [服务端部署与运维](DEPLOYMENT.md)：发布包、systemd、Nginx、升级和备份
 - [音乐源配置与管理](PROVIDERS.md)：音源启用、账号登录、健康检查和管理接口
 - [部署目录说明](../server-deploy/README.md)：部署模板、发布目录与运行命令

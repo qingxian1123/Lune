@@ -1,0 +1,62 @@
+name: lune
+
+services:
+  lune:
+    image: ${LUNE_IMAGE:?Set LUNE_IMAGE to a released version and digest}
+    pull_policy: missing
+    restart: unless-stopped
+    init: true
+    user: "10001:10001"
+    env_file:
+      - ./.env
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: "9527"
+      LUNE_MANAGE_HOST: 0.0.0.0
+      LUNE_MANAGE_PORT: "9528"
+      LUNE_CONFIG_FILE: /var/lib/lune/config/providers.json
+      LUNE_DATA_DIR: /var/lib/lune/data
+      LUNE_PUBLIC_URL: ${LUNE_PUBLIC_URL:?Set LUNE_PUBLIC_URL to the external HTTPS address}
+    ports:
+      # Only host-local proxies and SSH tunnels may reach either port.
+      - "127.0.0.1:9527:9527"
+      - "127.0.0.1:9528:9528"
+    volumes:
+      - ./runtime:/var/lib/lune
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "require('http').get('http://127.0.0.1:9527/api/health/live', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+    networks:
+      - internal
+
+  caddy:
+    profiles: [public]
+    image: caddy@sha256:86d4376ad067063d998533bf06e0c78b97cc8d99cd7cc66f84393165a95a65ed
+    platform: linux/amd64
+    restart: unless-stopped
+    environment:
+      LUNE_DOMAIN: ${LUNE_DOMAIN:-localhost}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./runtime/caddy-data:/data
+      - ./runtime/caddy-config:/config
+    depends_on:
+      lune:
+        condition: service_started
+    networks:
+      - internal
+
+networks:
+  internal:

@@ -21,8 +21,8 @@ Lune 是一个自托管的多人同步听歌应用。用户在 Windows 或 Andro
 
 ## 开始使用
 
-1. 服务管理员按 [部署与运维指南](docs/DEPLOYMENT.md) 部署单实例服务端。
-2. 按 [音乐源配置与管理](docs/PROVIDERS.md) 登录音乐平台账号并检查状态。
+1. 服务管理员使用 [Docker Compose 部署包](server-deploy/README.compose.md)部署单实例服务端；已有 Node.js 环境也可按 [systemd 部署指南](docs/DEPLOYMENT.md)操作。
+2. 在本地管理入口连接至少一个音乐源；systemd 部署可按 [音乐源配置与管理](docs/PROVIDERS.md)操作。
 3. 在客户端填写服务地址，输入昵称后创建房间，或通过朋友提供的六位房间码加入。
 4. 搜索歌曲或歌单，加入播放队列，即可一起听歌。
 
@@ -34,6 +34,7 @@ Lune 是一个自托管的多人同步听歌应用。用户在 Windows 或 Andro
 - [使用说明](docs/USAGE.md)
 - [播放与连接故障处理](docs/playback-reliability.md)
 - [音乐源配置与管理](docs/PROVIDERS.md)
+- [Docker Compose 部署](server-deploy/README.compose.md)
 - [服务端部署与运维](docs/DEPLOYMENT.md)
 - [部署模板说明](server-deploy/README.md)
 
@@ -49,6 +50,7 @@ Lune 是一个自托管的多人同步听歌应用。用户在 Windows 或 Andro
 - 服务端必须单实例运行，多实例之间不会共享房间状态。
 - 音乐可用性受上游账号、会员、版权和地区限制。
 - 当前不提供用户账号体系或跨服务发现。
+- Docker Compose 镜像与部署包的发布流程已配置；目标 Linux 环境安装、升级、恢复及 Windows／Android 客户端联调仍待运行验收。
 - 播放恢复首版已完成静态检查，运行回归与 Windows／Android 真机验收尚待完成。
 
 ## License

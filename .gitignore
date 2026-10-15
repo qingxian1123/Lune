@@ -77,6 +77,14 @@ server/src/prisma/generated/
 
 # Runtime provider credential data
 data/
+/server-deploy/runtime/
+/server-deploy/backups/
+/server-deploy/.lune.lock
+/server-deploy/.previous-image
+/server-deploy/.restore.*/
+/server-deploy/runtime.before-restore.*/
+/server-deploy/runtime.failed-restore.*/
+/server-deploy/.env.before-restore.*
 server-release-clean/
 server-release-clean.backup-*/
 .server-release-clean-next-*/

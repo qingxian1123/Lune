@@ -2,6 +2,8 @@
 
 `server-deploy/` 是服务端发布模板。仓库中的配置不包含真实密钥、账号 Cookie 或运行数据。
 
+Linux Docker Compose 单实例部署见 [README.compose.md](README.compose.md)。
+
 ## 内容
 
 ```text

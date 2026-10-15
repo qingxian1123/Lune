@@ -1,0 +1,17 @@
+{$LUNE_DOMAIN} {
+    # Keep management routes private even if a future app listener accidentally
+    # registers them on the public port.
+    @management path /api/admin /api/admin/*
+    handle @management {
+        respond 404
+    }
+
+    @business path /api /api/* /ws
+    handle @business {
+        reverse_proxy lune:9527
+    }
+
+    handle {
+        respond 404
+    }
+}

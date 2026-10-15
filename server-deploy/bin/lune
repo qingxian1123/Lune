@@ -1,0 +1,434 @@
+#!/usr/bin/env bash
+# Lune single-host Compose operator. Run from the release directory on Linux.
+set -Eeuo pipefail
+umask 077
+
+ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)
+ENV_FILE="$ROOT/.env"
+RUNTIME="$ROOT/runtime"
+BACKUPS="$ROOT/backups"
+LOCK="$ROOT/.lune.lock"
+COMPOSE_FILE="$ROOT/compose.yaml"
+
+die() { printf '错误：%s\n' "$*" >&2; exit 1; }
+note() { printf '%s\n' "$*"; }
+need() { command -v "$1" >/dev/null 2>&1 || die "缺少 $1；请安装后重新运行。"; }
+require_root() { [[ "$(id -u)" == 0 ]] || die '请在服务器上使用 sudo ./bin/lune <命令>，以便安全读取和备份数据。'; }
+setting() {
+  local key=$1
+  [[ -f "$ENV_FILE" ]] || return 0
+  sed -n "s/^${key}=//p" "$ENV_FILE" | tail -n 1
+}
+require_env() { [[ -s "$ENV_FILE" ]] || die "尚未安装；先运行 ./bin/lune install。"; }
+compose() {
+  local mode
+  mode=$(setting LUNE_MODE)
+  local args=(--project-directory "$ROOT" --env-file "$ENV_FILE" -f "$COMPOSE_FILE")
+  [[ "$mode" == public ]] && args+=(--profile public)
+  docker compose "${args[@]}" "$@"
+}
+locked() {
+  need flock
+  exec 9>"$LOCK"
+  flock -n 9 || die "另一项 Lune 安装或维护操作正在进行。"
+}
+random_hex() { od -An -N "$1" -tx1 /dev/urandom | tr -d ' \n'; }
+have_data() {
+  [[ -d "$RUNTIME/data" ]] && [[ -n "$(find "$RUNTIME/data" -mindepth 1 -print -quit)" ]]
+}
+require_docker() {
+  need docker
+  docker compose version >/dev/null 2>&1 || die '需要 Docker Compose v2。'
+  docker info >/dev/null 2>&1 || die '无法连接 Docker daemon；检查权限与服务状态。'
+  [[ "$(uname -m)" == x86_64 ]] || die '当前发布包仅支持 Linux x86_64；arm64 尚未验收。'
+  [[ "$(uname -s)" == Linux ]] || die '此命令需要在 Linux 部署机运行。'
+}
+image_from_release() {
+  [[ -s "$ROOT/image.ref" ]] || return 0
+  tr -d '\r\n' < "$ROOT/image.ref"
+}
+check_image() {
+  [[ "$1" =~ ^[a-zA-Z0-9][a-zA-Z0-9._:/@-]+$ ]] || die '镜像引用格式不正确。'
+  [[ "$1" == *@sha256:* ]] || die '请使用发布包内 image.ref 或提供带 sha256 摘要的镜像引用。'
+}
+check_image_schema() {
+  local schema provider_schema
+  schema=$(docker image inspect --format '{{ index .Config.Labels "org.lune.data-schema" }}' "$1") || die '无法读取目标镜像元数据。'
+  provider_schema=$(docker image inspect --format '{{ index .Config.Labels "org.lune.provider-config-schema" }}' "$1") || die '无法读取目标镜像配置元数据。'
+  [[ "$schema" == 1 && "$provider_schema" == 1 ]] || die '目标镜像的数据或 Provider 配置格式尚未通过当前部署工具验收。'
+}
+check_domain() {
+  [[ "$1" =~ ^[A-Za-z0-9][A-Za-z0-9.-]*[A-Za-z0-9]$ ]] || die '域名格式不正确。'
+  [[ "$1" == *.* ]] || die '公网模式需要完整域名。'
+}
+check_url() {
+  [[ "$1" =~ ^https://[A-Za-z0-9.-]+(:[0-9]+)?$ ]] || die '已有代理模式需要形如 https://music.example.com 的外部地址。'
+}
+check_first_install_ports() {
+  command -v ss >/dev/null 2>&1 || return 0
+  local ports=':(9527|9528)$'
+  [[ "$1" != public ]] || ports=':(80|443|9527|9528)$'
+  if ss -H -ltn | awk '{print $4}' | grep -E "$ports" >/dev/null; then
+    die '部署端口已被占用；公网 80/443 冲突时可改用 --proxy-url 接入现有网关。'
+  fi
+  if [[ "$1" == public ]] && ss -H -lun | awk '{print $4}' | grep -E ':443$' >/dev/null; then
+    die 'UDP 443 已被占用；可改用 --proxy-url 接入现有网关。'
+  fi
+}
+prepare_owner() {
+  mkdir -p "$RUNTIME/config" "$RUNTIME/data"
+  if [[ ! -f "$RUNTIME/config/providers.json" ]]; then
+    cp "$ROOT/config/providers.json" "$RUNTIME/config/providers.json"
+  fi
+  chmod 711 "$RUNTIME"
+  chmod 700 "$RUNTIME/config" "$RUNTIME/data"
+  chmod 600 "$RUNTIME/config/providers.json"
+  if [[ "$(stat -c %u "$RUNTIME/data")" != 10001 || "$(stat -c %u "$RUNTIME/config")" != 10001 ]]; then
+    chown -R 10001:10001 "$RUNTIME/config" "$RUNTIME/data"
+  fi
+}
+wait_live() {
+  local attempt
+  need curl
+  for attempt in {1..30}; do
+    if curl --silent --fail --max-time 2 http://127.0.0.1:9527/api/health/live >/dev/null; then return 0; fi
+    sleep 2
+  done
+  return 1
+}
+
+install_lune() {
+  locked
+  require_docker
+  [[ -f "$COMPOSE_FILE" && -f "$ROOT/config/providers.json" ]] || die '发布包缺少 Compose 或 Provider 配置模板。'
+  local mode= domain= url= image=
+  while (($#)); do
+    case "$1" in
+      --domain) (($# >= 2)) || die '--domain 需要值'; mode=public; domain=$2; shift 2 ;;
+      --proxy-url) (($# >= 2)) || die '--proxy-url 需要值'; mode=proxy; url=$2; shift 2 ;;
+      --image) (($# >= 2)) || die '--image 需要值'; image=$2; shift 2 ;;
+      *) die "未知参数：$1" ;;
+    esac
+  done
+  if [[ -f "$ENV_FILE" ]]; then
+    [[ -n "$(setting LUNE_MODE)" && -n "$(setting LUNE_IMAGE)" ]] || die '检测到旧版 .env；请先按迁移指南备份并转换配置。'
+    [[ -n "$(setting LUNE_MASTER_KEY)" && -n "$(setting JWT_SECRET)" && -n "$(setting LUNE_ADMIN_TOKEN)" ]] || die '已有 .env 缺少密钥；请从原备份恢复，不会生成新密钥。'
+    [[ -z "$mode" || "$mode" == "$(setting LUNE_MODE)" ]] || die '安装模式与已有配置不一致；检查 .env。'
+    [[ -z "$domain" || "$domain" == "$(setting LUNE_DOMAIN)" ]] || die '域名与已有配置不一致；检查 .env。'
+    [[ -z "$url" || "$url" == "$(setting LUNE_PUBLIC_URL)" ]] || die '地址与已有配置不一致；检查 .env。'
+    [[ -z "$image" || "$image" == "$(setting LUNE_IMAGE)" ]] || die '镜像与已有配置不一致；升级请使用 upgrade。'
+    note '复用现有配置和密钥。'
+  else
+    have_data && die '检测到已有运行数据但缺少 .env；必须恢复原密钥。'
+    [[ -n "$mode" ]] || die '首次安装请指定 --domain <域名> 或 --proxy-url <外部 HTTPS 地址>。'
+    if [[ "$mode" == public ]]; then check_domain "$domain"; url="https://$domain"; else check_url "$url"; fi
+    check_first_install_ports "$mode"
+    [[ -n "$image" ]] || image=$(image_from_release)
+    [[ -n "$image" ]] || die '缺少镜像引用；需要发布包中的 image.ref 或 --image <带摘要的引用>。'
+    check_image "$image"
+    local tmp="$ENV_FILE.tmp.$$"
+    {
+      printf 'LUNE_MODE=%s\nLUNE_DOMAIN=%s\nLUNE_PUBLIC_URL=%s\nLUNE_IMAGE=%s\n' "$mode" "$domain" "$url" "$image"
+      printf 'LUNE_MASTER_KEY=%s\n' "$(random_hex 32)"
+      printf 'LUNE_ADMIN_TOKEN=%s\n' "$(random_hex 32)"
+      printf 'JWT_SECRET=%s\n' "$(random_hex 48)"
+      printf 'LUNE_MANAGE_PORT=9528\n'
+    } > "$tmp"
+    chmod 600 "$tmp"
+    mv -- "$tmp" "$ENV_FILE"
+  fi
+  prepare_owner
+  compose config --quiet
+  compose pull
+  check_image_schema "$(setting LUNE_IMAGE)"
+  compose up -d --remove-orphans
+  if wait_live; then
+    note '服务已启动。音乐源登录完成后，业务就绪检查才会通过。'
+    note '管理入口：先在本机运行 ssh -L 9528:127.0.0.1:9528 <服务器用户>@<服务器地址>，再访问 http://127.0.0.1:9528/api/admin/ui。'
+    note '在服务器运行 ./bin/lune manage 获取一次性配对码。'
+  else
+    die '服务未通过存活检查；请运行 ./bin/lune doctor 查看状态。'
+  fi
+}
+
+status_lune() {
+  require_env; require_docker; need curl
+  compose ps
+  if curl --silent --fail --max-time 3 http://127.0.0.1:9527/api/health/live >/dev/null; then
+    note '服务进程：运行中。'
+  else
+    note '服务进程：未响应。'; return 2
+  fi
+  if curl --silent --fail --max-time 5 http://127.0.0.1:9527/api/health/ready >/dev/null; then
+    note '音乐源：至少一个已就绪。'
+  else
+    note '音乐源：尚未就绪，请通过管理入口登录或检查。'
+  fi
+  note "客户端服务地址：$(setting LUNE_PUBLIC_URL)"
+  note '公网连通性和实际播放仍需从客户端验证。'
+}
+
+manage_lune() {
+  require_env; require_docker
+  [[ -n "$(compose ps -q lune)" ]] || die '服务尚未启动。'
+  compose exec -T lune node -e '
+    (async () => {
+      const response = await fetch("http://127.0.0.1:9528/api/admin/session/pairing-code", {
+        method: "POST", headers: { Authorization: "Bearer " + process.env.LUNE_ADMIN_TOKEN }
+      });
+      if (!response.ok) throw new Error("管理接口返回 HTTP " + response.status);
+      const result = await response.json();
+      process.stdout.write("一次性配对码：" + result.code + "\n有效期至：" + result.expiresAt + "\n");
+    })().catch(error => { process.stderr.write(String(error) + "\n"); process.exitCode = 1; });
+  '
+  note '浏览器入口：http://127.0.0.1:9528/api/admin/ui（远程使用前先建立 SSH 隧道）。'
+}
+
+doctor_lune() {
+  require_env; require_docker
+  compose config --quiet || die 'Compose 配置无效。'
+  note 'Compose 配置：通过。'
+  status_lune
+}
+
+BACKUP_RESTART=0
+BACKUP_TMP=
+backup_cleanup() {
+  [[ -z "$BACKUP_TMP" ]] || rm -f -- "$BACKUP_TMP"
+  if [[ "$BACKUP_RESTART" == 1 ]]; then compose up -d --no-deps lune >/dev/null || true; fi
+}
+backup_locked() {
+  require_env
+  need tar; need sha256sum
+  mkdir -p "$BACKUPS"
+  local running= archive= stamp
+  running=$(compose ps --status running -q lune)
+  stamp="$(date -u +%Y%m%dT%H%M%SZ)-$$"
+  archive="$BACKUPS/lune-$stamp.tar.gz"
+  BACKUP_TMP="$archive.tmp.$$"
+  BACKUP_RESTART=0
+  [[ -z "$running" ]] || BACKUP_RESTART=1
+  # Always restart a previously running service, even if archiving fails.
+  trap backup_cleanup EXIT
+  [[ -z "$running" ]] || compose stop -t 45 lune
+  local members=(.env runtime)
+  [[ -f "$ROOT/release-manifest.json" ]] && members+=(release-manifest.json)
+  tar -C "$ROOT" -czf "$BACKUP_TMP" "${members[@]}"
+  chmod 600 "$BACKUP_TMP"
+  mv -- "$BACKUP_TMP" "$archive"
+  BACKUP_TMP=
+  (cd "$BACKUPS" && sha256sum "$(basename -- "$archive")") > "$archive.sha256"
+  chmod 600 "$archive.sha256"
+  if [[ $BACKUP_RESTART == 1 ]]; then
+    compose up -d --no-deps lune >/dev/null
+    BACKUP_RESTART=0
+    wait_live || die '备份已创建，但服务重启后的存活检查失败。'
+  fi
+  trap - EXIT
+  note "备份已保存：$archive（包含密钥，限管理员访问）。"
+  BACKUP_RESULT="$archive"
+}
+backup_lune() { locked; require_docker; backup_locked; }
+
+set_image() {
+  local new=$1 tmp
+  tmp="$ENV_FILE.tmp.$$"
+  sed "s|^LUNE_IMAGE=.*|LUNE_IMAGE=$new|" "$ENV_FILE" > "$tmp"
+  chmod 600 "$tmp"
+  mv -- "$tmp" "$ENV_FILE"
+}
+replace_image() {
+  local new=$1 previous
+  previous=$(setting LUNE_IMAGE)
+  [[ -n "$previous" ]] || die '现有镜像引用为空。'
+  set_image "$new"
+  printf '%s\n' "$previous" > "$ROOT/.previous-image"
+  chmod 600 "$ROOT/.previous-image"
+}
+
+UPGRADE_ACTIVE=0
+UPGRADE_OLD_IMAGE=
+UPGRADE_OLD_HISTORY=
+UPGRADE_HAD_HISTORY=0
+remember_image_history() {
+  UPGRADE_HAD_HISTORY=0
+  UPGRADE_OLD_HISTORY=
+  if [[ -f "$ROOT/.previous-image" ]]; then
+    UPGRADE_HAD_HISTORY=1
+    UPGRADE_OLD_HISTORY=$(cat "$ROOT/.previous-image")
+  fi
+}
+upgrade_cleanup() {
+  if [[ "$UPGRADE_ACTIVE" == 1 ]]; then
+    set_image "$UPGRADE_OLD_IMAGE" || true
+    if [[ "$UPGRADE_HAD_HISTORY" == 1 ]]; then
+      printf '%s\n' "$UPGRADE_OLD_HISTORY" > "$ROOT/.previous-image"
+      chmod 600 "$ROOT/.previous-image"
+    else
+      rm -f -- "$ROOT/.previous-image"
+    fi
+    compose up -d --no-deps lune >/dev/null || true
+  fi
+}
+
+upgrade_lune() {
+  locked; require_env; require_docker
+  (($# == 1)) || die '用法：./bin/lune upgrade <新发布包的 image.ref 或带摘要的镜像引用>'
+  local new=$1 old
+  [[ ! -f "$new" ]] || new=$(tr -d '\r\n' < "$new")
+  check_image "$new"
+  old=$(setting LUNE_IMAGE)
+  [[ "$new" != "$old" ]] || die '目标版本与当前版本相同。'
+  note '先拉取目标镜像；旧实例继续运行。'
+  docker pull "$new"
+  check_image_schema "$new"
+  note '升级前创建一致备份。'
+  backup_locked
+  remember_image_history
+  UPGRADE_OLD_IMAGE="$old"
+  UPGRADE_ACTIVE=1
+  trap upgrade_cleanup EXIT
+  compose stop -t 45 lune
+  replace_image "$new"
+  if compose up -d --no-deps lune && wait_live; then
+    UPGRADE_ACTIVE=0
+    trap - EXIT
+    note '升级已完成。请检查音乐源状态，并从客户端验证一次实际播放。'
+  else
+    note '新版本未通过存活检查，尝试恢复旧镜像。' >&2
+    upgrade_cleanup
+    UPGRADE_ACTIVE=0
+    trap - EXIT
+    wait_live || die "旧版本也未通过存活检查；使用备份 $BACKUP_RESULT 恢复。"
+    die '升级失败，已回退旧镜像。'
+  fi
+}
+
+rollback_lune() {
+  locked; require_env; require_docker
+  [[ -s "$ROOT/.previous-image" ]] || die '没有记录前一个镜像；无法自动回滚。'
+  local previous
+  previous=$(tr -d '\r\n' < "$ROOT/.previous-image")
+  check_image "$previous"
+  docker image inspect "$previous" >/dev/null 2>&1 || docker pull "$previous"
+  check_image_schema "$previous"
+  backup_locked
+  remember_image_history
+  UPGRADE_OLD_IMAGE=$(setting LUNE_IMAGE)
+  UPGRADE_ACTIVE=1
+  trap upgrade_cleanup EXIT
+  compose stop -t 45 lune
+  replace_image "$previous"
+  compose up -d --no-deps lune
+  wait_live || die "回滚后进程未启动；请从备份 $BACKUP_RESULT 恢复。"
+  UPGRADE_ACTIVE=0
+  trap - EXIT
+  note '已切换镜像。若新版本修改了不兼容的数据格式，必须恢复对应备份。'
+}
+
+RESTORE_ACTIVE=0
+RESTORE_STAGE=
+RESTORE_OLD_RUNTIME=
+RESTORE_OLD_ENV=
+RESTORE_WAS_RUNNING=
+restore_cleanup() {
+  if [[ "$RESTORE_ACTIVE" == 1 ]]; then
+    compose stop lune >/dev/null 2>&1 || true
+    if [[ -d "$RESTORE_OLD_RUNTIME" ]]; then
+      [[ ! -d "$RUNTIME" ]] || mv -- "$RUNTIME" "$ROOT/runtime.failed-restore.$(date -u +%Y%m%dT%H%M%SZ).$$"
+      mv -- "$RESTORE_OLD_RUNTIME" "$RUNTIME"
+    fi
+    if [[ -f "$RESTORE_OLD_ENV" ]]; then
+      [[ ! -f "$ENV_FILE" ]] || mv -- "$ENV_FILE" "$ROOT/.env.failed-restore.$(date -u +%Y%m%dT%H%M%SZ).$$"
+      mv -- "$RESTORE_OLD_ENV" "$ENV_FILE"
+    fi
+    [[ -z "$RESTORE_WAS_RUNNING" ]] || compose up -d --no-deps lune >/dev/null || true
+  fi
+  [[ -z "$RESTORE_STAGE" || ! -d "$RESTORE_STAGE" ]] || rm -rf -- "$RESTORE_STAGE"
+}
+
+restore_lune() {
+  locked; require_env; require_docker
+  (($# == 1)) || die '用法：./bin/lune restore <本机备份.tar.gz>'
+  local archive=$1 entry stage old_runtime old_env
+  [[ -f "$archive" && -f "$archive.sha256" ]] || die '备份或摘要文件不存在。'
+  (cd "$(dirname -- "$archive")" && sha256sum -c -- "$(basename -- "$archive").sha256") || die '备份摘要不匹配。'
+  while IFS= read -r entry; do
+    [[ "$entry" != /* && "$entry" != ../* && "$entry" != */../* && "$entry" != */.. ]] || die "备份包含不安全路径：$entry"
+    case "$entry" in
+      .env|runtime|runtime/*|release-manifest.json) ;;
+      *) die "备份包含意外路径：$entry" ;;
+    esac
+  done < <(tar -tzf "$archive")
+  tar -tvzf "$archive" | awk 'substr($0,1,1)=="l" || substr($0,1,1)=="h" { exit 1 }' || die '备份包含符号链接或硬链接，拒绝以 root 权限恢复。'
+  stage=$(mktemp -d "$ROOT/.restore.XXXXXX")
+  RESTORE_STAGE="$stage"
+  trap restore_cleanup EXIT
+  tar -C "$stage" -xzf "$archive"
+  [[ -s "$stage/.env" && -d "$stage/runtime" ]] || die '备份内容不完整。'
+  [[ -n "$(sed -n 's/^LUNE_MASTER_KEY=//p' "$stage/.env")" ]] || die '备份缺少主密钥。'
+  local key backed_up
+  for key in LUNE_MODE LUNE_DOMAIN LUNE_PUBLIC_URL; do
+    backed_up=$(sed -n "s/^${key}=//p" "$stage/.env" | tail -n 1)
+    [[ "$backed_up" == "$(setting "$key")" ]] || die "备份的 $key 与当前接入方式不同；请先按迁移流程调整代理。"
+  done
+  local restored_image
+  restored_image=$(sed -n 's/^LUNE_IMAGE=//p' "$stage/.env" | tail -n 1)
+  check_image "$restored_image"
+  docker image inspect "$restored_image" >/dev/null 2>&1 || docker pull "$restored_image"
+  check_image_schema "$restored_image"
+  if [[ -s "$stage/release-manifest.json" ]]; then
+    local data_schema
+    data_schema=$(sed -n 's/.*"dataSchemaVersion"[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p' "$stage/release-manifest.json" | head -n 1)
+    [[ "$data_schema" == 1 ]] || die '备份数据格式与当前部署工具不兼容。'
+  fi
+  rm -f -- "$stage/release-manifest.json"
+  local was_running
+  was_running=$(compose ps --status running -q lune)
+  RESTORE_WAS_RUNNING="$was_running"
+  RESTORE_ACTIVE=1
+  [[ -z "$was_running" ]] || compose stop -t 45 lune
+  old_runtime="$ROOT/runtime.before-restore.$(date -u +%Y%m%dT%H%M%SZ).$$"
+  old_env="$ROOT/.env.before-restore.$(date -u +%Y%m%dT%H%M%SZ).$$"
+  RESTORE_OLD_RUNTIME="$old_runtime"
+  RESTORE_OLD_ENV="$old_env"
+  mv -- "$RUNTIME" "$old_runtime"
+  mv -- "$ENV_FILE" "$old_env"
+  mv -- "$stage/runtime" "$RUNTIME"
+  mv -- "$stage/.env" "$ENV_FILE"
+  rmdir -- "$stage"
+  RESTORE_STAGE=
+  prepare_owner
+  compose config --quiet || die '恢复后 Compose 配置无效，正在还原原部署。'
+  compose up -d --no-deps lune || die '恢复后服务启动失败，正在还原原部署。'
+  wait_live || die '恢复后服务未通过存活检查，正在还原原部署。'
+  RESTORE_ACTIVE=0
+  trap - EXIT
+  note "恢复完成。恢复前数据保留在 $old_runtime 和 $old_env，请人工确认后处理。"
+}
+
+usage() {
+  cat <<'EOF'
+用法：./bin/lune <install|status|manage|doctor|backup|upgrade|rollback|restore>
+  install --domain music.example.com [--image repo:tag@sha256:digest]
+  install --proxy-url https://music.example.com [--image repo:tag@sha256:digest]
+  upgrade <新发布包的 image.ref 或 repo:tag@sha256:digest>
+  restore <备份.tar.gz>
+EOF
+}
+
+command=${1:-help}
+if (($#)); then shift; fi
+if [[ "$command" != help && "$command" != -h && "$command" != --help ]]; then require_root; fi
+case "$command" in
+  install) install_lune "$@" ;;
+  status) status_lune "$@" ;;
+  manage) manage_lune "$@" ;;
+  doctor) doctor_lune "$@" ;;
+  backup) backup_lune "$@" ;;
+  upgrade) upgrade_lune "$@" ;;
+  rollback) rollback_lune "$@" ;;
+  restore) restore_lune "$@" ;;
+  help|-h|--help) usage ;;
+  *) usage; die "未知命令：$command" ;;
+esac

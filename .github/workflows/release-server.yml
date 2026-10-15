@@ -1,0 +1,60 @@
+name: Release self-hosted server
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  server:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate version tag
+        shell: bash
+        run: |
+          [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          node -e 'const v=require("./package.json").version; if (process.env.GITHUB_REF_NAME !== `v${v}`) process.exit(1)'
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push linux/amd64 image
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ghcr.io/qingxian1123/lune-server:${{ github.ref_name }}
+          provenance: true
+      - name: Assemble deployment bundle
+        shell: bash
+        env:
+          IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          set -euo pipefail
+          mkdir -p release/lune-server/caddy release/lune-server/nginx release/lune-server/config release/lune-server/bin
+          cp server-deploy/compose.yaml server-deploy/README.compose.md server-deploy/.env.compose.example release/lune-server/
+          cp server-deploy/caddy/Caddyfile release/lune-server/caddy/
+          cp server-deploy/nginx/lune-compose.conf release/lune-server/nginx/
+          cp server-deploy/config/providers.json release/lune-server/config/
+          cp server-deploy/bin/lune release/lune-server/bin/
+          chmod 755 release/lune-server/bin/lune
+          printf 'ghcr.io/qingxian1123/lune-server:%s@%s\n' "$GITHUB_REF_NAME" "$IMAGE_DIGEST" > release/lune-server/image.ref
+          node -e 'const fs=require("fs"); const manifest={schemaVersion:1,version:process.env.GITHUB_REF_NAME.slice(1),gitCommit:process.env.GITHUB_SHA,image:fs.readFileSync("release/lune-server/image.ref","utf8").trim(),dataSchemaVersion:1,providerConfigSchemaVersion:1,clientCompatibility:{testedVersions:[]}}; fs.writeFileSync("release/lune-server/release-manifest.json",JSON.stringify(manifest,null,2)+"\n")'
+          tar -C release -czf "lune-server-${GITHUB_REF_NAME}-linux-amd64.tar.gz" lune-server
+          sha256sum "lune-server-${GITHUB_REF_NAME}-linux-amd64.tar.gz" > SHA256SUMS
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            lune-server-${{ github.ref_name }}-linux-amd64.tar.gz
+            SHA256SUMS
+          generate_release_notes: true
