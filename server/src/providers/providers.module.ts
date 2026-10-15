@@ -14,12 +14,14 @@ import { ProviderStatusStore } from './runtime/provider-status.store';
 import { ProviderAuthService } from './application/provider-auth.service';
 import { ProviderAdminController } from './interfaces/http/provider-admin.controller';
 import { AdminTokenGuard } from './interfaces/http/admin-token.guard';
+import { AdminSessionController } from './interfaces/http/admin-session.controller';
+import { AdminSessionService } from './interfaces/http/admin-session.service';
 import { APP_FILTER } from '@nestjs/core';
 import { ProviderApplicationErrorFilter } from './interfaces/http/provider-application-error.filter';
 
 @Module({
   imports: [ConfigModule],
-  controllers: [ProvidersController, ProviderAdminController],
+  controllers: [ProvidersController, ProviderAdminController, AdminSessionController],
   providers: [
     LocalProviderEventBus,
     ProviderStatusStore,
@@ -52,6 +54,7 @@ import { ProviderApplicationErrorFilter } from './interfaces/http/provider-appli
         }),
     },
     AdminTokenGuard,
+    AdminSessionService,
     {
       provide: APP_FILTER,
       useClass: ProviderApplicationErrorFilter,

@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lune · 服务设置</title>
+  <style>
+    :root { color-scheme: dark; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #101019; color: #f4f0ff; }
+    * { box-sizing: border-box; }
+    body { margin: 0; line-height: 1.55; }
+    main { max-width: 920px; margin: 0 auto; padding: 36px 24px 80px; }
+    header { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 32px; }
+    h1 { font-size: 1.35rem; letter-spacing: .03em; margin: 0; }
+    h2 { font-size: clamp(1.55rem, 4vw, 2.25rem); line-height: 1.25; margin: 0 0 12px; }
+    h3 { margin: 0; font-size: 1.12rem; }
+    p { margin: 0 0 18px; color: #bcb5cd; }
+    .layout { display: grid; grid-template-columns: 190px 1fr; gap: 32px; }
+    nav { display: flex; flex-direction: column; gap: 10px; }
+    nav button { text-align: left; background: transparent; border: 1px solid transparent; color: #bcb5cd; padding: 12px; border-radius: 12px; }
+    nav button[aria-current="step"] { background: #28213c; color: #f4f0ff; border-color: #6e5a99; }
+    section { border: 1px solid #393346; border-radius: 20px; padding: 28px; background: #1b1926; }
+    .card { border: 1px solid #393346; border-radius: 14px; padding: 18px; margin: 14px 0; background: #211e2e; }
+    .row { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+    .muted { color: #bcb5cd; }
+    .small { font-size: .9rem; }
+    .ok { color: #b1e8c4; }
+    .warn { color: #f4cf92; }
+    .error { color: #ffb2bd; }
+    button { cursor: pointer; border: 1px solid #746791; border-radius: 10px; padding: 10px 16px; background: #312842; color: #f4f0ff; font: inherit; }
+    button.primary { border-color: #b39cfa; background: #a98bea; color: #181323; font-weight: 700; }
+    button:disabled { opacity: .55; cursor: not-allowed; }
+    button:focus-visible, input:focus-visible, a:focus-visible { outline: 3px solid #d9c9ff; outline-offset: 3px; }
+    input { width: 100%; max-width: 520px; border: 1px solid #746791; border-radius: 10px; padding: 11px 12px; background: #12111a; color: #f4f0ff; font: inherit; }
+    label { display: block; margin-bottom: 8px; font-weight: 600; }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 22px; }
+    .qr { display: block; width: 210px; height: 210px; object-fit: contain; padding: 8px; background: white; border-radius: 10px; margin: 14px 0; }
+    .url { overflow-wrap: anywhere; }
+    .hidden { display: none !important; }
+    #notice { min-height: 1.6em; margin: 12px 0; }
+    a { color: #c9b8ff; }
+    @media (max-width: 680px) { main { padding: 22px 16px 60px; } header { align-items: flex-start; } .layout { grid-template-columns: 1fr; gap: 16px; } nav { flex-direction: row; overflow-x: auto; } nav button { white-space: nowrap; } section { padding: 20px; } }
+  </style>
+</head>
+<body>
+  <main>
+    <header><h1>Lune · 服务设置</h1><button id="logout" class="hidden" type="button">退出管理</button></header>
+    <section id="pair-view">
+      <h2>输入一次性配对码</h2>
+      <p>在服务器部署目录执行 <code>sudo ./bin/lune manage</code>，然后把显示的配对码填在这里。配对码只使用一次。</p>
+      <form id="pair-form"><label for="pair-code">配对码</label><input id="pair-code" autocomplete="one-time-code" maxlength="18" required><div class="actions"><button class="primary" type="submit">进入管理</button></div></form>
+      <p id="pair-error" class="error" role="alert"></p>
+    </section>
+    <div id="wizard" class="layout hidden">
+      <nav aria-label="配置步骤">
+        <button type="button" data-step="1">1. 检查服务</button>
+        <button type="button" data-step="2">2. 连接音乐源</button>
+        <button type="button" data-step="3">3. 连接客户端</button>
+      </nav>
+      <div>
+        <p id="notice" role="status" aria-live="polite"></p>
+        <section id="step-1">
+          <h2>先确认服务已启动</h2>
+          <p>这里检查进程和凭据存储。音乐源可以在下一步登录。</p>
+          <div class="card"><div class="row"><strong>服务进程</strong><span id="live-state">检查中…</span></div></div>
+          <div class="card"><div class="row"><strong>凭据存储</strong><span id="storage-state">检查中…</span></div></div>
+          <div class="card"><div class="row"><strong>服务端版本</strong><span id="version-state">—</span></div></div>
+          <p class="small">公网证书和外部网络连接需由客户端从服务器之外验证。</p>
+          <div class="actions"><button id="refresh-check" type="button">重新检查</button><button id="to-provider" class="primary" type="button">继续：连接音乐源</button></div>
+        </section>
+        <section id="step-2" class="hidden">
+          <h2>连接一个音乐源</h2>
+          <p>凭据会加密保存在这台服务器。至少一个已启用的音乐源可用后即可继续。</p>
+          <div id="providers"></div>
+          <div class="actions"><button id="refresh-providers" type="button">刷新状态</button><button id="to-client" class="primary" type="button" disabled>继续：连接客户端</button></div>
+        </section>
+        <section id="step-3" class="hidden">
+          <h2>把服务地址发给朋友</h2>
+          <p>朋友安装 Lune 客户端后，粘贴服务地址、输入昵称，再创建或加入房间。</p>
+          <label for="public-url">客户端服务地址</label><input id="public-url" type="url" placeholder="https://music.example.com" spellcheck="false">
+          <p id="url-state" class="small"></p>
+          <div class="actions"><button id="copy-url" class="primary" type="button">复制服务地址</button></div>
+          <div class="card"><h3>完成连接验证</h3><p>当前服务和音乐源状态可以在上一步查看。请用服务器之外的 Windows 或 Android 客户端连接，创建房间并播放一首歌，确认实时同步。</p></div>
+          <p class="small">客户端安装包请使用与此服务端版本兼容的正式发布附件。房间码在客户端创建房间后获得。</p>
+        </section>
+      </div>
+    </div>
+  </main>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    let csrf = '';
+    let step = 1;
+    let activeLogin = null;
+    let pollTimer = null;
+
+    async function api(path, options = {}) {
+      const method = options.method || 'GET';
+      const headers = { ...(options.body ? { 'Content-Type': 'application/json' } : {}), ...(method !== 'GET' && csrf ? { 'X-Lune-CSRF': csrf } : {}) };
+      const response = await fetch('/api/admin/' + path, { ...options, headers, credentials: 'same-origin', cache: 'no-store' });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        if (response.status === 401 && path !== 'session/pair' && path !== 'session') {
+          csrf = '';
+          activeLogin = null;
+          clearTimeout(pollTimer);
+          showAuthenticated(false);
+        }
+        throw new Error(body.message || '请求失败（HTTP ' + response.status + '）');
+      }
+      return body;
+    }
+
+    function notice(message, isError = false) {
+      $('notice').textContent = message;
+      $('notice').className = isError ? 'error' : 'muted';
+    }
+
+    function showStep(next) {
+      step = next;
+      for (let i = 1; i <= 3; i++) {
+        $('step-' + i).classList.toggle('hidden', i !== next);
+        document.querySelector('[data-step="' + i + '"]').setAttribute('aria-current', i === next ? 'step' : 'false');
+      }
+      notice('');
+      if (next === 1) void refreshCheck();
+      if (next === 2) void refreshProviders();
+    }
+
+    function showAuthenticated(value) {
+      $('pair-view').classList.toggle('hidden', value);
+      $('wizard').classList.toggle('hidden', !value);
+      $('logout').classList.toggle('hidden', !value);
+      if (value) showStep(step);
+    }
+
+    async function refreshCheck() {
+      try {
+        const [live, setup] = await Promise.all([fetch('/api/health/live', { cache: 'no-store' }), api('setup')]);
+        $('live-state').textContent = live.ok ? '运行中' : '未通过';
+        $('live-state').className = live.ok ? 'ok' : 'error';
+        $('storage-state').textContent = setup.storageWritable ? '可写' : '不可写，请检查主密钥和数据目录';
+        $('storage-state').className = setup.storageWritable ? 'ok' : 'error';
+        $('version-state').textContent = setup.version;
+        if (setup.publicUrl && !$('public-url').value) $('public-url').value = setup.publicUrl;
+      } catch (error) { notice(error.message, true); }
+    }
+
+    function text(tag, value, className = '') {
+      const node = document.createElement(tag);
+      node.textContent = value;
+      if (className) node.className = className;
+      return node;
+    }
+
+    async function refreshProviders() {
+      try {
+        const result = await api('providers');
+        const holder = $('providers');
+        holder.replaceChildren();
+        const ready = result.providers.some((provider) => provider.active && provider.status === 'ready');
+        $('to-client').disabled = !ready;
+        for (const provider of result.providers) {
+          const card = text('div', '', 'card');
+          const top = text('div', '', 'row');
+          top.append(text('h3', provider.displayName), text('span', (provider.active ? '' : '未启用 · ') + (provider.status === 'ready' ? '已连接' : provider.status === 'auth-required' ? '等待登录' : provider.status || '未配置'), provider.status === 'ready' && provider.active ? 'ok' : 'warn'));
+          card.append(top);
+          if (provider.account?.name) card.append(text('p', '账号：' + provider.account.name, 'small'));
+          if (provider.reason) card.append(text('p', provider.reason, 'small'));
+          const actions = text('div', '', 'actions');
+          const login = text('button', '扫码登录');
+          login.type = 'button';
+          login.addEventListener('click', () => void beginLogin(provider.id));
+          actions.append(login);
+          if (!provider.active) {
+            const enable = text('button', '启用音乐源');
+            enable.type = 'button';
+            enable.addEventListener('click', () => void enableProvider(provider.id));
+            actions.append(enable);
+          }
+          card.append(actions);
+          const loginPanel = text('div', '', 'hidden');
+          loginPanel.id = 'login-' + provider.id;
+          card.append(loginPanel);
+          holder.append(card);
+        }
+      } catch (error) { notice(error.message, true); }
+    }
+
+    async function enableProvider(id) {
+      try {
+        const result = await api('providers/' + encodeURIComponent(id) + '/config', { method: 'PATCH', body: JSON.stringify({ enabled: true }) });
+        notice(result.restartRequired ? '配置已保存。重启服务后生效。' : '配置已保存。');
+        await refreshProviders();
+      } catch (error) { notice(error.message, true); }
+    }
+
+    async function beginLogin(id) {
+      try {
+        if (activeLogin && activeLogin.id !== id) await cancelLogin(activeLogin.id, activeLogin.sessionId);
+        const session = await api('providers/' + encodeURIComponent(id) + '/login', { method: 'POST' });
+        activeLogin = { id, sessionId: session.id };
+        renderLogin(id, session);
+        schedulePoll();
+      } catch (error) { notice(error.message, true); }
+    }
+
+    function renderLogin(id, session) {
+      const panel = $('login-' + id);
+      if (!panel) return;
+      panel.classList.remove('hidden');
+      panel.replaceChildren(text('p', session.state === 'waiting-confirm' ? '请在手机上确认登录' : session.state === 'waiting-scan' || session.state === 'created' ? '等待扫码' : session.message || session.state, 'small'));
+      if (session.qrImage) {
+        const image = document.createElement('img');
+        image.className = 'qr';
+        image.alt = '音乐源登录二维码';
+        const value = String(session.qrImage);
+        image.src = /^data:image\/(png|jpeg|webp);base64,/i.test(value) ? value : 'data:image/png;base64,' + value;
+        panel.append(image);
+      }
+      if (session.qrUrl) {
+        const url = text('p', session.qrUrl, 'small url');
+        panel.append(url);
+        const copy = text('button', '复制登录地址');
+        copy.type = 'button';
+        copy.addEventListener('click', () => void navigator.clipboard.writeText(session.qrUrl).then(() => notice('登录地址已复制')).catch(() => notice('复制失败，请手动选择地址', true)));
+        panel.append(copy);
+      }
+      if (session.expiresAt) panel.append(text('p', '到期时间：' + new Date(session.expiresAt).toLocaleTimeString(), 'small'));
+      if (['authorized', 'expired', 'failed', 'cancelled'].includes(session.state)) {
+        activeLogin = null;
+        clearTimeout(pollTimer);
+        if (session.state === 'authorized') void refreshProviders();
+        if (session.state === 'expired') panel.append(text('p', '二维码已过期，请重新点击扫码登录。', 'warn'));
+      } else {
+        const cancel = text('button', '取消本次登录');
+        cancel.type = 'button';
+        cancel.addEventListener('click', () => void cancelLogin(id, session.id));
+        panel.append(cancel);
+      }
+    }
+
+    function schedulePoll() {
+      clearTimeout(pollTimer);
+      if (!activeLogin) return;
+      pollTimer = setTimeout(async () => {
+        const current = activeLogin;
+        if (!current) return;
+        try {
+          const session = await api('providers/' + encodeURIComponent(current.id) + '/login/' + encodeURIComponent(current.sessionId));
+          if (activeLogin?.sessionId !== current.sessionId) return;
+          renderLogin(current.id, session);
+          if (activeLogin) schedulePoll();
+        } catch (error) {
+          notice('查询登录状态失败：' + error.message + '。正在重试。', true);
+          if (activeLogin) schedulePoll();
+        }
+      }, 2500);
+    }
+
+    async function cancelLogin(id, sessionId) {
+      try {
+        const session = await api('providers/' + encodeURIComponent(id) + '/login/' + encodeURIComponent(sessionId), { method: 'DELETE' });
+        activeLogin = null;
+        clearTimeout(pollTimer);
+        renderLogin(id, session);
+      } catch (error) { notice(error.message, true); }
+    }
+
+    $('pair-form').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const button = $('pair-form').querySelector('button');
+      button.disabled = true;
+      $('pair-error').textContent = '';
+      try {
+        const session = await api('session/pair', { method: 'POST', body: JSON.stringify({ code: $('pair-code').value.trim().toUpperCase() }) });
+        csrf = session.csrf;
+        $('pair-code').value = '';
+        showAuthenticated(true);
+      } catch (error) { $('pair-error').textContent = error.message; }
+      finally { button.disabled = false; }
+    });
+
+    document.querySelectorAll('[data-step]').forEach((button) => button.addEventListener('click', () => showStep(Number(button.dataset.step))));
+    $('to-provider').addEventListener('click', () => showStep(2));
+    $('to-client').addEventListener('click', () => showStep(3));
+    $('refresh-check').addEventListener('click', () => void refreshCheck());
+    $('refresh-providers').addEventListener('click', () => void refreshProviders());
+    $('logout').addEventListener('click', async () => { try { await api('session/logout', { method: 'POST' }); } finally { csrf = ''; showAuthenticated(false); } });
+    $('copy-url').addEventListener('click', async () => {
+      const value = $('public-url').value.trim();
+      try {
+        const url = new URL(value);
+        if (!['http:', 'https:'].includes(url.protocol) || !url.hostname) throw new Error('请输入完整的 http:// 或 https:// 地址');
+        await navigator.clipboard.writeText(url.toString());
+        $('url-state').textContent = '服务地址已复制。请用外部客户端验证连接和播放。';
+      } catch (error) { $('url-state').textContent = error.message; $('url-state').className = 'error small'; }
+    });
+
+    api('session').then((session) => { csrf = session.csrf; showAuthenticated(true); }).catch(() => showAuthenticated(false));
+  </script>
+</body>
+</html>
