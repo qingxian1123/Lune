@@ -50,7 +50,11 @@ export function saveServerUrl(input: string): string {
 }
 
 export function getWebSocketUrl(): string {
-  const base = new URL(getServerBaseUrl());
+  return webSocketUrlFor(getServerBaseUrl());
+}
+
+function webSocketUrlFor(url: string): string {
+  const base = new URL(url);
   base.protocol = base.protocol === 'https:' ? 'wss:' : 'ws:';
   base.pathname = `${base.pathname.replace(/\/+$/, '')}/ws`;
   base.search = '';
@@ -66,22 +70,64 @@ export async function testServerConnection(input: string): Promise<{
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), 8_000);
   try {
-    const response = await fetch(`${url}/api/health/ready`, {
-      headers: { Accept: 'application/json' },
-      signal: controller.signal,
+    const live = await fetch(`${url}/api/health/live`, {
+      headers: { Accept: 'application/json' }, signal: controller.signal,
     });
-    if (!response.ok) throw new Error(`服务器健康检查返回 HTTP ${response.status}`);
-    const health = await response.json() as ServerHealth;
-    if (!health.ok) throw new Error('服务器尚未就绪');
+    const liveHealth = await live.json().catch(() => null) as ServerHealth | null;
+    if (!live.ok || liveHealth?.ok !== true) {
+      throw new Error('此地址未返回 Lune 服务。请核对服务器地址，或联系服务管理员。');
+    }
+
+    const response = await fetch(`${url}/api/health/ready`, {
+      headers: { Accept: 'application/json' }, signal: controller.signal,
+    });
+    const health = await response.json().catch(() => null) as ServerHealth | null;
+    if (response.status === 503 && health?.ok === false && Array.isArray(health.providers)) {
+      throw new Error('服务已启动，但音乐源暂不可用。请联系服务管理员检查音乐源。');
+    }
+    if (!response.ok || health?.ok !== true) {
+      throw new Error('服务暂时无法使用。请稍后重试，或联系服务管理员。');
+    }
+    await testWebSocket(webSocketUrlFor(url));
     return { url, health };
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') {
-      throw new Error('连接服务器超时，请检查地址和网络');
+      throw new Error('连接超时。请核对服务器地址、网络和服务状态。');
+    }
+    if (error instanceof TypeError || error instanceof SyntaxError) {
+      throw new Error('无法连接此地址。请核对服务器地址、网络，以及服务是否已启动。');
     }
     throw error;
   } finally {
     window.clearTimeout(timer);
   }
+}
+
+function testWebSocket(url: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    let socket: WebSocket;
+    try {
+      socket = new WebSocket(url);
+    } catch {
+      reject(new Error('服务可访问，但实时连接失败。请联系服务管理员检查 WebSocket 转发。'));
+      return;
+    }
+
+    let settled = false;
+    const finish = (connected: boolean) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timer);
+      socket.onopen = socket.onerror = socket.onclose = null;
+      try { socket.close(); } catch { /* The connection has already closed. */ }
+      if (connected) resolve();
+      else reject(new Error('服务可访问，但实时连接失败。请联系服务管理员检查 WebSocket 转发。'));
+    };
+    const timer = window.setTimeout(() => finish(false), 5_000);
+    socket.onopen = () => finish(true);
+    socket.onerror = () => finish(false);
+    socket.onclose = () => finish(false);
+  });
 }
 
 function readStoredUrl(): string {

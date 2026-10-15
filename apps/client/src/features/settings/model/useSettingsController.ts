@@ -4,8 +4,7 @@ import { useServerConfig } from '../../../hooks/useServerConfig';
 import type { SettingsController } from './types';
 
 function getServerError(cause: unknown): string {
-  if (cause instanceof Error && cause.message.includes('地址')) return cause.message;
-  return '无法连接服务器，请检查地址';
+  return cause instanceof Error ? cause.message : '无法连接服务器。请检查地址和网络。';
 }
 
 export function useSettingsController(): SettingsController {

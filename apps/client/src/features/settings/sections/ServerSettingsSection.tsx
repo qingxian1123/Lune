@@ -34,7 +34,7 @@ export default function ServerSettingsSection() {
       )}
 
       <button type="submit" className="settings-save" disabled={controller.serverState === 'testing'}>
-        {controller.serverState === 'testing' ? '正在保存' : '保存'}
+        {controller.serverState === 'testing' ? '正在检查连接' : '保存并检查连接'}
       </button>
     </form>
   );
