@@ -72,10 +72,9 @@ export default function SettingsShell({
 
         <div className={`settings-layout ${showNavigation ? '' : 'has-single-section'}`}>
           {showNavigation && (
-            <nav className="settings-nav" aria-label="设置分类">
+            <nav className="settings-nav" aria-label="设置项目">
               {visibleCategories.map((category) => (
                 <div className="settings-nav-group" key={category.id}>
-                  <span className="settings-nav-label">{category.label}</span>
                   {category.sections.map((section) => (
                     <button
                       key={section.id}

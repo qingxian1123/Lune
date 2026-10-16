@@ -11,7 +11,6 @@
 .shortcut-save-row span { color: rgb(var(--lune-muted)); font-size: 13px; }
 .shortcut-settings button:focus-visible { outline: 2px solid rgb(var(--lune-brand)); outline-offset: 3px; }
 .shortcut-settings .settings-error { color: #d9a3a8; }
-.settings-layer.has-sections:not(.is-mobile) .settings-surface { width: min(540px, 100%); }
 @media (max-width: 540px) {
   .settings-layer.has-sections .settings-layout { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
   .settings-layer.has-sections .settings-nav { display: flex; gap: 8px; padding: 8px 16px; border-right: 0; border-bottom: 1px solid rgb(var(--lune-border) / 0.1); }

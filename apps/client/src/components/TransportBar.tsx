@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react';
 import type { Track } from '@lune/shared';
 import HeartButton from './HeartButton';
+import FavoriteButton from '../features/library/FavoriteButton';
 import { useVolumeStore } from '../hooks/useVolumeStore';
 import { formatTime } from '../lib/format';
 import VolumeIcon from './VolumeIcon';
@@ -93,6 +94,7 @@ export default function TransportBar({
       </div>
 
       <div className="transport-actions">
+        <FavoriteButton track={track} />
         <HeartButton track={track} onSendHeart={onSendHeart} sessionScope={getServerBaseUrl()} className="transport-heart" />
 
         <div className="transport-volume" style={volumeStyle}>

@@ -140,10 +140,6 @@
   display: contents;
 }
 
-.settings-layer.is-mobile .settings-nav-label {
-  display: none;
-}
-
 .settings-layer.is-mobile .settings-nav button {
   flex: none;
   width: auto;
@@ -155,7 +151,7 @@
 .settings-layer.is-mobile .settings-content {
   min-width: 0;
   height: 100%;
-  padding: 34px 20px calc(24px + env(safe-area-inset-bottom));
+  padding: 28px 20px calc(24px + env(safe-area-inset-bottom));
   overflow-x: hidden;
 }
 

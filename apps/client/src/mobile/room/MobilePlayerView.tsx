@@ -1,5 +1,6 @@
 import type { Track } from '@lune/shared';
 import HeartButton from '../../components/HeartButton';
+import FavoriteButton from '../../features/library/FavoriteButton';
 import VolumeIcon from '../../components/VolumeIcon';
 import MobileTimeline from './MobileTimeline';
 import type { MobileRoomSheet, MobileRoomSheetState } from './types';
@@ -68,9 +69,10 @@ export default function MobilePlayerView({
               </button>
             </div>
 
-            <div className="m-track-id">
+            <div className="m-track-id m-track-id-with-save">
               <h2>{track.name}</h2>
               <p>{track.artists}</p>
+              <div className="m-track-save"><FavoriteButton track={track} /></div>
             </div>
 
             <button type="button" className="m-lyric-peek" onClick={onShowLyrics}>

@@ -6,6 +6,8 @@ import './hearts.css';
 import { getServerBaseUrl } from '../lib/serverConfig';
 import { formatTime } from '../lib/format';
 import { getUiErrorMessage } from '../lib/uiError';
+import ListeningLibrary from '../features/library/ListeningLibrary';
+import FavoriteButton from '../features/library/FavoriteButton';
 
 interface SearchPanelProps {
   onPick: (track: Track) => void;
@@ -18,7 +20,7 @@ interface SearchPanelProps {
   providerPicker?: 'select' | 'pills';
 }
 
-type Tab = 'songs' | 'playlists' | 'hot';
+type Tab = 'songs' | 'playlists' | 'hot' | 'library';
 type PlaylistView = 'list' | 'detail';
 
 const subscribeServer = (listener: () => void) => {
@@ -160,7 +162,7 @@ export default function SearchPanel({ onPick, onAddMany, providerPicker = 'selec
     <section className="terminal-pane terminal-search">
       <div className="pane-heading">
         <div><strong>选歌</strong></div>
-        {providerPicker === 'select' && (
+        {providerPicker === 'select' && tab !== 'library' && (
           <label className="flex items-center gap-2 text-xs text-[rgb(var(--lune-muted)/0.58)]">
             <span>音乐源</span>
             <select
@@ -178,7 +180,7 @@ export default function SearchPanel({ onPick, onAddMany, providerPicker = 'selec
         )}
       </div>
 
-      {providerPicker === 'pills' && providers.length > 0 && (
+      {providerPicker === 'pills' && providers.length > 0 && tab !== 'library' && (
         <div className="provider-pills" role="radiogroup" aria-label="选择音乐源">
           {['all', ...providers].map((item) => (
             <button
@@ -195,7 +197,7 @@ export default function SearchPanel({ onPick, onAddMany, providerPicker = 'selec
         </div>
       )}
 
-      <div className="search-mode-tabs" aria-label="选歌方式">
+      <div className="search-mode-tabs search-mode-tabs-library" aria-label="选歌方式">
         <button
           type="button"
           aria-pressed={tab === 'songs'}
@@ -213,6 +215,11 @@ export default function SearchPanel({ onPick, onAddMany, providerPicker = 'selec
           歌单
         </button>
         <button type="button" aria-pressed={tab === 'hot'} onClick={() => setTab('hot')} className={tab === 'hot' ? 'is-active' : ''}>热榜</button>
+        <button type="button" aria-pressed={tab === 'library'} onClick={() => setTab('library')} className={tab === 'library' ? 'is-active' : ''} title="共听记录与收藏">我的</button>
+      </div>
+
+      <div className="library-panel-scroll lune-scrollbar" hidden={tab !== 'library'}>
+        <ListeningLibrary key={serverUrl} server={serverUrl} onAdd={(track) => onAddMany([track])} onSearch={() => setTab('songs')} />
       </div>
 
       <div hidden={tab !== 'hot'}><HotChartPanel provider={provider} serverUrl={serverUrl} active={active && tab === 'hot'} onPick={(track) => onAddMany([track])} /></div>
@@ -253,6 +260,7 @@ export default function SearchPanel({ onPick, onAddMany, providerPicker = 'selec
                   <div className="truncate text-sm font-medium text-[rgb(var(--lune-text)/0.9)]">{track.name}</div>
                   <div className="truncate text-xs text-[rgb(var(--lune-muted)/0.46)]">{track.artists}</div>
                 </div>
+                <FavoriteButton track={track} server={serverUrl} />
                 <span className="tabular-nums text-xs text-[rgb(var(--lune-muted)/0.52)]">{formatTime(track.duration)}</span>
                 <span className="rounded-md bg-[rgb(var(--lune-accent)/0.12)] px-2 py-1 text-xs text-[rgb(var(--lune-accent))] opacity-0 transition group-hover:opacity-100">
                   加入
@@ -357,6 +365,7 @@ export default function SearchPanel({ onPick, onAddMany, providerPicker = 'selec
                     <div className="truncate text-sm font-medium text-[rgb(var(--lune-text)/0.9)]">{track.name}</div>
                     <div className="truncate text-xs text-[rgb(var(--lune-muted)/0.46)]">{track.artists}</div>
                   </div>
+                  <FavoriteButton track={track} server={serverUrl} />
                   <span className="tabular-nums text-xs text-[rgb(var(--lune-muted)/0.52)]">{formatTime(track.duration)}</span>
                   <span className="rounded-md bg-[rgb(var(--lune-accent)/0.12)] px-2 py-1 text-xs text-[rgb(var(--lune-accent))] opacity-0 transition group-hover:opacity-100">
                     加入

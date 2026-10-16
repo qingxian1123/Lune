@@ -11,6 +11,7 @@ import { getServerBaseUrl, getWebSocketUrl } from '../../lib/serverConfig';
 import { clearRoomSession, readRoomSession, saveRoomSession } from '../../lib/roomSession';
 import { getUiErrorMessage } from '../../lib/uiError';
 import { createAdvancePlaybackMessage, getTrackKey } from '../../lib/playbackCommand';
+import { useListeningLibrary } from '../library/useListeningLibrary';
 
 interface RoomRouteState {
   token?: string;
@@ -102,12 +103,16 @@ export function useRoomController(options: RoomControllerOptions = {}) {
 
   useEffect(() => ws.subscribe((message) => {
     if (message.type === 'joined' && !leavingRef.current) {
+      useListeningLibrary.getState().observe(serverUrl, message.payload.snapshot.code, message.payload.snapshot.playback, true);
       tokenRef.current = message.payload.token || tokenRef.current;
       saveRoomSession({ roomCode: message.payload.snapshot.code, token: tokenRef.current,
         memberId: message.payload.memberId }, serverUrl);
       setHasConnected(true);
       setJoinFailure(null);
       setActionError(null);
+    } else if (message.type === 'room_state_changed' && !leavingRef.current && code) {
+      useListeningLibrary.getState().observe(serverUrl, code, message.payload.playback,
+        message.payload.cause !== 'play' && message.payload.cause !== 'advance');
     } else if (message.type === 'left' && leavingRef.current) {
       finishLeave();
     } else if (message.type === 'error') {
@@ -122,7 +127,7 @@ export function useRoomController(options: RoomControllerOptions = {}) {
         engine.stop();
       }
     }
-  }), [engine, finishLeave, serverUrl, setConnected, ws.subscribe]);
+  }), [code, engine, finishLeave, serverUrl, setConnected, ws.subscribe]);
 
   useEffect(() => {
     setConnected(false);
