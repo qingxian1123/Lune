@@ -1,5 +1,6 @@
 import { Routes, Route } from 'react-router-dom';
 import { ClientRuntimeProvider, useClientRuntime } from './app/ClientRuntimeProvider';
+import { ThemeProvider } from './app/ThemeProvider';
 import Home from './pages/Home';
 import Room from './pages/Room';
 import MobileHome from './mobile/MobileHome';
@@ -27,7 +28,7 @@ function AppRoutes() {
 export default function App() {
   return (
     <ClientRuntimeProvider>
-      <AppRoutes />
+      <ThemeProvider><AppRoutes /></ThemeProvider>
     </ClientRuntimeProvider>
   );
 }

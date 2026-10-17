@@ -6,6 +6,7 @@ import DesktopRoomHeader from '../desktop/room/DesktopRoomHeader';
 import DesktopRoomSidebar from '../desktop/room/DesktopRoomSidebar';
 import type { DesktopRoomTab } from '../desktop/room/types';
 import NowPlaying from '../components/NowPlaying';
+import AlbumSilhouette from '../components/AlbumSilhouette';
 import TransportBar from '../components/TransportBar';
 import { useClientRuntime } from '../app/ClientRuntimeProvider';
 import { formatShortcut, matchesShortcut, useDesktopPreferences } from '../features/settings/model/desktopPreferences';
@@ -16,10 +17,10 @@ import { useStageTransition } from '../desktop/room/useStageTransition';
 import PlaybackNotice from '../components/PlaybackNotice';
 import { useVolumeStore } from '../hooks/useVolumeStore';
 
-type LuneThemeStyle = CSSProperties & {
-  '--lune-accent': string;
-  '--lune-accent-soft': string;
-  '--lune-bg-accent': string;
+type AlbumPaletteStyle = CSSProperties & {
+  '--album-accent': string;
+  '--album-accent-soft': string;
+  '--album-bg-accent': string;
 };
 
 export default function Room() {
@@ -96,10 +97,10 @@ export default function Room() {
     leaveToHome,
   } = useRoomController();
   const { accent, accentSoft, bgAccent } = useAccentColor(track?.coverUrl, track?.id);
-  const themeStyle: LuneThemeStyle = {
-    '--lune-accent': accent,
-    '--lune-accent-soft': accentSoft,
-    '--lune-bg-accent': bgAccent,
+  const albumStyle: AlbumPaletteStyle = {
+    '--album-accent': accent,
+    '--album-accent-soft': accentSoft,
+    '--album-bg-accent': bgAccent,
   };
 
   if (!code) return null;
@@ -110,7 +111,8 @@ export default function Room() {
   };
 
   return (
-    <div className={`room-shell room-recovery room-floating-library${isWindows ? ' room-frameless' : ''}`} style={themeStyle}>
+    <div className={`room-shell room-recovery room-floating-library${isWindows ? ' room-frameless' : ''}`} style={albumStyle}>
+      <AlbumSilhouette coverUrl={track?.coverUrl} />
       {!isWindows && <DesktopRoomHeader
         roomCode={displayRoomCode}
         copied={copied}
@@ -193,7 +195,7 @@ export default function Room() {
         onSeek={onSeek}
         onNext={onNext}
       />
-      <SettingsPanel controller={settings} sectionIds={['shortcuts']} />
+      <SettingsPanel controller={settings} sectionIds={['shortcuts', 'appearance']} />
     </div>
   );
 }

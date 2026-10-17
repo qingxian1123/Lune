@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Track } from '@lune/shared';
 import PlaybackNotice from '../components/PlaybackNotice';
+import AlbumSilhouette from '../components/AlbumSilhouette';
 import { useRoomController } from '../features/room/useRoomController';
 import { useVolumeStore } from '../hooks/useVolumeStore';
 import { onAudioInterrupt } from '../lib/mediaSession';
@@ -146,6 +147,7 @@ export default function MobileRoom() {
   return (
     <div className="m-room-shell">
       <div className="m-room-glow" aria-hidden="true" />
+      <AlbumSilhouette coverUrl={track?.coverUrl} />
 
       {!connected && !needsRejoin && connectionPhase !== 'closed' && (
         <div className="connection-notice" role="status">

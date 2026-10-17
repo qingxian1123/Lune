@@ -5,6 +5,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import App from './App';
 import '@fontsource-variable/space-grotesk';
 import './index.css';
+import './app/daylight.css';
+import './app/frosted.css';
 
 const queryClient = new QueryClient();
 

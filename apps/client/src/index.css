@@ -798,6 +798,10 @@
 
 /* Room */
 .room-shell {
+  /* Themes decide how the album palette maps to interface colors. */
+  --lune-accent: var(--album-accent, var(--lune-brand));
+  --lune-accent-soft: var(--album-accent-soft, 118 112 139);
+  --lune-bg-accent: var(--album-bg-accent, var(--lune-bg));
   display: grid;
   grid-template-rows: 52px minmax(0, 1fr) 78px;
   width: 100%;
