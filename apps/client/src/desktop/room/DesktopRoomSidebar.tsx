@@ -105,8 +105,10 @@ export default function DesktopRoomSidebar({
           </button>
         </div>
         <button type="button" className="close-sidebar" onClick={onOpenSettings}
-          aria-label="打开快捷键设置" title="快捷键设置">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="3" /><path d="M7 10h.01M12 10h.01M17 10h.01M7 14h10" /></svg>
+          aria-label="打开设置" title="设置">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 7h10M18 7h2M4 17h2M10 17h10M14 4v6M7 14v6" />
+          </svg>
         </button>
         <button type="button" className="close-sidebar" onClick={onClose} aria-label="收起音乐库"
           title={`收起音乐库${shortcut ? ` · ${formatShortcut(shortcut)}` : ''}`}>
