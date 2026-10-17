@@ -191,7 +191,6 @@ export default function Room() {
         duration={timeline.duration}
         isBuffering={playerState.isBuffering}
         isOwner={true}
-        membersCount={members.length}
         onSeek={onSeek}
         onNext={onNext}
       />

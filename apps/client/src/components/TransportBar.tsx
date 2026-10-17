@@ -17,7 +17,6 @@ interface TransportBarProps {
   recoveryState: RecoveryState;
   connected: boolean;
   isOwner: boolean;
-  membersCount: number;
   onSeek: (ms: number) => void;
   onNext: () => void;
   onSendHeart: (track: Track) => Promise<void>;
@@ -31,7 +30,6 @@ export default function TransportBar({
   recoveryState,
   connected,
   isOwner,
-  membersCount,
   onSeek,
   onNext,
   onSendHeart,
@@ -79,14 +77,6 @@ export default function TransportBar({
         </div>
       </div>
 
-      <div className="transport-sync">
-        <span className={`sync-state-dot ${connected ? 'is-active' : ''}`} />
-        <div>
-          <strong>{connected ? '已连接房间' : '房间连接中断'}</strong>
-          <small>{membersCount} 人正在听</small>
-        </div>
-      </div>
-
       <div className="transport-time" aria-label="播放时间">
         <strong>{formatTime(currentTime)}</strong>
         <span>/</span>
@@ -94,6 +84,15 @@ export default function TransportBar({
       </div>
 
       <div className="transport-actions">
+        <span className="transport-link" data-connected={connected} role="img" tabIndex={0}
+          aria-label={connected ? '房间连接正常' : '房间连接已断开'}>
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path className="transport-link-left" d="M10 4.25a8 8 0 0 0 0 15.5" />
+            <path className="transport-link-right" d="M14 4.25a8 8 0 0 1 0 15.5" />
+            <circle className="transport-link-center" cx="12" cy="12" r="2" />
+            <path className="transport-link-break" d="m8.5 15.5 7-7" />
+          </svg>
+        </span>
         <FavoriteButton track={track} />
         <HeartButton track={track} onSendHeart={onSendHeart} sessionScope={getServerBaseUrl()} className="transport-heart" />
 
