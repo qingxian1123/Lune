@@ -34,7 +34,7 @@ export default function ShortcutSettingsSection() {
       event.preventDefault();
       const message = saveBinding('toggleLibrary', draft);
       setError(message ?? '');
-      setStatus(message ? '' : '已保存，立即生效');
+      setStatus(message ? '' : '已保存');
     }}>
       <h2>快捷键</h2>
       <div className="shortcut-field">

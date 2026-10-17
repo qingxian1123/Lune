@@ -1,10 +1,3 @@
-.appearance-intro {
-  margin: -4px 0 24px;
-  color: rgb(var(--lune-muted));
-  font-size: var(--type-control);
-  line-height: 1.6;
-}
-
 .appearance-options { display: grid; gap: 12px; }
 .appearance-option {
   display: grid;
@@ -23,9 +16,8 @@
 }
 .appearance-option:hover { border-color: rgb(var(--lune-brand) / 0.55); }
 .appearance-option.is-selected { border-color: rgb(var(--lune-brand)); }
-.appearance-option-copy { display: grid; gap: 5px; min-width: 0; }
+.appearance-option-copy { min-width: 0; }
 .appearance-option-copy strong { font-size: var(--type-body); font-weight: 650; }
-.appearance-option-copy small { color: rgb(var(--lune-muted)); font-size: var(--type-label); }
 .appearance-radio { width: 18px; height: 18px; border: 1.5px solid rgb(var(--lune-muted)); border-radius: 50%; }
 .appearance-option.is-selected .appearance-radio { border: 5px solid rgb(var(--lune-brand)); }
 .appearance-preview {
