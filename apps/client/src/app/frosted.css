@@ -130,6 +130,22 @@
   border-bottom-color: rgb(255 255 255 / .08);
 }
 
+/* Extend the room's single artwork canvas beneath the native window controls.
+   Move the titlebar reservation inside the room so its content keeps the same height. */
+:root[data-theme='frosted'] .windows-shell:has(.room-frameless) {
+  padding-top: 0;
+}
+:root[data-theme='frosted'] .windows-shell .room-frameless {
+  box-sizing: border-box;
+  height: 100dvh;
+  min-height: 100dvh;
+  padding-top: var(--window-titlebar-height);
+}
+:root[data-theme='frosted'] .windows-shell:has(.room-frameless) > .window-titlebar {
+  background: transparent;
+  border-bottom-color: rgb(255 255 255 / .04);
+}
+
 /* Transparent inner controls avoid opaque colored tiles inside the glass. */
 :root[data-theme='frosted'] :is(
   .side-tabs, .search-mode-tabs, .access-tabs, .terminal-field input,
