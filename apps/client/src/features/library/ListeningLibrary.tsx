@@ -83,8 +83,7 @@ export default function ListeningLibrary({ server, onAdd, onSearch }: {
             ? <img src={entry.track.coverUrl} alt="" loading="lazy" onError={(event) => { event.currentTarget.style.visibility = 'hidden'; }} />
             : <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 17V5l11-2v12M9 8l11-2" /><circle cx="6" cy="17" r="3" /><circle cx="17" cy="15" r="3" /></svg>}</div>
           <div className="library-track">
-            <strong title={entry.track.name}>{entry.track.name}</strong>
-            <span title={entry.track.artists}>{entry.track.artists || '未知歌手'}</span>
+            <strong title={[entry.track.name, entry.track.artists].filter(Boolean).join(' · ')}>{entry.track.name}</strong>
           </div>
           <div className="library-row-actions">
             <FavoriteButton track={entry.track} server={server} />
