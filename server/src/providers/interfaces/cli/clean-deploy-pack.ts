@@ -13,6 +13,7 @@ async function main(): Promise<void> {
 
   const allowlist = [
     'dist/',
+    'admin-public/',
     'config/providers.json',
     'systemd/',
     'bin/lune-provider',
@@ -31,6 +32,7 @@ async function main(): Promise<void> {
   const stage = resolve(workspaceRoot, `.server-release-clean-next-${process.pid}-${Date.now()}`);
   await mkdir(stage, { recursive: true });
   await copyDirectory(sourceDist, resolve(stage, 'dist'));
+  await copyDirectory(resolve(serverRoot, 'admin-public'), resolve(stage, 'admin-public'));
   await copyFile(resolve(serverRoot, 'config', 'providers.json'), resolve(stage, 'config', 'providers.json'));
   await copyDirectory(resolve(deploySource, 'systemd'), resolve(stage, 'systemd'));
   await copyFile(resolve(deploySource, 'bin', 'lune-provider'), resolve(stage, 'bin', 'lune-provider'));

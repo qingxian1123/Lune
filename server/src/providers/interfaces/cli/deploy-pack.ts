@@ -10,8 +10,11 @@ async function main(): Promise<void> {
   const sourceDist = resolve(serverRoot, 'dist');
   const targetDist = resolve(deployRoot, 'dist');
   await stat(resolve(sourceDist, 'main.js'));
+  const sourceAdminPublic = resolve(serverRoot, 'admin-public');
+  const targetAdminPublic = resolve(deployRoot, 'admin-public');
+  await stat(resolve(sourceAdminPublic, 'index.html'));
   if (dryRun) {
-    console.log(JSON.stringify({ ok: true, dryRun: true, sourceDist, targetDist }, null, 2));
+    console.log(JSON.stringify({ ok: true, dryRun: true, sourceDist, targetDist, sourceAdminPublic, targetAdminPublic }, null, 2));
     return;
   }
   await mkdir(deployRoot, { recursive: true });
@@ -23,6 +26,14 @@ async function main(): Promise<void> {
     await rename(targetDist, backup);
   }
   await rename(nextDist, targetDist);
+
+  const nextAdminPublic = resolve(deployRoot, `.admin-public-next-${process.pid}-${Date.now()}`);
+  await cp(sourceAdminPublic, nextAdminPublic, { recursive: true, force: true });
+  if (await exists(targetAdminPublic)) {
+    const backup = resolve(deployRoot, `admin-public.backup-${new Date().toISOString().replace(/[:.]/g, '-')}`);
+    await rename(targetAdminPublic, backup);
+  }
+  await rename(nextAdminPublic, targetAdminPublic);
 
   const release = {
     schemaVersion: 1,

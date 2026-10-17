@@ -11,7 +11,7 @@ pnpm install
 npm run deploy:server:clean
 ```
 
-命令先构建服务端，再生成 `server-release-clean/`。目录包含编译产物、生产依赖清单、Provider 默认配置、CLI、systemd、Nginx 和 PM2 模板。
+命令先构建服务端，再生成 `server-release-clean/`。目录包含编译产物、管理页面、生产依赖清单、Provider 默认配置、CLI、systemd、Nginx 和 PM2 模板。
 
 ## 服务器准备
 
@@ -54,6 +54,8 @@ sudo -u lune npm run provider -- init
 ```dotenv
 PORT=9527
 HOST=127.0.0.1
+LUNE_MANAGE_PORT=9528
+LUNE_MANAGE_HOST=127.0.0.1
 NODE_OPTIONS=--dns-result-order=ipv4first
 LUNE_CONFIG_FILE=/etc/lune/providers.json
 LUNE_DATA_DIR=/var/lib/lune
@@ -125,7 +127,7 @@ curl --fail http://127.0.0.1:9527/api/health/ready
 
 ## Nginx 与 HTTPS
 
-`server-deploy/nginx/lune.conf` 已包含 WebSocket 转发和管理路由的本机访问限制。安装后检查并重载：
+`server-deploy/nginx/lune.conf` 转发应用与 WebSocket，并对 `/api/admin/` 返回 404。管理页面只监听 `127.0.0.1:9528`；可在服务器本机打开 `http://127.0.0.1:9528/api/admin/ui`，远程使用 SSH 隧道或 Provider CLI。安装代理后检查并重载：
 
 ```bash
 sudo install -o root -g root -m 0644 /opt/lune/current/nginx/lune.conf /etc/nginx/sites-available/lune

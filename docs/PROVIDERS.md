@@ -82,7 +82,7 @@ Provider 状态可能为：
 
 ## 管理 API
 
-管理路由位于 `/api/admin/providers`，请求头必须包含：
+管理路由只在本机管理端口 `http://127.0.0.1:9528/api/admin/` 提供。CLI 或直接调用管理 API 可使用以下请求头：
 
 ```http
 Authorization: Bearer <LUNE_ADMIN_TOKEN>
@@ -99,4 +99,4 @@ Authorization: Bearer <LUNE_ADMIN_TOKEN>
 | `POST /api/admin/providers/:id/logout` | 退出并删除凭据 |
 | `PATCH /api/admin/providers/:id/config` | 设置 `{ "enabled": boolean }`；重启后生效 |
 
-生产环境不要把管理接口直接暴露到公网。仓库的 Nginx 模板仅允许本机访问该路径。
+生产环境不要把管理端口直接暴露到公网。仓库的 Nginx 模板不转发 `/api/admin/`，远程管理使用 SSH 隧道或 Provider CLI。

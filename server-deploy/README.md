@@ -8,9 +8,10 @@ Linux Docker Compose 单实例部署见 [README.compose.md](README.compose.md)�
 
 ```text
 server-deploy/
+├─ admin-public/              本机管理页面
 ├─ config/providers.json       Provider 非敏感配置模板
 ├─ systemd/                    systemd unit 与环境变量模板
-├─ nginx/lune.conf             HTTP、WebSocket 和管理路由代理模板
+├─ nginx/lune.conf             HTTP 与 WebSocket 代理模板
 ├─ bin/lune-provider           生产环境 CLI 包装器
 ├─ ecosystem.config.cjs        PM2 单实例配置
 ├─ .env.example                生产环境变量模板
@@ -18,7 +19,7 @@ server-deploy/
 └─ README.md
 ```
 
-执行普通打包后还会生成 `dist/` 和 `RELEASE.json`。运行时的 `.env`、`data/`、`logs/` 和 `dist.backup-*` 不应提交。
+执行普通打包后还会生成 `dist/`、`admin-public/` 和 `RELEASE.json`。运行时的 `.env`、`data/`、`logs/` 和 `dist.backup-*` 不应提交。
 
 ## 打包命令
 
