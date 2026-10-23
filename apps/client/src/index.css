@@ -70,7 +70,7 @@
   }
 
   button:focus-visible,
-  input:focus-visible {
+  input[type='range']:focus-visible {
     outline: 1px solid rgb(var(--lune-brand));
     outline-offset: 3px;
   }
@@ -376,10 +376,7 @@
 }
 
 .settings-field input:focus {
-  border-color: rgb(var(--lune-brand) / 0.72);
-  outline: 0;
   background: rgb(var(--lune-surface-2));
-  box-shadow: 0 0 0 3px rgb(var(--lune-brand) / 0.1);
 }
 
 .settings-field input::placeholder {
@@ -726,10 +723,7 @@
 
 .terminal-field input:focus,
 .lune-input:focus {
-  border-color: rgb(var(--lune-brand) / 0.72);
-  outline: 0;
   background: rgb(var(--lune-surface-2));
-  box-shadow: 0 0 0 3px rgb(var(--lune-brand) / 0.1);
 }
 
 .terminal-field input::placeholder,

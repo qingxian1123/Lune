@@ -33,6 +33,6 @@
 .playback-notice button:focus-visible, .connection-notice button:focus-visible { outline: 2px solid #c7c0de; outline-offset: 3px; }
 .playback-notice button:disabled, .connection-notice button:disabled { opacity: 0.55; cursor: wait; }
 .playback-notice small { flex-basis: 100%; color: #d6d4dc; }
-.playback-notice textarea { width: 100%; min-height: 80px; max-height: 160px; color: inherit; background: #0f0f10; }
+.playback-notice textarea { width: 100%; min-height: 80px; max-height: 160px; border: 1px solid rgb(var(--lune-border) / .14); border-radius: 8px; color: inherit; background: #0f0f10; }
 .m-room-shell .playback-notice, .m-room-shell .connection-notice { margin-inline: 12px; padding: 8px 12px; z-index: 2; }
 .m-room-shell .playback-notice button, .m-room-shell .connection-notice button { min-height: 48px; min-width: 48px; }

@@ -111,7 +111,7 @@
       { "name": "sheet-ambient", "value": "0 -24px 60px -20px rgb(0 0 0 / 0.7)", "purpose": "Android 底部面板跨越当前内容层时使用。" },
       { "name": "dialog-ambient", "value": "0 30px 70px -24px rgb(0 0 0 / 0.8)", "purpose": "必须中断流程的确认对话框。" },
       { "name": "action-moonlight", "value": "0 16px 34px -14px rgb(var(--lune-accent) / 0.5)", "purpose": "Android 主要“下一首”动作的月光余辉。" },
-      { "name": "focus-ring", "value": "0 0 0 3px rgb(var(--lune-brand) / 0.1)", "purpose": "输入和控件焦点，不表达悬浮。" }
+      { "name": "focus-ring", "value": "none", "purpose": "文本输入只改变原有边框颜色；禁止叠加 outline 与 box-shadow。按钮和滑块独立保留键盘焦点描边。" }
     ],
     "motion": [
       { "name": "state-standard", "value": "160ms ease", "purpose": "颜色、边框和背景状态切换。" },
@@ -150,7 +150,7 @@
       "refersTo": "input-default",
       "description": "服务器地址、昵称和房间码等夜间表单输入。",
       "html": "<label class=\"ds-field\"><span>你的昵称</span><input placeholder=\"输入你的昵称\" /></label>",
-      "css": ".ds-field { display:block; color:rgb(var(--lune-text)); font-family:\"Segoe UI Variable Text\",\"Segoe UI\",\"Noto Sans CJK SC\",\"Noto Sans SC\",\"Microsoft YaHei\",system-ui,sans-serif; } .ds-field span { display:block; margin-bottom:9px; font-size:11px; letter-spacing:.08em; color:rgb(var(--lune-muted)); } .ds-field input { width:100%; height:46px; padding:0 14px; border:1px solid rgb(var(--lune-border) / .14); border-radius:12px; font:400 14px/1.55 inherit; color:rgb(var(--lune-text)); background:rgb(var(--lune-surface)); transition:border-color 160ms ease,background 160ms ease,box-shadow 160ms ease; } .ds-field input::placeholder { color:rgb(var(--lune-muted) / .42); } .ds-field input:hover { border-color:rgb(var(--lune-border) / .24); } .ds-field input:focus { border-color:rgb(var(--lune-brand) / .72); outline:0; background:rgb(var(--lune-surface-2)); box-shadow:0 0 0 3px rgb(var(--lune-brand) / .1); }"
+      "css": ".ds-field { display:block; color:rgb(var(--lune-text)); font-family:\"Segoe UI Variable Text\",\"Segoe UI\",\"Noto Sans CJK SC\",\"Noto Sans SC\",\"Microsoft YaHei\",system-ui,sans-serif; } .ds-field span { display:block; margin-bottom:9px; font-size:11px; letter-spacing:.08em; color:rgb(var(--lune-muted)); } .ds-field input { width:100%; height:46px; padding:0 14px; border:1px solid rgb(var(--lune-border) / .14); border-radius:12px; font:400 14px/1.55 inherit; color:rgb(var(--lune-text)); background:rgb(var(--lune-surface)); transition:border-color 160ms ease,background 160ms ease; } .ds-field input::placeholder { color:rgb(var(--lune-muted) / .42); } .ds-field input:hover:not(:focus) { border-color:rgb(var(--lune-border) / .24); } .ds-field input:focus { border-color:rgb(var(--lune-brand)); outline:none; background:rgb(var(--lune-surface-2)); box-shadow:none; }"
     },
     {
       "name": "Access Card",

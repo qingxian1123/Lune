@@ -1,0 +1,40 @@
+/* Text fields own one focus boundary. Buttons and sliders keep their outlines.
+   Imported after themes; do not add field rings in page or workspace styles. */
+.invitation-field { --field-focus-color: var(--invite-brand); }
+.radio-field { --field-focus-color: var(--radio-accent); }
+
+:root .settings-field input[aria-invalid='true'] { border-color: #d9a3a8; }
+:root[data-theme='daylight'] .settings-field input[aria-invalid='true'] { border-color: #b82548; }
+
+:root :is(
+  .invitation-field input, .radio-field input, .settings-field input,
+  .terminal-field input, .lune-input, select.lune-control,
+  .library-search input, .playback-notice textarea
+):focus {
+  outline: none;
+  box-shadow: none;
+}
+
+:root :is(
+  .invitation-field input, .radio-field input, .settings-field input,
+  .terminal-field input, .lune-input, select.lune-control,
+  .playback-notice textarea
+):focus:not([aria-invalid='true']) {
+  border-color: var(--field-focus-color, rgb(var(--lune-brand)));
+}
+
+/* A composed search field draws its border on the wrapper, never its input. */
+:root[data-theme] .library-search:focus-within {
+  border-color: rgb(var(--lune-brand));
+}
+
+@media (forced-colors: active) {
+  :root :is(
+    .invitation-field input, .radio-field input, .settings-field input,
+    .terminal-field input, .lune-input, select.lune-control,
+    .playback-notice textarea
+  ):focus,
+  :root[data-theme] .library-search:focus-within {
+    border-color: Highlight;
+  }
+}

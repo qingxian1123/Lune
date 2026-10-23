@@ -28,11 +28,13 @@ export default function ServerSettingsSection() {
           autoCapitalize="none"
           autoCorrect="off"
           spellCheck={false}
+          aria-invalid={Boolean(controller.serverError)}
+          aria-describedby={controller.serverError ? 'settings-server-error' : undefined}
         />
       </label>
 
       {controller.serverError && (
-        <p className="settings-error" role="alert">{controller.serverError}</p>
+        <p id="settings-server-error" className="settings-error" role="alert">{controller.serverError}</p>
       )}
 
       {inRoom && <p className="settings-hint">切换服务器后会离开当前房间。</p>}

@@ -439,8 +439,7 @@
 }
 
 .radio-field input::placeholder { color: var(--radio-muted); opacity: 0.75; }
-.radio-field input:hover { border-color: rgb(218 208 230 / 0.35); }
-.radio-field input:focus { border-color: var(--radio-accent); background: var(--radio-surface); }
+.radio-field input:hover:not(:focus):not([aria-invalid='true']) { border-color: rgb(218 208 230 / 0.35); }
 .radio-field input[aria-invalid='true'] { border-color: #d9a3a8; }
 .radio-code-input { letter-spacing: 0.17em; font-variant-numeric: tabular-nums; text-transform: uppercase; }
 .radio-field-error { display: block; margin-top: 5px; color: #efb5bb; font-size: 11px; }
@@ -479,8 +478,7 @@
   letter-spacing: 0.08em;
 }
 
-.radio-home button:focus-visible,
-.radio-home input:focus-visible {
+.radio-home button:focus-visible {
   outline: 2px solid var(--radio-accent);
   outline-offset: 3px;
 }

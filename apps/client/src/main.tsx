@@ -7,6 +7,7 @@ import '@fontsource-variable/space-grotesk';
 import './index.css';
 import './app/daylight.css';
 import './app/frosted.css';
+import './app/form-focus.css';
 
 const queryClient = new QueryClient();
 

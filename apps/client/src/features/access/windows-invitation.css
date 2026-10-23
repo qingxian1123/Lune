@@ -8,7 +8,6 @@
   --invite-muted: rgb(var(--lune-muted));
   --invite-placeholder: rgb(var(--lune-muted) / 0.68);
   --invite-brand: #ccb8c9;
-  --invite-brand-ring: rgb(204 184 201 / 0.14);
   --invite-border: rgb(var(--lune-border) / 0.1);
   --invite-border-strong: rgb(var(--lune-border) / 0.18);
   --invite-perf: rgb(var(--lune-border) / 0.13);
@@ -265,7 +264,7 @@
   font-family: var(--font-body);
   font-size: 14px;
   caret-color: var(--invite-brand);
-  transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
+  transition: border-color 160ms ease, background 160ms ease;
 }
 
 .invitation-field input::placeholder {
@@ -274,14 +273,12 @@
   font-weight: 400;
 }
 
-.invitation-field input:hover:not(:focus) {
+.invitation-field input:hover:not(:focus):not([aria-invalid='true']) {
   border-color: var(--invite-border-strong);
 }
 
 .invitation-field input:focus {
   background: var(--invite-field-focus);
-  border-color: var(--invite-brand);
-  box-shadow: 0 0 0 3px var(--invite-brand-ring);
 }
 
 .invitation-field input[aria-invalid='true'] {
@@ -409,7 +406,6 @@
   --invite-field-bg: rgb(var(--lune-surface));
   --invite-field-focus: rgb(var(--lune-bg-soft));
   --invite-brand: #7b6678;
-  --invite-brand-ring: rgb(123 102 120 / 0.16);
   --invite-cta-bg: #231c26;
   --invite-cta-hover: #312836;
   --invite-cta-ink: #f0efeb;
