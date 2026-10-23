@@ -393,6 +393,13 @@
   color: #d9a3a8;
 }
 
+.settings-hint {
+  margin: -8px 0 0;
+  color: rgb(var(--lune-muted));
+  font-size: var(--type-label);
+  line-height: 1.5;
+}
+
 .settings-save {
   align-self: flex-end;
   min-width: 96px;

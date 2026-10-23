@@ -42,6 +42,10 @@ export function getInitialServerUrl(): string {
   return readStoredUrl() || (BUILD_DEFAULT ? normalizeServerUrl(BUILD_DEFAULT) : '');
 }
 
+export function hasSavedServerUrl(): boolean {
+  return Boolean(readStoredUrl());
+}
+
 export function saveServerUrl(input: string): string {
   const normalized = normalizeServerUrl(input);
   window.localStorage.setItem(STORAGE_KEY, normalized);

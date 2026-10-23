@@ -7,10 +7,10 @@ function getServerError(cause: unknown): string {
   return cause instanceof Error ? cause.message : '无法连接服务器。请检查地址和网络。';
 }
 
-export function useSettingsController(): SettingsController {
+export function useSettingsController({ openOnMissing = true }: { openOnMissing?: boolean } = {}): SettingsController {
   const runtime = useClientRuntime();
   const server = useServerConfig();
-  const [open, setOpen] = useState(() => !server.serverUrl.trim());
+  const [open, setOpen] = useState(() => openOnMissing && !server.serverUrl.trim());
   const [activeSectionId, setActiveSectionId] = useState('server');
   const [serverError, setServerError] = useState<string>();
 
@@ -55,13 +55,13 @@ export function useSettingsController(): SettingsController {
     return false;
   }, [server.serverUrl]);
 
-  const verifyServerForAccess = useCallback(async () => {
+  const verifyServerForAccess = useCallback(async (openOnError = true) => {
     try {
       await server.verify();
       return true;
     } catch (cause) {
       setServerError(getServerError(cause));
-      setOpen(true);
+      if (openOnError) setOpen(true);
       return false;
     }
   }, [server.verify]);

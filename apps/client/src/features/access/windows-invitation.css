@@ -1,0 +1,428 @@
+.invitation-home {
+  --invite-canvas: rgb(var(--lune-bg));
+  --invite-sleeve-bg: rgb(var(--lune-bg-soft));
+  --invite-pass-bg: rgb(var(--lune-surface));
+  --invite-field-bg: rgb(var(--lune-surface-2));
+  --invite-field-focus: rgb(var(--lune-bg-soft));
+  --invite-ink: rgb(var(--lune-text));
+  --invite-muted: rgb(var(--lune-muted));
+  --invite-placeholder: rgb(var(--lune-muted) / 0.68);
+  --invite-brand: #ccb8c9;
+  --invite-brand-ring: rgb(204 184 201 / 0.14);
+  --invite-border: rgb(var(--lune-border) / 0.1);
+  --invite-border-strong: rgb(var(--lune-border) / 0.18);
+  --invite-perf: rgb(var(--lune-border) / 0.13);
+  /* Eclipse Moon & Vinyl palette from the user's design comp */
+  --eclipse-moon-fill: #ffffff;
+  --eclipse-vinyl-fill: #171717;
+  --eclipse-groove-stroke: #ccb8c9;
+  --eclipse-label-fill: #231c26;
+  --eclipse-hole-fill: #ffffff;
+  --invite-cta-bg: #ccb8c9;
+  --invite-cta-hover: #d8c8d6;
+  --invite-cta-ink: #171419;
+  --invite-error: #d9a3a8;
+  --invite-error-bg: rgb(146 58 72 / 0.18);
+  --invite-error-border: rgb(217 163 168 / 0.36);
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  background: var(--invite-canvas);
+  color: var(--invite-ink);
+}
+
+.windows-shell .invitation-home {
+  min-height: var(--desktop-content-height);
+}
+
+.invitation-stage {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+/* Horizontal Dual-Pane Card */
+.invitation-ticket {
+  position: relative;
+  display: grid;
+  grid-template-columns: 272px 1px 352px;
+  width: min(100%, 625px);
+  border: 1px solid var(--invite-border);
+  border-radius: 20px;
+  overflow: hidden;
+  background: var(--invite-pass-bg);
+}
+
+/* Left Pane: Eclipse Moon & Vinyl Sleeve */
+.invitation-sleeve {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 26px 24px;
+  background: var(--invite-sleeve-bg);
+}
+
+.invitation-brand {
+  display: flex;
+  align-items: center;
+  align-self: flex-start;
+}
+
+.invitation-brand-mark {
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.34em;
+  color: var(--invite-ink);
+}
+
+.invitation-disc-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: auto 0;
+  padding: 6px 0;
+}
+
+.invite-turntable {
+  display: block;
+  width: 212px;
+  aspect-ratio: 1;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.invite-turntable-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: visible;
+}
+
+.eclipse-moon {
+  fill: var(--eclipse-moon-fill);
+}
+
+.eclipse-vinyl-body {
+  fill: var(--eclipse-vinyl-fill);
+}
+
+.eclipse-vinyl-groove {
+  fill: none;
+  stroke: var(--eclipse-groove-stroke);
+  stroke-width: 2.2;
+}
+
+.eclipse-vinyl-label {
+  fill: var(--eclipse-label-fill);
+}
+
+.eclipse-vinyl-hole {
+  fill: var(--eclipse-hole-fill);
+}
+
+.invitation-tagline {
+  margin: 0;
+  align-self: center;
+  font-family: var(--font-editorial);
+  font-size: 12px;
+  font-style: italic;
+  letter-spacing: 0.04em;
+  color: var(--invite-muted);
+}
+
+/* Ticket Perforation Seam */
+.invitation-perforation {
+  position: relative;
+  width: 1px;
+  background: transparent;
+}
+
+.perforation-line {
+  position: absolute;
+  inset: 14px 0;
+  border-left: 1px dashed var(--invite-perf);
+}
+
+.perforation-notch {
+  position: absolute;
+  left: 50%;
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--invite-border);
+  border-radius: 50%;
+  background: var(--invite-canvas);
+  transform: translateX(-50%);
+}
+
+.perforation-notch.is-top {
+  top: -9px;
+}
+
+.perforation-notch.is-bottom {
+  bottom: -9px;
+}
+
+/* Right Pane: Form Pass */
+.invitation-pass {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 28px 30px;
+  background: var(--invite-pass-bg);
+}
+
+.invitation-pass-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.invitation-pass-title {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--invite-ink);
+}
+
+.invitation-settings-trigger {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid var(--invite-border);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--invite-muted);
+  cursor: pointer;
+  transition: color 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.invitation-settings-trigger svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.invitation-settings-trigger:hover {
+  color: var(--invite-ink);
+  border-color: var(--invite-border-strong);
+  background: var(--invite-field-bg);
+}
+
+/* Form Controls */
+.invitation-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.invitation-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.invitation-field-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--invite-muted);
+}
+
+.invitation-field-head em {
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 400;
+  color: var(--invite-muted);
+  opacity: 0.75;
+}
+
+.invitation-field input {
+  width: 100%;
+  height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--invite-border);
+  border-radius: 12px;
+  outline: none;
+  background: var(--invite-field-bg);
+  color: var(--invite-ink);
+  font-family: var(--font-body);
+  font-size: 14px;
+  caret-color: var(--invite-brand);
+  transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
+}
+
+.invitation-field input::placeholder {
+  color: var(--invite-placeholder);
+  letter-spacing: normal;
+  font-weight: 400;
+}
+
+.invitation-field input:hover:not(:focus) {
+  border-color: var(--invite-border-strong);
+}
+
+.invitation-field input:focus {
+  background: var(--invite-field-focus);
+  border-color: var(--invite-brand);
+  box-shadow: 0 0 0 3px var(--invite-brand-ring);
+}
+
+.invitation-field input[aria-invalid='true'] {
+  border-color: var(--invite-error);
+  background: var(--invite-error-bg);
+}
+
+.invitation-code-input:not(:placeholder-shown) {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+}
+
+.invitation-error {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--invite-error);
+}
+
+.invitation-alert {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--invite-error-border);
+  border-radius: 10px;
+  background: var(--invite-error-bg);
+  color: var(--invite-error);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.invitation-submit {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 46px;
+  margin-top: 6px;
+  padding: 0 18px;
+  border: 1px solid var(--invite-cta-bg);
+  border-radius: 12px;
+  background: var(--invite-cta-bg);
+  color: var(--invite-cta-ink);
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease, color 160ms ease, opacity 160ms ease;
+}
+
+.invitation-submit svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.invitation-submit:hover:not(:disabled) {
+  background: var(--invite-cta-hover);
+  border-color: var(--invite-cta-hover);
+}
+
+.invitation-submit:disabled {
+  opacity: 0.52;
+  cursor: wait;
+}
+
+.invitation-settings-trigger:focus-visible,
+.invitation-submit:focus-visible {
+  outline: 1px solid var(--invite-brand);
+  outline-offset: 3px;
+}
+
+@media (max-width: 680px) {
+  .invitation-stage {
+    padding: 16px;
+  }
+
+  .invitation-ticket {
+    grid-template-columns: 1fr;
+    width: min(100%, 380px);
+  }
+
+  .invitation-perforation {
+    width: 100%;
+    height: 1px;
+  }
+
+  .perforation-line {
+    inset: 0 14px;
+    border-left: 0;
+    border-top: 1px dashed var(--invite-perf);
+  }
+
+  .perforation-notch.is-top {
+    top: 50%;
+    left: -9px;
+    transform: translateY(-50%);
+  }
+
+  .perforation-notch.is-bottom {
+    top: 50%;
+    left: auto;
+    right: -9px;
+    bottom: auto;
+    transform: translateY(-50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .invitation-settings-trigger,
+  .invitation-submit {
+    transition-duration: 0.01ms;
+  }
+}
+
+:root[data-theme='daylight'] .invitation-home {
+  --invite-sleeve-bg: #2a313a;
+  --invite-pass-bg: rgb(var(--lune-bg-soft));
+  --invite-field-bg: rgb(var(--lune-surface));
+  --invite-field-focus: rgb(var(--lune-bg-soft));
+  --invite-brand: #7b6678;
+  --invite-brand-ring: rgb(123 102 120 / 0.16);
+  --invite-cta-bg: #231c26;
+  --invite-cta-hover: #312836;
+  --invite-cta-ink: #f0efeb;
+  --invite-error: #b82548;
+}
+
+:root[data-theme='daylight'] .invitation-sleeve {
+  --invite-ink: #f0efeb;
+  --invite-muted: #b0b6bf;
+}
+
+:root[data-theme='frosted'] .invitation-ticket {
+  background: var(--glass-fill);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.1);
+  backdrop-filter: blur(var(--glass-blur)) saturate(1.1);
+}

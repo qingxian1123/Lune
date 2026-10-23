@@ -10,7 +10,7 @@ import { useSettingsController } from '../settings/model/useSettingsController';
 import type { SettingsController } from '../settings/model/types';
 
 export type AccessMode = 'create' | 'join';
-export type AccessError = { field?: 'nickname' | 'roomCode'; message: string };
+export type AccessError = { field?: 'nickname' | 'roomCode' | 'server'; message: string };
 
 export interface AccessController {
   mode: AccessMode;
@@ -26,11 +26,11 @@ export interface AccessController {
   enterRoom: () => Promise<void>;
 }
 
-export function useAccessController(): AccessController {
+export function useAccessController({ invitation = false }: { invitation?: boolean } = {}): AccessController {
   const navigate = useNavigate();
   const location = useLocation();
   const rejoinCode = (location.state as { rejoinRoomCode?: string } | null)?.rejoinRoomCode;
-  const settings = useSettingsController();
+  const settings = useSettingsController({ openOnMissing: !invitation });
   const [mode, setMode] = useState<AccessMode>(rejoinCode ? 'join' : 'create');
   const [nickname, setNicknameState] = useState('');
   const [roomCode, setRoomCodeState] = useState(rejoinCode ?? '');
@@ -46,8 +46,12 @@ export function useAccessController(): AccessController {
   }, [navigate, rejoinCode]);
 
   useEffect(() => {
-    if (mode === 'join') roomCodeInputRef.current?.focus();
-  }, [mode]);
+    if (mode === 'join' && !invitation) roomCodeInputRef.current?.focus();
+  }, [invitation, mode]);
+
+  useEffect(() => {
+    if (error?.field === 'server') setError(null);
+  }, [error?.field, settings.serverUrl]);
 
   const setNickname = (value: string) => {
     setNicknameState(value);
@@ -56,6 +60,7 @@ export function useAccessController(): AccessController {
 
   const setRoomCode = (value: string) => {
     setRoomCodeState(value.toUpperCase().slice(0, 6));
+    if (invitation) setMode(value.trim() ? 'join' : 'create');
     if (error?.field === 'roomCode') setError(null);
   };
 
@@ -65,12 +70,17 @@ export function useAccessController(): AccessController {
   };
 
   const enterRoom = async () => {
-    if (!settings.ensureServerConfigured()) return;
+    if (invitation) {
+      if (!settings.serverUrl.trim()) {
+        setError({ field: 'server', message: '请先填写服务器地址' });
+        return;
+      }
+    } else if (!settings.ensureServerConfigured()) return;
     if (!nickname.trim()) {
       setError({ field: 'nickname', message: '请先输入你的昵称' });
       return;
     }
-    if (mode === 'join' && !roomCode.trim()) {
+    if (invitation ? Boolean(roomCode.trim() && !/^[A-Z0-9]{6}$/.test(roomCode.trim())) : mode === 'join' && !roomCode.trim()) {
       setError({ field: 'roomCode', message: '请输入六位房间码' });
       return;
     }
@@ -78,7 +88,7 @@ export function useAccessController(): AccessController {
     setBusy(true);
     setError(null);
 
-    if (!await settings.verifyServerForAccess()) {
+    if (!await settings.verifyServerForAccess(!invitation)) {
       setBusy(false);
       return;
     }

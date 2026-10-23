@@ -8,6 +8,8 @@ import MobileRoom from './mobile/MobileRoom';
 import './mobile/mobile.css';
 import WindowTitlebar from './desktop/WindowTitlebar';
 import './desktop/desktop.css';
+import './features/access/radio-home.css';
+import './features/access/windows-invitation.css';
 
 function AppRoutes() {
   const runtime = useClientRuntime();

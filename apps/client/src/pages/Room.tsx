@@ -16,6 +16,7 @@ import { useSettingsController } from '../features/settings/model/useSettingsCon
 import { useStageTransition } from '../desktop/room/useStageTransition';
 import PlaybackNotice from '../components/PlaybackNotice';
 import { useVolumeStore } from '../hooks/useVolumeStore';
+import { getServerBaseUrl } from '../lib/serverConfig';
 
 type AlbumPaletteStyle = CSSProperties & {
   '--album-accent': string;
@@ -96,6 +97,14 @@ export default function Room() {
     onSeek,
     leaveToHome,
   } = useRoomController();
+  const roomServerUrl = useRef(getServerBaseUrl());
+  useEffect(() => {
+    const onServerChanged = () => {
+      if (getServerBaseUrl() !== roomServerUrl.current) leaveToHome();
+    };
+    window.addEventListener('lune-server-changed', onServerChanged);
+    return () => window.removeEventListener('lune-server-changed', onServerChanged);
+  }, [leaveToHome]);
   const { accent, accentSoft, bgAccent } = useAccentColor(track?.coverUrl, track?.id);
   const albumStyle: AlbumPaletteStyle = {
     '--album-accent': accent,
@@ -168,7 +177,6 @@ export default function Room() {
           onClose={() => changePanel(false)}
           onOpenSettings={() => {
             settings.openSettings();
-            settings.selectSection('shortcuts');
           }}
           onPickTrack={onPickTrack}
           onAddMany={onAddMany}
@@ -194,7 +202,7 @@ export default function Room() {
         onSeek={onSeek}
         onNext={onNext}
       />
-      <SettingsPanel controller={settings} sectionIds={['shortcuts', 'appearance']} />
+      <SettingsPanel controller={settings} sectionIds={['server', 'shortcuts', 'appearance']} />
     </div>
   );
 }

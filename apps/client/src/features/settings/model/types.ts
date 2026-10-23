@@ -13,7 +13,7 @@ export interface SettingsController {
   setServerUrl: (value: string) => void;
   saveServer: () => Promise<void>;
   ensureServerConfigured: () => boolean;
-  verifyServerForAccess: () => Promise<boolean>;
+  verifyServerForAccess: (openOnError?: boolean) => Promise<boolean>;
 }
 
 export interface SettingsSectionDefinition {
