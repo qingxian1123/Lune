@@ -18,9 +18,12 @@ interface SearchPanelProps {
    */
   active?: boolean;
   providerPicker?: 'select' | 'pills';
+  tab?: SearchPanelTab;
+  onTabChange?: (tab: SearchPanelTab) => void;
+  presentation?: 'compact' | 'workspace';
 }
 
-type Tab = 'songs' | 'playlists' | 'hot' | 'library';
+export type SearchPanelTab = 'songs' | 'playlists' | 'hot' | 'library';
 type PlaylistView = 'list' | 'detail';
 
 const subscribeServer = (listener: () => void) => {
@@ -37,8 +40,11 @@ async function searchSources<T>(sources: string[], search: (source: string) => P
   return Array.from({ length: 20 }, (_, i) => available.flatMap((items) => items[i] ? [items[i]] : [])).flat().slice(0, 20);
 }
 
-export default function SearchPanel({ onPick, onAddMany, providerPicker = 'select', active = true }: SearchPanelProps) {
-  const [tab, setTab] = useState<Tab>('songs');
+export default function SearchPanel({ onPick, onAddMany, providerPicker = 'select', active = true, tab: controlledTab, onTabChange, presentation = 'compact' }: SearchPanelProps) {
+  const [localTab, setLocalTab] = useState<SearchPanelTab>('songs');
+  const tab = controlledTab ?? localTab;
+  const setTab = (next: SearchPanelTab) => { setLocalTab(next); onTabChange?.(next); };
+  const workspace = presentation === 'workspace';
   const [providers, setProviders] = useState<string[]>([]);
   const [provider, setProvider] = useState('all');
   const serverUrl = useSyncExternalStore(subscribeServer, getServerBaseUrl);
@@ -50,6 +56,7 @@ export default function SearchPanel({ onPick, onAddMany, providerPicker = 'selec
   const [results, setResults] = useState<Track[]>([]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
+  const [searched, setSearched] = useState(false);
 
   // 歌单 state
   const [plView, setPlView] = useState<PlaylistView>('list');
@@ -57,6 +64,7 @@ export default function SearchPanel({ onPick, onAddMany, providerPicker = 'selec
   const [playlists, setPlaylists] = useState<PlaylistSummary[]>([]);
   const [plLoading, setPlLoading] = useState(false);
   const [plErr, setPlErr] = useState('');
+  const [playlistSearched, setPlaylistSearched] = useState(false);
   const [selected, setSelected] = useState<PlaylistSummary | null>(null);
   const [tracks, setTracks] = useState<Track[]>([]);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -66,6 +74,7 @@ export default function SearchPanel({ onPick, onAddMany, providerPicker = 'selec
     requests.current.songs++; requests.current.playlists++; requests.current.detail++;
     setLoading(false); setPlLoading(false); setDetailLoading(false);
     setResults([]); setPlaylists([]); setTracks([]); setSelected(null); setPlView('list');
+    setSearched(false); setPlaylistSearched(false);
     let alive = true;
     getProviders()
       .then((activeProviders) => {
@@ -97,6 +106,7 @@ export default function SearchPanel({ onPick, onAddMany, providerPicker = 'selec
     setErr('');
     setPlErr('');
     setDetailErr('');
+    setSearched(false); setPlaylistSearched(false);
   };
 
   const doSearch = async () => {
@@ -109,7 +119,7 @@ export default function SearchPanel({ onPick, onAddMany, providerPicker = 'selec
       const result = provider === 'all'
         ? await searchSources(providers, (source) => searchTracks(kw.trim(), 20, source))
         : await searchTracks(kw.trim(), 20, provider);
-      if (isCurrent()) setResults(result);
+      if (isCurrent()) { setResults(result); setSearched(true); }
     } catch (e) {
       if (isCurrent()) setErr(getUiErrorMessage(e, '暂时无法搜索歌曲，请稍后再试'));
     } finally {
@@ -127,7 +137,7 @@ export default function SearchPanel({ onPick, onAddMany, providerPicker = 'selec
       const result = provider === 'all'
         ? await searchSources(providers, (source) => searchPlaylists(plKw.trim(), 20, source))
         : await searchPlaylists(plKw.trim(), 20, provider);
-      if (isCurrent()) setPlaylists(result);
+      if (isCurrent()) { setPlaylists(result); setPlaylistSearched(true); }
     } catch (e) {
       if (isCurrent()) setPlErr(getUiErrorMessage(e, '暂时无法搜索歌单，请稍后再试'));
     } finally {
@@ -160,10 +170,10 @@ export default function SearchPanel({ onPick, onAddMany, providerPicker = 'selec
 
   return (
     <section className="terminal-pane terminal-search">
-      <div className="pane-heading">
-        <div><strong>选歌</strong></div>
+      <div className="pane-heading" hidden={workspace && tab === 'library'}>
+        {!workspace && <div><strong>选歌</strong></div>}
         {providerPicker === 'select' && tab !== 'library' && (
-          <label className="flex items-center gap-2 text-xs text-[rgb(var(--lune-muted)/0.58)]">
+          <label className="search-provider-picker flex items-center gap-2 text-xs text-[rgb(var(--lune-muted)/0.58)]">
             <span>音乐源</span>
             <select
               value={provider}
@@ -197,7 +207,7 @@ export default function SearchPanel({ onPick, onAddMany, providerPicker = 'selec
         </div>
       )}
 
-      <div className="search-mode-tabs search-mode-tabs-library" aria-label="选歌方式">
+      <div className="search-mode-tabs search-mode-tabs-library" aria-label="选歌方式" hidden={workspace}>
         <button
           type="button"
           aria-pressed={tab === 'songs'}
@@ -225,12 +235,14 @@ export default function SearchPanel({ onPick, onAddMany, providerPicker = 'selec
       <div hidden={tab !== 'hot'}><HotChartPanel provider={provider} serverUrl={serverUrl} active={active && tab === 'hot'} onPick={(track) => onAddMany([track])} /></div>
 
       <div hidden={tab !== 'songs'}>
-          <div className="flex gap-2">
+          <div className="search-query-row flex gap-2">
             <input
+              type="search"
+              aria-label="搜索歌曲或歌手"
               value={kw}
               onChange={(e) => setKw(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && doSearch()}
-              placeholder="搜索歌曲"
+              placeholder={workspace ? '搜索歌曲或歌手' : '搜索歌曲'}
               className="lune-input min-w-0 flex-1 rounded-xl px-3 py-2 text-sm"
             />
             <button
@@ -244,6 +256,13 @@ export default function SearchPanel({ onPick, onAddMany, providerPicker = 'selec
 
           {err && <div className="mt-2 rounded-lg bg-rose-950/35 px-2 py-1.5 text-xs text-rose-200">{err}</div>}
 
+          {workspace && !loading && !err && results.length === 0 && <div className="workspace-search-empty">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="7" /><path d="m16 16 5 5" /></svg>
+            <h3>{searched ? '未找到歌曲' : '搜索歌曲或歌手'}</h3>
+            {!searched && <div><button type="button" onClick={() => setTab('playlists')}>发现歌单</button><button type="button" onClick={() => setTab('hot')}>看看共听热榜</button></div>}
+          </div>}
+          {workspace && loading && <div className="workspace-search-loading" role="status"><span className="sr-only">正在搜索歌曲</span>{[0, 1, 2, 3].map((row) => <i key={row} aria-hidden="true" />)}</div>}
+          {workspace && results.length > 0 && <div className="workspace-result-heading"><span>{results.length} 首歌曲</span><span>专辑 / 音乐源</span><span>时长</span></div>}
           <ul className="lune-scrollbar mt-2 max-h-72 overflow-y-auto pr-1">
             {results.map((track) => (
               <li
@@ -260,19 +279,22 @@ export default function SearchPanel({ onPick, onAddMany, providerPicker = 'selec
                   <div className="truncate text-sm font-medium text-[rgb(var(--lune-text)/0.9)]">{track.name}</div>
                   <div className="truncate text-xs text-[rgb(var(--lune-muted)/0.46)]">{track.artists}</div>
                 </div>
+                {workspace && <div className="workspace-track-album"><span title={track.album}>{track.album || '未知专辑'}</span><small>{providerLabel(track.provider || provider)}</small></div>}
                 <FavoriteButton track={track} server={serverUrl} />
                 <span className="tabular-nums text-xs text-[rgb(var(--lune-muted)/0.52)]">{formatTime(track.duration)}</span>
-                <span className="rounded-md bg-[rgb(var(--lune-accent)/0.12)] px-2 py-1 text-xs text-[rgb(var(--lune-accent))] opacity-0 transition group-hover:opacity-100">
+                <button type="button" aria-label={`将《${track.name}》加入队列`} onClick={(event) => { event.stopPropagation(); onPick(track); }} className="search-result-action rounded-md bg-[rgb(var(--lune-accent)/0.12)] px-2 py-1 text-xs text-[rgb(var(--lune-accent))] opacity-0 transition group-hover:opacity-100 focus-visible:opacity-100">
                   加入
-                </span>
+                </button>
               </li>
             ))}
           </ul>
       </div>
 
       <div hidden={tab !== 'playlists' || plView !== 'list'}>
-          <div className="flex gap-2">
+          <div className="search-query-row flex gap-2">
             <input
+              type="search"
+              aria-label="搜索歌单名"
               value={plKw}
               onChange={(e) => setPlKw(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && doPlaylistSearch()}
@@ -290,7 +312,12 @@ export default function SearchPanel({ onPick, onAddMany, providerPicker = 'selec
 
           {plErr && <div className="mt-2 rounded-lg bg-rose-950/35 px-2 py-1.5 text-xs text-rose-200">{plErr}</div>}
 
-          <ul className="lune-scrollbar mt-2 max-h-72 overflow-y-auto pr-1">
+          {workspace && !plLoading && !plErr && playlists.length === 0 && <div className="workspace-search-empty">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></svg>
+            <h3>{playlistSearched ? '未找到歌单' : '搜索歌单'}</h3>
+          </div>}
+          {workspace && plLoading && <div className="workspace-search-loading" role="status"><span className="sr-only">正在搜索歌单</span>{[0, 1, 2, 3].map((row) => <i key={row} aria-hidden="true" />)}</div>}
+          <ul className="playlist-search-results lune-scrollbar mt-2 max-h-72 overflow-y-auto pr-1">
             {playlists.map((pl) => (
               <li
                 key={`${pl.provider || provider}:${pl.id}`}
@@ -308,15 +335,15 @@ export default function SearchPanel({ onPick, onAddMany, providerPicker = 'selec
                     {pl.trackCount} 首 · {pl.creator}
                   </div>
                 </div>
-                <span className="rounded-md bg-[rgb(var(--lune-accent)/0.12)] px-2 py-1 text-xs text-[rgb(var(--lune-accent))] opacity-0 transition group-hover:opacity-100">
+                <button type="button" aria-label={`查看歌单《${pl.name}》`} onClick={(event) => { event.stopPropagation(); void openPlaylist(pl); }} className="search-result-action rounded-md bg-[rgb(var(--lune-accent)/0.12)] px-2 py-1 text-xs text-[rgb(var(--lune-accent))] opacity-0 transition group-hover:opacity-100 focus-visible:opacity-100">
                   查看
-                </span>
+                </button>
               </li>
             ))}
           </ul>
       </div>
 
-      <div hidden={tab !== 'playlists'}>
+      <div hidden={tab !== 'playlists' || plView !== 'detail'}>
       {plView === 'detail' && selected && (
         <>
           <div className="flex items-center gap-2">
@@ -367,9 +394,9 @@ export default function SearchPanel({ onPick, onAddMany, providerPicker = 'selec
                   </div>
                   <FavoriteButton track={track} server={serverUrl} />
                   <span className="tabular-nums text-xs text-[rgb(var(--lune-muted)/0.52)]">{formatTime(track.duration)}</span>
-                  <span className="rounded-md bg-[rgb(var(--lune-accent)/0.12)] px-2 py-1 text-xs text-[rgb(var(--lune-accent))] opacity-0 transition group-hover:opacity-100">
+                  <button type="button" aria-label={`将《${track.name}》加入队列`} onClick={(event) => { event.stopPropagation(); onPick(track); }} className="search-result-action rounded-md bg-[rgb(var(--lune-accent)/0.12)] px-2 py-1 text-xs text-[rgb(var(--lune-accent))] opacity-0 transition group-hover:opacity-100 focus-visible:opacity-100">
                     加入
-                  </span>
+                  </button>
                 </li>
               ))}
             </ul>

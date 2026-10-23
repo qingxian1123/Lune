@@ -1,5 +1,8 @@
 /* Selection panel extension: Lune's quiet surfaces and lavender ranking accents. */
 .terminal-search > div[hidden] { display: none; }
+.terminal-search .search-result-action { min-height: 32px; border-radius: 7px; color: rgb(var(--lune-brand)); background: rgb(var(--lune-brand) / .12); }
+.m-sheet-body .search-result-action { min-width: 48px; min-height: 48px; }
+@media (hover: none) { .terminal-search .search-result-action { opacity: 1 !important; } }
 .terminal-search > div:not([hidden]):not(.pane-heading):not(.provider-pills):not(.search-mode-tabs) {
   display: flex;
   flex-direction: column;

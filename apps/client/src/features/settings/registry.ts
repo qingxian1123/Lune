@@ -1,6 +1,7 @@
 import ServerSettingsSection from './sections/ServerSettingsSection';
 import ShortcutSettingsSection from './sections/ShortcutSettingsSection';
 import AppearanceSettingsSection from './sections/AppearanceSettingsSection';
+import WorkspaceSettingsSection from './sections/WorkspaceSettingsSection';
 import type { SettingsCategoryDefinition, SettingsSectionDefinition } from './model/types';
 
 export const settingsCategories: SettingsCategoryDefinition[] = [
@@ -12,6 +13,13 @@ export const settingsCategories: SettingsCategoryDefinition[] = [
 ].sort((left, right) => left.order - right.order);
 
 export const settingsSections: SettingsSectionDefinition[] = [
+  {
+    id: 'workspace',
+    label: '功能区样式',
+    categoryId: 'appearance',
+    order: 15,
+    component: WorkspaceSettingsSection,
+  },
   {
     id: 'appearance',
     label: '界面样式',

@@ -29,12 +29,15 @@ export default function Room() {
   const settings = useSettingsController();
   const [sideTab, setSideTab] = useState<DesktopRoomTab>('search');
   const panelOpen = useDesktopPreferences((state) => state.libraryOpen);
+  const libraryLayout = useDesktopPreferences((state) => state.libraryLayout);
   const setPanelOpen = useDesktopPreferences((state) => state.setLibraryOpen);
   const libraryShortcut = useDesktopPreferences((state) => state.bindings.toggleLibrary);
   const libraryButtonRef = useRef<HTMLButtonElement>(null);
   const workspaceRef = useRef<HTMLElement>(null);
-  const captureStage = useStageTransition(workspaceRef, panelOpen);
+  const compactPanelOpen = panelOpen && libraryLayout === 'compact';
+  const captureStage = useStageTransition(workspaceRef, compactPanelOpen);
   const focusRequested = useRef(false);
+  const settingsWereOpen = useRef(settings.open);
   const changePanel = useCallback((open: boolean) => {
     if (useDesktopPreferences.getState().libraryOpen === open) return;
     captureStage();
@@ -45,11 +48,29 @@ export default function Room() {
     if (!focusRequested.current) return;
     focusRequested.current = false;
     if (panelOpen) {
-      workspaceRef.current?.querySelector<HTMLButtonElement>('[role="tab"][aria-selected="true"]')?.focus();
+      workspaceRef.current?.querySelector<HTMLButtonElement>('.workspace-nav [aria-current="page"], [role="tab"][aria-selected="true"]')?.focus();
     } else {
       libraryButtonRef.current?.focus();
     }
   }, [panelOpen]);
+  useLayoutEffect(() => {
+    const justClosed = settingsWereOpen.current && !settings.open;
+    settingsWereOpen.current = settings.open;
+    if (!justClosed || document.querySelector('dialog[open]')) return;
+    if (panelOpen) {
+      const selector = libraryLayout === 'workspace'
+        ? '.workspace-nav [aria-current="page"]'
+        : '[role="tab"][aria-selected="true"]';
+      workspaceRef.current?.querySelector<HTMLButtonElement>(selector)?.focus();
+    } else {
+      libraryButtonRef.current?.focus();
+    }
+  }, [settings.open, panelOpen, libraryLayout]);
+  useLayoutEffect(() => {
+    const stage = workspaceRef.current?.querySelector<HTMLElement>('.now-playing-stage');
+    stage?.toggleAttribute('inert', panelOpen && libraryLayout === 'workspace');
+    return () => { stage?.removeAttribute('inert'); };
+  }, [panelOpen, libraryLayout]);
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.defaultPrevented || event.repeat || event.isComposing || event.keyCode === 229
@@ -144,13 +165,13 @@ export default function Room() {
         <button type="button" onClick={reconnectNow}>立即重连</button>
       </div>}</div>
 
-      <main className="room-workspace" ref={workspaceRef} data-library-open={panelOpen}>
+      <main className="room-workspace" ref={workspaceRef} data-library-open={panelOpen} data-library-layout={libraryLayout}>
         <NowPlaying
           track={track}
           lines={lines}
           currentIndex={currentIndex}
           isLoadingLyrics={isLoadingLyrics}
-          libraryOpen={panelOpen}
+          libraryOpen={compactPanelOpen}
         />
 
         <button ref={libraryButtonRef} type="button"
@@ -202,7 +223,7 @@ export default function Room() {
         onSeek={onSeek}
         onNext={onNext}
       />
-      <SettingsPanel controller={settings} sectionIds={['server', 'shortcuts', 'appearance']} />
+      <SettingsPanel controller={settings} sectionIds={['server', 'shortcuts', 'appearance', 'workspace']} />
     </div>
   );
 }

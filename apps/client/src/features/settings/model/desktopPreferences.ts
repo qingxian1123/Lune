@@ -15,6 +15,12 @@ export const shortcutActions = {
 };
 export type ShortcutAction = keyof typeof shortcutActions;
 type Bindings = Record<ShortcutAction, Shortcut | null>;
+export type LibraryLayout = 'compact' | 'workspace';
+interface SavedPreferences {
+  libraryOpen: boolean;
+  libraryLayout: LibraryLayout;
+  bindings: Bindings;
+}
 const storageKey = 'lune.desktop-preferences.v1';
 
 export function formatShortcut(binding: Shortcut | null): string {
@@ -54,8 +60,8 @@ function isShortcut(value: unknown): value is Shortcut {
     && typeof item.alt === 'boolean' && typeof item.shift === 'boolean' && !shortcutError(item);
 }
 
-function loadPreferences(): { libraryOpen: boolean; bindings: Bindings } {
-  const defaults = { libraryOpen: true, bindings: { toggleLibrary: shortcutActions.toggleLibrary.defaultBinding } as Bindings };
+function loadPreferences(): SavedPreferences {
+  const defaults: SavedPreferences = { libraryOpen: true, libraryLayout: 'compact', bindings: { toggleLibrary: shortcutActions.toggleLibrary.defaultBinding } };
   try {
     const raw = localStorage.getItem(storageKey);
     if (!raw) return defaults;
@@ -63,6 +69,7 @@ function loadPreferences(): { libraryOpen: boolean; bindings: Bindings } {
     const binding: unknown = saved?.bindings?.toggleLibrary;
     return {
       libraryOpen: typeof saved?.libraryOpen === 'boolean' ? saved.libraryOpen : true,
+      libraryLayout: saved?.libraryLayout === 'workspace' ? 'workspace' : 'compact',
       bindings: { toggleLibrary: binding === null || isShortcut(binding) ? binding : defaults.bindings.toggleLibrary },
     };
   } catch {
@@ -72,14 +79,16 @@ function loadPreferences(): { libraryOpen: boolean; bindings: Bindings } {
 
 interface DesktopPreferences {
   libraryOpen: boolean;
+  libraryLayout: LibraryLayout;
   bindings: Bindings;
   setLibraryOpen: (open: boolean) => void;
+  setLibraryLayout: (layout: LibraryLayout) => string | null;
   saveBinding: (action: ShortcutAction, binding: Shortcut | null) => string | null;
 }
 
-function persist(libraryOpen: boolean, bindings: Bindings): boolean {
+function persist(preferences: SavedPreferences): boolean {
   try {
-    localStorage.setItem(storageKey, JSON.stringify({ libraryOpen, bindings }));
+    localStorage.setItem(storageKey, JSON.stringify(preferences));
     return true;
   } catch {
     return false;
@@ -89,8 +98,15 @@ function persist(libraryOpen: boolean, bindings: Bindings): boolean {
 export const useDesktopPreferences = create<DesktopPreferences>((set, get) => ({
   ...loadPreferences(),
   setLibraryOpen: (libraryOpen) => {
-    persist(libraryOpen, get().bindings);
+    persist({ libraryOpen, libraryLayout: get().libraryLayout, bindings: get().bindings });
     set({ libraryOpen });
+  },
+  setLibraryLayout: (libraryLayout) => {
+    if (!persist({ libraryOpen: get().libraryOpen, libraryLayout, bindings: get().bindings })) {
+      return '无法保存功能区样式，请检查本机存储权限后重试。';
+    }
+    set({ libraryLayout });
+    return null;
   },
   saveBinding: (action, binding) => {
     if (binding) {
@@ -104,7 +120,7 @@ export const useDesktopPreferences = create<DesktopPreferences>((set, get) => ({
       }
     }
     const bindings = { ...get().bindings, [action]: binding };
-    if (!persist(get().libraryOpen, bindings)) return '无法保存到本机，请检查存储权限后重试。';
+    if (!persist({ libraryOpen: get().libraryOpen, libraryLayout: get().libraryLayout, bindings })) return '无法保存到本机，请检查存储权限后重试。';
     set({ bindings });
     return null;
   },

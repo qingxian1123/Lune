@@ -14,7 +14,8 @@ export default function SettingsPanel({
   mobile = false,
   sectionIds,
 }: SettingsPanelProps) {
-  const sections = sectionIds ? settingsSections.filter((section) => sectionIds.includes(section.id)) : settingsSections;
+  const sections = settingsSections.filter((section) => (!sectionIds || sectionIds.includes(section.id))
+    && (!mobile || section.id !== 'workspace'));
   const activeSection = sections.find((section) => section.id === controller.activeSectionId)
     ?? sections[0];
   if (!activeSection) return null;
