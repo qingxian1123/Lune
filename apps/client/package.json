@@ -5,9 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "pnpm typecheck && vite build",
+    "build": "pnpm check:input-focus && pnpm typecheck && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
+    "check:input-focus": "node scripts/check-input-focus.mjs",
     "tauri": "tauri"
   },
   "dependencies": {
