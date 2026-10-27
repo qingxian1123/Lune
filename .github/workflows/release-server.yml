@@ -18,7 +18,7 @@ jobs:
         shell: bash
         run: |
           [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
-          node -e 'const v=require("./package.json").version; if (process.env.GITHUB_REF_NAME !== `v${v}`) process.exit(1)'
+          node -e 'const fs=require("fs"); const v=require("./package.json").version; const lock=require("./server-deploy/package-lock.json"); const versions=[require("./server/package.json").version,require("./server-deploy/package.json").version,lock.version,lock.packages[""].version]; if(process.env.GITHUB_REF_NAME!==`v${v}` || versions.some(x=>x!==v)) throw new Error("Server release versions do not match"); if(!fs.existsSync(`server-deploy/releases/v${v}.md`)) throw new Error("Version release notes are missing")'
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
         with:
@@ -42,7 +42,9 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p release/lune-server/caddy release/lune-server/nginx release/lune-server/config release/lune-server/bin
-          cp server-deploy/compose.yaml server-deploy/README.compose.md server-deploy/.env.compose.example release/lune-server/
+          cp server-deploy/compose.yaml server-deploy/.env.compose.example server-deploy/ADMIN.md release/lune-server/
+          cp server-deploy/README.compose.md release/lune-server/README.md
+          cp "server-deploy/releases/${GITHUB_REF_NAME}.md" release/lune-server/RELEASE-NOTES.md
           cp server-deploy/caddy/Caddyfile release/lune-server/caddy/
           cp server-deploy/nginx/lune-compose.conf release/lune-server/nginx/
           cp server-deploy/config/providers.json release/lune-server/config/
@@ -58,3 +60,4 @@ jobs:
             lune-server-${{ github.ref_name }}-linux-amd64.tar.gz
             SHA256SUMS
           generate_release_notes: true
+          body_path: server-deploy/releases/${{ github.ref_name }}.md

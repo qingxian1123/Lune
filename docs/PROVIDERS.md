@@ -34,6 +34,8 @@ Lune 通过服务端进程内 Provider 接入音乐平台。当前注册 `neteas
 
 ## 初始化与登录
 
+自部署服务推荐按 [管理员说明](../server-deploy/ADMIN.md)创建管理员账号，在后台扫码登录、校验凭据和检测单曲。以下 CLI 适用于终端维护或开发环境。
+
 在仓库中执行：
 
 ```bash
@@ -73,7 +75,7 @@ Provider 状态可能为：
 
 - `disabled`：配置中未启用
 - `starting`：正在启动或检查
-- `ready`：可以处理业务请求
+- `ready`：登录凭据校验通过；单曲播放仍受账号权益、版权和地区限制
 - `degraded`：部分能力异常
 - `auth-required`：需要重新登录
 - `unavailable`：当前不可用
@@ -100,3 +102,5 @@ Authorization: Bearer <LUNE_ADMIN_TOKEN>
 | `PATCH /api/admin/providers/:id/config` | 设置 `{ "enabled": boolean }`；重启后生效 |
 
 生产环境不要把管理端口直接暴露到公网。仓库的 Nginx 模板不转发 `/api/admin/`，远程管理使用 SSH 隧道或 Provider CLI。
+
+管理列表分别返回 `active`（运行态）、`configuredEnabled`（持久配置）、`restartRequired`（待重启生效）和 `isDefault`。默认源不能直接停用，重启前可反向保存启停配置。浏览器使用管理员会话，写操作还需要同源与 CSRF 校验；首次设置或恢复账号使用一次性配对码。管理员账号只用于管理服务端。

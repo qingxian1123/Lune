@@ -16,6 +16,7 @@ import { ProviderAdminController } from './interfaces/http/provider-admin.contro
 import { AdminTokenGuard } from './interfaces/http/admin-token.guard';
 import { AdminSessionController } from './interfaces/http/admin-session.controller';
 import { AdminSessionService } from './interfaces/http/admin-session.service';
+import { AdminAccountService } from './interfaces/http/admin-account.service';
 import { APP_FILTER } from '@nestjs/core';
 import { ProviderApplicationErrorFilter } from './interfaces/http/provider-application-error.filter';
 
@@ -55,6 +56,7 @@ import { ProviderApplicationErrorFilter } from './interfaces/http/provider-appli
     },
     AdminTokenGuard,
     AdminSessionService,
+    AdminAccountService,
     {
       provide: APP_FILTER,
       useClass: ProviderApplicationErrorFilter,

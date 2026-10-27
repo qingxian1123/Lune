@@ -37,9 +37,13 @@ export class ProviderAdminController {
     return {
       providers: this.registry.listAllDetails().map(({ descriptor, active, status }) => {
         const credential = this.credentials.get(descriptor.id);
+        const configuredEnabled = this.config.getProvider(descriptor.id)?.enabled ?? active;
         return {
           ...descriptor,
           active,
+          configuredEnabled,
+          restartRequired: configuredEnabled !== active,
+          isDefault: this.config.getSnapshot().defaultProvider === descriptor.id,
           ...status,
           account: credential
             ? {

@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
+import { AdminAccountService } from './admin-account.service';
 
 const PAIRING_TTL_MS = 10 * 60_000;
 const SESSION_TTL_MS = 30 * 60_000;
@@ -24,6 +25,7 @@ interface AdminSession {
   hash: Buffer;
   csrf: string;
   expiresAt: number;
+  recovery: boolean;
 }
 
 @Injectable()
@@ -31,8 +33,11 @@ export class AdminSessionService {
   private pairing: { hash: Buffer; expiresAt: number } | null = null;
   private readonly sessions = new Map<string, AdminSession>();
   private failures: number[] = [];
+  private loginFailures: number[] = [];
+  private pendingLogins = 0;
+  private accountRevision = 0;
 
-  constructor(private readonly config: ConfigService) {}
+  constructor(private readonly config: ConfigService, private readonly accounts: AdminAccountService) {}
 
   assertAdminListener(request: AdminRequest): void {
     const port = Number(this.config.get<string>('LUNE_MANAGE_PORT') || '9528');
@@ -67,7 +72,7 @@ export class AdminSessionService {
     const session = token ? this.sessions.get(this.hash(token).toString('hex')) : undefined;
     if (!session || Date.now() >= session.expiresAt || !this.equal(session.hash, this.hash(token))) {
       if (token) this.sessions.delete(this.hash(token).toString('hex'));
-      throw new UnauthorizedException('管理会话已过期，请重新配对');
+      throw new UnauthorizedException('管理会话已过期，请重新登录');
     }
     if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method.toUpperCase())) {
       const origin = this.header(request, 'origin');
@@ -107,21 +112,56 @@ export class AdminSessionService {
     }
     this.pairing = null;
     this.failures = [];
+    return this.createSession(true);
+  }
+
+  async login(request: AdminRequest, username: string, password: string): Promise<{ token: string; csrf: string; expiresAt: string }> {
+    this.assertAdminListener(request);
+    this.requireSameOrigin(request);
+    const now = Date.now();
+    this.loginFailures = this.loginFailures.filter((at) => now - at < FAILURE_WINDOW_MS);
+    if (this.loginFailures.length + this.pendingLogins >= MAX_FAILURES) {
+      throw new HttpException('登录尝试过多，请 5 分钟后重试', HttpStatus.TOO_MANY_REQUESTS);
+    }
+    this.pendingLogins++;
+    const revision = this.accountRevision;
+    try {
+      if (!(await this.accounts.verify(username, password)) || revision !== this.accountRevision) {
+        this.loginFailures.push(Date.now());
+        throw new UnauthorizedException('账号或密码不正确');
+      }
+      this.loginFailures = [];
+      return this.createSession(false);
+    } finally {
+      this.pendingLogins--;
+    }
+  }
+
+  async saveAccount(request: AdminRequest, username: string, password: string, currentPassword?: string): Promise<void> {
+    this.authorize(request);
+    const session = this.sessions.get(this.hash(this.cookie(request, 'lune_admin_session')).toString('hex'));
+    await this.accounts.save(username, password, currentPassword, Boolean(session?.recovery));
+    this.accountRevision++;
+    this.sessions.clear();
+    this.pairing = null;
+  }
+
+  private createSession(recovery: boolean): { token: string; csrf: string; expiresAt: string } {
     this.pruneSessions();
     const token = randomBytes(32).toString('base64url');
     const csrf = randomBytes(32).toString('base64url');
-    const expiresAt = now + SESSION_TTL_MS;
+    const expiresAt = Date.now() + SESSION_TTL_MS;
     const hash = this.hash(token);
-    this.sessions.set(hash.toString('hex'), { hash, csrf, expiresAt });
+    this.sessions.set(hash.toString('hex'), { hash, csrf, expiresAt, recovery });
     return { token, csrf, expiresAt: new Date(expiresAt).toISOString() };
   }
 
-  current(request: AdminRequest): { csrf: string; expiresAt: string } {
+  current(request: AdminRequest): { csrf: string; expiresAt: string; recovery: boolean } {
     this.authorize(request);
     const token = this.cookie(request, 'lune_admin_session');
     const session = this.sessions.get(this.hash(token).toString('hex'));
     if (!session) throw new UnauthorizedException('请通过浏览器会话访问');
-    return { csrf: session.csrf, expiresAt: new Date(session.expiresAt).toISOString() };
+    return { csrf: session.csrf, expiresAt: new Date(session.expiresAt).toISOString(), recovery: session.recovery };
   }
 
   revoke(request: AdminRequest): void {

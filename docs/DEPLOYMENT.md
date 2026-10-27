@@ -11,12 +11,13 @@ pnpm install
 npm run deploy:server:clean
 ```
 
-命令先构建服务端，再生成 `server-release-clean/`。目录包含编译产物、管理页面、生产依赖清单、Provider 默认配置、CLI、systemd、Nginx 和 PM2 模板。
+命令先构建服务端，再生成 `server-release-clean/`。目录包含编译产物、当前管理页面、生产依赖清单、Provider 默认配置、CLI、systemd、Nginx 和 PM2 模板，以及 `ADMIN.md`、`RELEASE-NOTES.md` 和带版本号的 `RELEASE.json`。
 
 ## 服务器准备
 
 - Node.js 18 或更高版本，建议使用当前维护中的 LTS
 - npm
+- Python 3（systemd 配对码工具使用）
 - systemd
 - Nginx（需要反向代理或 HTTPS 时）
 
@@ -27,6 +28,7 @@ sudo useradd --system --home /opt/lune --shell /usr/sbin/nologin lune
 sudo install -d -o lune -g lune -m 0755 /opt/lune/releases
 sudo install -d -o root -g lune -m 0750 /etc/lune
 sudo install -d -o lune -g lune -m 0700 /var/lib/lune
+sudo install -d -o lune -g lune -m 0700 /var/lib/lune/config
 ```
 
 把发布包上传到一个新的发行目录，例如 `/opt/lune/releases/release-id/`（将 `release-id` 替换为本次发布标识），安装生产依赖并切换 `current`：
@@ -57,7 +59,7 @@ HOST=127.0.0.1
 LUNE_MANAGE_PORT=9528
 LUNE_MANAGE_HOST=127.0.0.1
 NODE_OPTIONS=--dns-result-order=ipv4first
-LUNE_CONFIG_FILE=/etc/lune/providers.json
+LUNE_CONFIG_FILE=/var/lib/lune/config/providers.json
 LUNE_DATA_DIR=/var/lib/lune
 LUNE_ROOM_RETENTION_MS=86400000
 LUNE_ROOM_GRACE_MS=30000
@@ -70,7 +72,7 @@ JWT_SECRET=<高强度随机值>
 复制并保护文件：
 
 ```bash
-sudo install -o root -g lune -m 0640 /opt/lune/current/config/providers.json /etc/lune/providers.json
+sudo install -o lune -g lune -m 0600 /opt/lune/current/config/providers.json /var/lib/lune/config/providers.json
 sudo chmod 0640 /etc/lune/lune.env
 sudo rm -f /opt/lune/current/.env.provider.generated
 ```
@@ -125,6 +127,18 @@ curl --fail http://127.0.0.1:9527/api/health/ready
 
 存活检查仅确认进程响应；就绪检查还要求至少一个 Provider 可用。
 
+## 管理后台与管理员账号
+
+1. 在自己的电脑建立 SSH 隧道并保持终端打开：`ssh -N -L 9528:127.0.0.1:9528 user@server.example.com`。
+2. 在服务器执行 `sudo /opt/lune/current/bin/lune-admin-code`，复制终端显示的一次性配对码。
+3. 在自己电脑的浏览器打开 `http://127.0.0.1:9528/api/admin/ui`，展开「首次设置 / 忘记密码」，输入配对码。
+4. 在「管理员」设置账号和密码，保存后重新登录。以后直接使用账号密码；忘记密码时重新生成配对码。
+5. 在「音乐源」扫码登录至少一个音源，检查凭据并执行单曲播放检测。
+
+配对码有效期 10 分钟、只能使用一次。后台提供「概览 / 音乐源 / 管理员」，服务器地址直接在客户端填写。账号文件为 `/var/lib/lune/admin-account.json`；升级和备份时保留该文件。详细步骤见随发布包分发的 `ADMIN.md`，仓库内见 [管理员说明](../server-deploy/ADMIN.md)。
+
+后台保存音源启停配置需要文件及父目录可写，以便原子替换。新版模板将配置放在 systemd 允许写入的 `/var/lib/lune/config/providers.json`。
+
 ## Nginx 与 HTTPS
 
 `server-deploy/nginx/lune.conf` 转发应用与 WebSocket，并对 `/api/admin/` 返回 404。管理页面只监听 `127.0.0.1:9528`；可在服务器本机打开 `http://127.0.0.1:9528/api/admin/ui`，远程使用 SSH 隧道或 Provider CLI。安装代理后检查并重载：
@@ -154,13 +168,26 @@ curl --fail http://127.0.0.1:9527/api/health/ready
 不要覆盖以下持久数据：
 
 - `/etc/lune/lune.env`
-- `/etc/lune/providers.json`
+- `/etc/lune/providers.json`（旧部署）
+- `/var/lib/lune/config/providers.json`（新版可写配置）
+- `/var/lib/lune/admin-account.json`
 - `/var/lib/lune/provider-credentials.enc.json`
 - `/var/lib/lune/rooms/`
 
 如新进程无法启动，把 `current` 链接切回上一发行目录并重启服务。支持持久化的版本会恢复未过期房间；保留原 `JWT_SECRET` 才能继续使用原成员 token。重启不会重新获得完整的 24 小时保留期，异常退出恢复使用最后一次检查点。
 
 首次从旧版内存模型升级，旧进程没有可恢复文件；应在无活跃房间时更新，或先完成明确的旧状态导出迁移。回滚到只支持内存房间的旧版本不会读取新房间文件，应保留数据目录供后续恢复。
+
+### 旧配置路径迁移
+
+旧部署将配置保存在只读 `/etc/lune/providers.json` 时，先备份配置，再执行以下命令；不要覆盖已经存在的新版配置：
+
+```bash
+sudo install -d -o lune -g lune -m 0700 /var/lib/lune/config
+sudo install -o lune -g lune -m 0600 /etc/lune/providers.json /var/lib/lune/config/providers.json
+```
+
+把 `/etc/lune/lune.env` 中的 `LUNE_CONFIG_FILE` 改为 `/var/lib/lune/config/providers.json`，随正常升级重启生效。复制发行目录时也应保留文件属主、属组与权限，启动前确认服务账号可读取编译产物。
 
 ## 备份
 

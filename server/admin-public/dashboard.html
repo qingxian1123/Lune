@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Lune · 管理后台</title>
+  <style>
+    :root { color-scheme: dark; --bg:#0b0b0c; --rail:#0f0f10; --surface:#151516; --hover:#1b1b1c; --line:#2c2c2e; --text:#f0efeb; --muted:#a3a29d; --accent:#b8b0d8; --success:#91b8a0; --warning:#dbc18e; --danger:#d9a3a8; font:14px/1.6 "Segoe UI Variable Text","Segoe UI","Noto Sans SC","Microsoft YaHei",system-ui,sans-serif; background:var(--bg); color:var(--text); }
+    * { box-sizing:border-box; }
+    body { margin:0; }
+    button,input { font:inherit; }
+    button { min-height:40px; padding:8px 15px; border:1px solid var(--line); border-radius:7px; background:var(--surface); color:var(--text); cursor:pointer; transition:background .16s,color .16s,border-color .16s; }
+    button:hover { background:var(--hover); border-color:#59575f; }
+    button:active { background:#252427; }
+    button:disabled { opacity:.5; cursor:not-allowed; }
+    button.primary { background:var(--accent); border-color:var(--accent); color:var(--bg); font-weight:600; }
+    button.primary:hover { background:#c7c0de; }
+    button.quiet { background:transparent; }
+    button.danger { color:var(--danger); }
+    :is(button,input,a,summary):focus-visible { outline:2px solid var(--accent); outline-offset:4px; }
+    input { width:100%; min-width:0; height:45px; border:1px solid #68676d; border-radius:7px; padding:10px 12px; background:var(--bg); color:var(--text); caret-color:var(--accent); }
+    input::placeholder { color:var(--muted); }
+    input:focus { border-color:var(--accent); }
+    label { display:block; font-weight:500; margin:20px 0 8px; }
+    h1,h2,h3,p { margin:0; }
+    h1 { font-size:26px; font-weight:600; line-height:1.35; letter-spacing:-.02em; }
+    h2 { font-size:18px; font-weight:600; line-height:1.4; }
+    h3 { font-size:15px; font-weight:600; }
+    p { max-width:72ch; }
+    a { color:var(--accent); text-underline-offset:4px; }
+    svg { width:19px; height:19px; fill:none; stroke:currentColor; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; flex-shrink:0; }
+    ::selection { background:#b8b0d840; color:var(--text); }
+    [hidden] { display:none !important; }
+    .muted,.hint { color:var(--muted); }
+    .hint { font-size:12px; margin-top:9px; }
+    .ok { color:var(--success); }
+    .warn { color:var(--warning); }
+    .error { color:var(--danger); }
+    .mono,time { font-variant-numeric:tabular-nums; }
+    code { font-size:12px; overflow-wrap:anywhere; }
+    .brand { display:flex; align-items:center; gap:11px; font-size:20px; font-weight:600; letter-spacing:.04em; }
+    .brand svg { width:25px; height:25px; color:var(--accent); }
+    .brand small { margin-left:3px; font-size:12px; color:var(--muted); letter-spacing:0; font-weight:400; }
+    .login-wrap { min-height:100dvh; display:grid; grid-template-columns:minmax(280px,1fr) minmax(400px,1fr); }
+    .login-intro { padding:48px 56px; background:var(--rail); display:flex; flex-direction:column; border-right:1px solid var(--line); }
+    .intro-copy { margin:auto 0; padding:72px 0; }
+    .intro-copy h1 { font-size:40px; line-height:1.45; font-weight:450; }
+    .intro-copy p { margin-top:22px; color:var(--muted); max-width:33ch; }
+    .intro-rule { width:48px; height:2px; background:var(--accent); margin-bottom:30px; }
+    .login-main { display:grid; align-content:center; padding:48px 40px; }
+    .login-panel { width:100%; max-width:360px; margin:auto; }
+    .login-panel h2 { font-size:25px; margin-bottom:10px; }
+    .login-panel form { margin-top:28px; }
+    .login-panel .primary { margin-top:26px; width:100%; height:45px; }
+    .login-panel details { border-top:1px solid var(--line); margin-top:32px; padding-top:20px; }
+    summary { cursor:pointer; color:var(--muted); }
+    details[open] summary { margin-bottom:16px; }
+    .form-error { min-height:24px; margin-top:14px; font-size:13px; }
+    .shell { display:grid; grid-template-columns:220px minmax(0,1fr); min-height:100dvh; }
+    .sidebar { position:sticky; top:0; height:100dvh; display:flex; flex-direction:column; padding:30px 18px 20px; background:var(--rail); border-right:1px solid var(--line); }
+    .sidebar .brand { padding:0 12px 34px; }
+    .nav-label { margin:0 12px 10px; font-size:12px; color:var(--muted); }
+    nav { display:flex; flex-direction:column; gap:5px; }
+    nav button { display:flex; align-items:center; gap:12px; min-height:46px; padding:11px 13px; border:1px solid transparent; background:transparent; text-align:left; color:var(--muted); }
+    nav button[aria-current="page"] { color:var(--text); background:var(--hover); }
+    nav button[aria-current="page"] svg { color:var(--accent); }
+    .sidebar-bottom { margin-top:auto; padding:24px 12px 0; }
+    .sidebar-bottom p { font-size:12px; margin-top:8px; }
+    .connection { display:flex; align-items:center; gap:8px; font-size:12px; }
+    .dot { display:inline-block; width:6px; height:6px; border-radius:50%; background:currentColor; }
+    .workspace { min-width:0; }
+    .topbar { min-height:75px; padding:16px 40px; border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between; gap:16px; }
+    .topbar-left { display:flex; align-items:center; gap:12px; color:var(--muted); font-size:13px; }
+    .topbar-left span:last-child { color:var(--text); }
+    .topbar-right { display:flex; gap:14px; align-items:center; }
+    .avatar { width:30px; height:30px; display:grid; place-items:center; background:var(--hover); border-radius:50%; color:var(--accent); font-size:12px; }
+    .content { max-width:1320px; padding:42px 40px 64px; margin:auto; }
+    .page-heading { display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:20px; margin-bottom:30px; }
+    .page-heading p { margin-top:9px; color:var(--muted); }
+    .page-actions,.actions { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+    .page-actions { padding-top:3px; }
+    #notice { padding:12px 15px; margin-bottom:24px; border:1px solid var(--line); border-radius:7px; background:var(--surface); overflow-wrap:anywhere; }
+    .section-heading { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:18px; }
+    .section-heading span { font-size:12px; color:var(--muted); }
+    .health-strip { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); border-top:1px solid var(--line); border-bottom:1px solid var(--line); margin:0 0 36px; }
+    .health-item { padding:20px 0; }
+    .health-item+.health-item { border-left:1px solid var(--line); padding-left:24px; }
+    .health-item dt { color:var(--muted); font-size:12px; margin-bottom:7px; }
+    .health-item dd { margin:0; font-size:15px; font-weight:500; }
+    .health-item small { display:block; color:var(--muted); font-weight:400; font-size:12px; margin-top:5px; }
+    .provider-list { border:1px solid var(--line); border-radius:9px; overflow:hidden; }
+    .provider-row { display:grid; grid-template-columns:minmax(170px,1.1fr) minmax(170px,1fr) minmax(110px,.65fr) auto; align-items:center; gap:20px; padding:23px 24px; background:var(--surface); }
+    .provider-row+.provider-row { border-top:1px solid var(--line); }
+    .provider-name { display:flex; gap:13px; align-items:center; }
+    .provider-mark { width:37px; height:37px; display:grid; place-items:center; border:1px solid #454349; border-radius:8px; color:var(--accent); font-weight:600; }
+    .provider-name small,.provider-account small { display:block; color:var(--muted); font-size:12px; margin-top:3px; }
+    .badge { display:inline-flex; align-items:center; gap:7px; font-size:12px; white-space:nowrap; }
+    .provider-detail { margin-top:28px; padding-top:27px; border-top:1px solid var(--line); }
+    .detail-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px 32px; margin:22px 0 26px; }
+    .detail-grid div { display:flex; flex-direction:column; gap:5px; min-width:0; }
+    .detail-grid dt { color:var(--muted); font-size:12px; }
+    .detail-grid dd { margin:0; overflow-wrap:anywhere; }
+    .detail-note { margin-top:18px; color:var(--muted); font-size:12px; }
+    .login-challenge { border-top:1px solid var(--line); margin-top:26px; padding-top:24px; }
+    .qr { display:block; width:200px; height:200px; object-fit:contain; background:#fff; padding:10px; border-radius:7px; margin:16px 0; }
+    .qr-url { overflow-wrap:anywhere; margin:12px 0; font-size:12px; }
+    .plain-list { margin-top:24px; border-top:1px solid var(--line); }
+    .plain-list>div { display:flex; justify-content:space-between; gap:24px; padding:20px 0; border-bottom:1px solid var(--line); }
+    .plain-list dt { color:var(--muted); }
+    .plain-list dd { margin:0; text-align:right; overflow-wrap:anywhere; min-width:0; }
+    .settings-form { max-width:480px; }
+    .settings-form .actions { margin-top:25px; }
+    .settings-intro { color:var(--muted); margin-top:12px; }
+    .info-box { margin-top:30px; padding:20px 0; border-top:1px solid var(--line); }
+    .info-box p { color:var(--muted); margin-top:8px; }
+    .probe { margin-top:28px; padding-top:24px; border-top:1px solid var(--line); }
+    .probe-form { display:flex; align-items:flex-end; gap:10px; max-width:520px; margin-top:16px; }
+    .probe-field { flex:1; min-width:0; }
+    .probe-field label { margin-top:0; font-size:12px; }
+    .probe-form button { min-height:45px; }
+    .probe-result { display:flex; flex-wrap:wrap; gap:10px 24px; margin-top:16px; }
+    .empty { padding:28px; color:var(--muted); }
+    .footer { display:flex; flex-wrap:wrap; justify-content:space-between; gap:12px; margin-top:34px; font-size:12px; color:var(--muted); }
+    @media (min-width:1600px) { .content { padding-top:54px; } }
+    @media (max-width:1100px) { .provider-row { grid-template-columns:minmax(150px,1fr) minmax(125px,1fr) auto; } .provider-row>.badge { grid-column:2; grid-row:2; } .provider-row>button { grid-column:3; grid-row:1 / span 2; } .provider-row { gap:7px 16px; } .provider-name { grid-row:1 / span 2; } .content { padding:32px 25px 48px; } .topbar { padding:16px 25px; } }
+    @media (max-width:760px) { .shell { grid-template-columns:1fr; } .sidebar { position:static; height:auto; padding:20px 18px 12px; border-right:0; border-bottom:1px solid var(--line); } .sidebar .brand { padding:0 6px 18px; } nav { flex-direction:row; gap:4px; } nav button { flex:1; justify-content:center; gap:7px; padding:10px 4px; font-size:12px; min-height:44px; } nav svg { width:16px; height:16px; } .nav-label,.sidebar-bottom { display:none; } .topbar { min-height:62px; padding:12px 22px; } .topbar-left { font-size:12px; } .topbar-right { gap:9px; } #admin-name { display:none; } .content { padding:28px 22px 40px; } h1 { font-size:24px; } .page-heading { gap:16px; margin-bottom:25px; } .page-heading p { font-size:13px; } .health-item { padding:17px 0; } .health-item+.health-item { padding-left:12px; } .health-item dd { font-size:13px; } .health-item small { font-size:11px; } .provider-row { grid-template-columns:1fr auto; padding:19px 17px; } .provider-name { grid-row:1; } .provider-account { grid-column:1; grid-row:2; padding-left:50px; font-size:12px; } .provider-row>.badge { grid-column:2; grid-row:1; } .provider-row>button { grid-column:2; grid-row:2; min-height:44px; } .provider-mark { width:37px; } .section-heading { align-items:flex-start; } .section-heading span { max-width:140px; text-align:right; } button { min-height:44px; } .detail-grid { gap:18px; } .login-wrap { grid-template-columns:1fr; } .login-intro { border-right:0; border-bottom:1px solid var(--line); padding:26px; } .intro-copy,.login-intro>.connection { display:none; } .login-main { padding:40px 26px; align-content:start; } .login-panel { max-width:430px; } }
+    @media (prefers-reduced-motion:reduce) { *,*::before,*::after { transition:none !important; } }
+  </style>
+</head>
+<body>
+  <div id="login-view" class="login-wrap">
+    <aside class="login-intro">
+      <div class="brand"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.3A8.5 8.5 0 0 1 9.7 4 8.5 8.5 0 1 0 20 14.3Z"/></svg>Lune <small>管理后台</small></div>
+      <div class="intro-copy"><div class="intro-rule"></div><h1>让每一段共听，<br>保持连接。</h1><p>在一处管理音乐源、查看服务状态，<br>为你和朋友的夜晚准备好音乐。</p></div>
+      <div class="connection muted"><span class="dot"></span>通过 SSH 隧道连接本机管理端口</div>
+    </aside>
+    <main class="login-main">
+      <div class="login-panel">
+        <h2>登录管理后台</h2><p class="muted" id="login-description">使用管理员账号继续。</p>
+        <form id="login-form">
+          <label for="username">管理员账号</label><input id="username" name="username" autocomplete="username" minlength="3" maxlength="32" required spellcheck="false" placeholder="输入管理员账号">
+          <label for="password">密码</label><input id="password" name="password" type="password" autocomplete="current-password" maxlength="128" required placeholder="输入密码">
+          <button class="primary" type="submit">登录后台</button>
+        </form>
+        <p id="login-error" class="form-error error" role="alert"></p>
+        <details id="pair-details"><summary>首次设置 / 忘记密码</summary><p class="hint">先在服务器获取一次性配对码。配对后可在「管理员」中创建或重置账号。</p><form id="pair-form"><label for="pair-code">一次性配对码</label><input id="pair-code" autocomplete="one-time-code" minlength="18" maxlength="18" required spellcheck="false"><button class="primary" type="submit">配对并设置账号</button></form><p class="hint">Compose 部署：<code>sudo ./bin/lune manage</code><br>systemd 部署：请参阅部署文档的管理员设置。</p></details>
+      </div>
+    </main>
+  </div>
+  <div id="app-view" class="shell" hidden>
+    <aside class="sidebar">
+      <div class="brand"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.3A8.5 8.5 0 0 1 9.7 4 8.5 8.5 0 1 0 20 14.3Z"/></svg>Lune</div>
+      <div class="nav-label">服务管理</div>
+      <nav aria-label="后台导航">
+        <button data-view="overview" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>概览</button>
+        <button data-view="sources" type="button" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5l12-2v13M9 9l12-2"/><ellipse cx="6" cy="18" rx="3" ry="3"/><ellipse cx="18" cy="16" rx="3" ry="3"/></svg>音乐源</button>
+        <button data-view="account" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/></svg>管理员</button>
+      </nav>
+      <div class="sidebar-bottom"><div class="connection muted"><span class="dot"></span>SSH 隧道访问</div><p>凭据保存在你的服务器。</p></div>
+    </aside>
+    <div class="workspace">
+      <header class="topbar"><div class="topbar-left">管理后台 <span aria-hidden="true">/</span><span id="breadcrumb">音乐源</span></div><div class="topbar-right"><span class="avatar" aria-hidden="true">L</span><span id="admin-name" class="muted">管理员</span><button id="logout" class="quiet" type="button">退出</button></div></header>
+      <main class="content">
+        <div class="page-heading"><div><h1 id="page-title">音乐源</h1><p id="page-description">管理音源连接与账号，让音乐随时就绪。</p></div><div class="page-actions"><button id="refresh-all" type="button">刷新状态</button></div></div>
+        <p id="notice" role="status" aria-live="polite" hidden></p>
+        <section id="view-sources" aria-label="音乐源管理">
+          <dl class="health-strip"><div class="health-item"><dt>服务进程</dt><dd id="live-state">读取中…</dd></div><div class="health-item"><dt>凭据存储</dt><dd id="storage-state">读取中…</dd></div><div class="health-item"><dt>音源连接</dt><dd id="source-count">读取中…</dd></div></dl>
+          <div class="section-heading"><h2>已接入的音乐源</h2><span>账号凭据加密保存</span></div>
+          <div id="providers" class="provider-list" aria-busy="true"><p class="empty">正在读取音乐源…</p></div>
+          <div id="provider-detail" class="provider-detail" hidden></div>
+          <div class="footer"><span>「账号就绪」表示登录凭据有效，单曲播放仍受上游权限影响。</span><span id="last-updated">尚未刷新</span></div>
+        </section>
+        <section id="view-overview" hidden aria-label="服务概览"><h2>服务运行状态</h2><p class="settings-intro">查看当前实例与存储状态。</p><dl id="overview-info" class="plain-list"></dl><div class="info-box"><h3>下一步</h3><p>在「音乐源」检查登录凭据，再使用 Windows 或 Android 客户端连接服务，确认搜索、播放与房间同步。</p></div></section>
+        <section id="view-account" hidden aria-label="管理员账号设置"><h2 id="account-heading">管理员账号</h2><p class="settings-intro" id="account-description">更新登录账号或密码，保存后需要重新登录。</p><form id="account-form" class="settings-form"><label for="account-username">登录账号</label><input id="account-username" name="username" autocomplete="username" pattern="[A-Za-z0-9_.\-]{3,32}" minlength="3" maxlength="32" required spellcheck="false"><p class="hint">3–32 位英文字母、数字、下划线、点或连字符。</p><div id="current-password-field"><label for="current-password">当前密码</label><input id="current-password" name="currentPassword" type="password" autocomplete="current-password" maxlength="128"></div><label for="new-password">新密码</label><input id="new-password" name="newPassword" type="password" autocomplete="new-password" minlength="12" maxlength="128" required><p class="hint">12–128 位字符，建议使用密码管理器生成。</p><label for="confirm-password">确认新密码</label><input id="confirm-password" name="confirmPassword" type="password" autocomplete="new-password" minlength="12" maxlength="128" required><div class="actions"><button class="primary" type="submit">保存并重新登录</button></div><p id="account-error" class="form-error error" role="alert"></p></form><div class="info-box"><h3>会话与恢复</h3><p>管理会话有效期为 30 分钟。修改账号后所有管理会话失效。忘记密码时，可通过服务器的一次性配对码重置。</p></div></section>
+      </main>
+    </div>
+  </div>
+  <script>
+    'use strict';
+    const $ = (id) => document.getElementById(id);
+    const views = { overview:['概览','查看服务状态。'], sources:['音乐源','管理音源连接与账号，让音乐随时就绪。'], account:['管理员','管理登录账号与密码。'] };
+    const stateNames = { ready:'账号就绪', 'auth-required':'需要登录', degraded:'连接异常', unavailable:'不可用', disabled:'未启用', starting:'连接中' };
+    let csrf = '', providers = [], selected = 'kugou', recovery = false, authGeneration = 0;
+    let activeLogin = null, pollTimer = null, loginGeneration = 0, authenticated = false, refreshing = false;
+    let probeBusy = false;
+    const probes = new Map();
+    function text(tag, value, className='') { const node=document.createElement(tag); node.textContent=value; if(className) node.className=className; return node; }
+    function notice(value, error=false) { $('notice').textContent=value; $('notice').className=error?'error':''; $('notice').hidden=!value; }
+    function formatDate(value) { return value ? new Date(value).toLocaleString('zh-CN',{hour12:false}) : '尚未检查'; }
+    async function api(path, options={}) {
+      const controller=new AbortController(), timer=setTimeout(()=>controller.abort(),25000);
+      try {
+        const method=options.method||'GET';
+        const response=await fetch('/api/admin/'+path,{...options,headers:{...(options.body?{'Content-Type':'application/json'}:{}),...(method!=='GET'&&csrf?{'X-Lune-CSRF':csrf}:{})},credentials:'same-origin',cache:'no-store',signal:controller.signal});
+        const body=await response.json().catch(()=>({}));
+        if(!response.ok) { if(response.status===401&&authenticated) showAuthenticated(false); throw new Error(Array.isArray(body.message)?body.message.join('；'):body.message||'请求失败（HTTP '+response.status+'）'); }
+        return body;
+      } catch(error) { if(error.name==='AbortError') throw new Error('请求超时，请刷新状态后重试。'); throw error; }
+      finally { clearTimeout(timer); }
+    }
+    function showAuthenticated(value) {
+      authenticated=value; $('login-view').hidden=value; $('app-view').hidden=!value;
+      if(!value) { authGeneration++; csrf=''; activeLogin=null; loginGeneration++; clearTimeout(pollTimer); probes.clear(); $('account-form').reset(); $('providers').replaceChildren(); $('provider-detail').replaceChildren(); $('provider-detail').hidden=true; }
+    }
+    function setView(name, focus=false) {
+      Object.keys(views).forEach(key=>$('view-'+key).hidden=key!==name);
+      document.querySelectorAll('[data-view]').forEach(button=>{ if(button.dataset.view===name) button.setAttribute('aria-current','page'); else button.removeAttribute('aria-current'); });
+      $('page-title').textContent=views[name][0]; $('breadcrumb').textContent=views[name][0]; $('page-description').textContent=views[name][1];
+      if(focus) { $('page-title').tabIndex=-1; $('page-title').focus({preventScroll:true}); }
+    }
+    async function enter(session) {
+      csrf=session.csrf; recovery=Boolean(session.recovery); showAuthenticated(true); notice('');
+      setView(recovery?'account':'sources');
+      await refreshAll();
+    }
+    async function refreshAll() {
+      if(refreshing) return; refreshing=true; $('refresh-all').disabled=true; $('refresh-all').textContent='正在刷新…';
+      const generation=authGeneration;
+      try {
+        const [setup, result, account, health]=await Promise.all([api('setup'),api('providers'),api('account'),fetch('/api/health/live',{cache:'no-store',signal:AbortSignal.timeout(10000)})]);
+        if(!authenticated||generation!==authGeneration) return;
+        providers=result.providers; $('admin-name').textContent=account.username||'配对会话';
+        $('live-state').textContent=health.ok?'运行中':'服务异常'; $('live-state').className=health.ok?'ok':'error';
+        $('storage-state').textContent=setup.storageWritable?'可写 · 已加密':'不可写'; $('storage-state').className=setup.storageWritable?'ok':'error';
+        const active=providers.filter(p=>p.active), ready=active.filter(p=>p.status==='ready');
+        $('source-count').textContent=ready.length+' / '+active.length+' 账号就绪';
+        $('source-count').className=ready.length?'ok':'warn';
+        const info=$('overview-info'); info.replaceChildren();
+        [['服务进程',health.ok?'运行中':'未通过'],['服务端版本',setup.version],['凭据存储',setup.storageWritable?'可写':'不可写'],['音源账号',ready.length+' / '+active.length+' 就绪']].forEach(([key,value])=>{const row=text('div','');row.append(text('dt',key),text('dd',value));info.append(row);});
+        $('account-heading').textContent=account.configured?'管理员账号':'创建管理员账号';
+        if(!$('account-username').value) $('account-username').value=account.username||'';
+        const needCurrent=account.configured&&!recovery;
+        $('current-password-field').hidden=!needCurrent; $('current-password').required=needCurrent;
+        $('account-description').textContent=recovery?'你已通过一次性配对验证，可以创建或重置登录账号。':'更新登录账号或密码，保存后需要重新登录。';
+        renderProviders(); $('last-updated').textContent='更新于 '+new Date().toLocaleTimeString('zh-CN',{hour12:false});
+      } catch(error) {
+        if(authenticated&&generation===authGeneration){
+          notice('状态读取失败：'+error.message+'。请点击「刷新状态」重试。',true);
+          if(!providers.length){
+            for(const id of ['live-state','storage-state','source-count']){$(id).textContent='读取失败';$(id).className='warn';}
+            const holder=$('providers');holder.replaceChildren();const message=text('div','','empty');message.append(text('p','暂时无法读取音乐源。'),action('重新读取',()=>refreshAll()));holder.append(message);
+          }else $('last-updated').textContent='刷新失败 · 当前为上次读取的数据';
+        }
+      }
+      finally { refreshing=false; $('refresh-all').disabled=false; $('refresh-all').textContent='刷新状态'; $('providers').setAttribute('aria-busy','false'); }
+    }
+    function badge(provider) { const status=provider.active?provider.status:'disabled'; const node=text('span','', 'badge '+(status==='ready'?'ok':status==='unavailable'?'error':'warn')); node.append(text('span','','dot'),text('span',stateNames[status]||'状态未知')); return node; }
+    function action(label, fn, className='') { const button=text('button',label,className); button.type='button'; button.addEventListener('click',()=>void busy(button,fn)); return button; }
+    async function busy(button,fn) { if(button.disabled)return; const label=button.textContent; button.disabled=true; button.textContent='处理中…'; try{await fn();}catch(error){notice(error.message,true);}finally{button.disabled=false;button.textContent=label;} }
+    function renderProviders() {
+      const holder=$('providers'); holder.replaceChildren();
+      if(!providers.length) { holder.append(text('p','尚未接入音乐源，请检查服务器的 Provider 配置。','empty')); $('provider-detail').hidden=true; return; }
+      if(!providers.some(p=>p.id===selected)) selected=providers[0].id;
+      providers.forEach(provider=>{
+        const row=text('div','','provider-row'), name=text('div','','provider-name'), title=text('div','');
+        title.append(text('h3',provider.displayName),text('small',provider.id)); name.append(text('span',provider.id==='kugou'?'K':'N','provider-mark'),title);
+        const account=text('div','','provider-account');account.append(text('span',provider.account?.name|| (provider.account?'已保存账号':'未登录账号')),text('small',provider.restartRequired?(provider.configuredEnabled?'已设为启用 · 等待重启':'已设为停用 · 等待重启'):provider.account?'凭据更新于 '+formatDate(provider.account.updatedAt):'扫码连接你的音乐账号'));
+        const manage=action(selected===provider.id?'正在管理':'管理',async()=>{selected=provider.id;renderProviders();$('provider-detail').scrollIntoView({block:'nearest',behavior:'instant'});},selected===provider.id?'quiet':'');
+        manage.setAttribute('aria-pressed',String(selected===provider.id)); row.append(name,account,badge(provider),manage); holder.append(row);
+      });
+      renderDetail();
+    }
+    function renderDetail() {
+      const provider=providers.find(p=>p.id===selected), holder=$('provider-detail');holder.replaceChildren();holder.hidden=!provider;if(!provider)return;
+      const heading=text('div','','section-heading');heading.append(text('h2',provider.displayName+' · 连接管理'),badge(provider));holder.append(heading);
+      const details=text('dl','','detail-grid');
+      [['登录账号',provider.account?.name||provider.account?.id||'尚未登录'],['最近校验',formatDate(provider.account?.lastValidatedAt||provider.lastCheckedAt)],['当前状态',provider.reason|| (provider.active?'音乐源已启用':'音乐源未启用')],['凭据版本',provider.account?.credentialVersion==null?'—':String(provider.account.credentialVersion)]].forEach(([key,value])=>{const row=text('div','');row.append(text('dt',key),text('dd',value));details.append(row);});holder.append(details);
+      const actions=text('div','','actions');
+      actions.append(action('扫码登录',()=>beginLogin(provider.id),'primary'));
+      if(provider.account) { actions.append(action('校验凭据',()=>providerAction(provider.id,'validate')),action('刷新凭据',()=>providerAction(provider.id,'refresh'))); }
+      const enabled=provider.configuredEnabled??provider.active;
+      const toggle=action(enabled?'停用音乐源':'启用音乐源',()=>changeEnabled(provider));
+      if(provider.isDefault&&enabled){toggle.disabled=true;toggle.title='默认音乐源不能停用，请先在服务器配置中更换默认源。';}
+      actions.append(toggle);
+      if(provider.restartRequired)holder.append(text('p',enabled?'已保存启用配置，等待重启；可点击「停用音乐源」撤回。':'已保存停用配置，等待重启；可点击「启用音乐源」撤回。','warn'));
+      if(provider.account) actions.append(action('退出音源账号',()=>logoutProvider(provider),'danger quiet'));
+      holder.append(actions,text('p','启用或停用配置在重启服务后生效。校验凭据不会验证每首歌曲的播放权限。','detail-note'));
+      const panel=text('div','','login-challenge');panel.id='login-challenge';panel.hidden=!activeLogin||activeLogin.providerId!==provider.id;holder.append(panel);
+      if(activeLogin?.providerId===provider.id) renderLogin(activeLogin);
+      const probe=text('div','','probe');probe.append(text('h3','单曲播放检测'),text('p','通过实际搜索、歌词和播放地址解析，检查一首歌曲的可用性。','hint'));
+      const form=text('form','','probe-form'), field=text('div','','probe-field'), label=text('label','歌曲关键词');label.htmlFor='probe-keyword';
+      const input=document.createElement('input');input.id='probe-keyword';input.required=true;input.maxLength=80;input.value=probes.get(provider.id)?.keyword||'晴天';input.placeholder='输入歌曲或歌手';
+      field.append(label,input);const check=text('button',probeBusy?'正在检测…':'检测歌曲');check.type='submit';check.disabled=probeBusy||!provider.active;form.append(field,check);
+      form.addEventListener('submit',event=>{event.preventDefault();void busy(check,()=>probeTrack(provider.id,input.value.trim()));});
+      const result=text('div','','probe-result');result.id='probe-result';result.setAttribute('role','status');result.setAttribute('aria-live','polite');probe.append(form,result);holder.append(probe);renderProbe(provider.id);
+    }
+    async function providerAction(id,operation) {
+      const result=await api('providers/'+encodeURIComponent(id)+'/'+operation,{method:'POST'});
+      await refreshAll(); notice(result.status==='ready'?'账号凭据有效。请在客户端确认歌曲播放。':result.reason||stateNames[result.status]||'操作完成',result.status!=='ready');
+    }
+    async function changeEnabled(provider) {
+      const enabled=provider.configuredEnabled??provider.active;
+      if(enabled&&!window.confirm('停用'+provider.displayName+'？配置将在下次重启服务后生效。'))return;
+      await api('providers/'+encodeURIComponent(provider.id)+'/config',{method:'PATCH',body:JSON.stringify({enabled:!enabled})});
+      await refreshAll();
+      notice('配置已保存，重启服务后生效。当前运行状态保持到重启。');
+    }
+    async function logoutProvider(provider) {
+      if(!window.confirm('退出'+provider.displayName+'的音源账号？该音源需要重新登录后才能继续使用。'))return;
+      if(activeLogin?.providerId===provider.id) await cancelLogin();
+      await api('providers/'+encodeURIComponent(provider.id)+'/logout',{method:'POST'});await refreshAll();notice('已退出音源账号。');
+    }
+    async function beginLogin(id) {
+      if(activeLogin)await cancelLogin();
+      const generation=++loginGeneration;
+      const session=await api('providers/'+encodeURIComponent(id)+'/login',{method:'POST'});
+      if(generation!==loginGeneration||!authenticated)return;
+      activeLogin=session;selected=id;renderProviders();schedulePoll();
+    }
+    function renderLogin(session) {
+      if(session.providerId!==selected)return;
+      const panel=$('login-challenge');if(!panel)return;
+      // Preserve focused copy/cancel controls while the server reports the same state.
+      const signature=JSON.stringify([session.id,session.state,session.message,session.qrImage,session.qrUrl,session.expiresAt]);
+      if(panel.dataset.signature===signature)return;
+      const focused=document.activeElement, focusKey=panel.contains(focused)?focused.dataset.loginAction:null;
+      panel.dataset.signature=signature;panel.hidden=false;panel.replaceChildren();
+      const names={created:'请打开音乐 App 扫码', 'waiting-scan':'请打开音乐 App 扫码', 'waiting-confirm':'已扫码，请在手机上确认', authorized:'登录成功', expired:'二维码已过期，请重新扫码登录', failed:'登录失败，请重试', cancelled:'已取消登录'};
+      const status=text('h3',names[session.state]||'等待登录');status.setAttribute('role','status');status.setAttribute('aria-live','polite');panel.append(status,text('p',session.message||'', 'hint'));
+      const terminal=['authorized','expired','failed','cancelled'].includes(session.state);
+      if(!terminal&&session.qrImage) {const value=String(session.qrImage);if(/^data:image\/(png|jpeg|webp);base64,[a-z0-9+/=\s]+$/i.test(value)||/^[a-z0-9+/=\s]+$/i.test(value)){const image=document.createElement('img');image.alt='请使用音乐 App 扫描登录二维码';image.className='qr';image.src=value.startsWith('data:')?value:'data:image/png;base64,'+value;panel.append(image);}}
+      if(!terminal&&session.qrUrl) {const copy=action('复制登录地址',async()=>{await copyText(session.qrUrl);notice('登录地址已复制。');});copy.dataset.loginAction='copy';panel.append(text('p',session.qrUrl,'qr-url'),copy);}
+      if(!terminal&&session.expiresAt)panel.append(text('p','有效期至 '+formatDate(session.expiresAt),'hint'));
+      if(!terminal){const cancel=action('取消登录',()=>cancelLogin(),'quiet');cancel.dataset.loginAction='cancel';panel.append(cancel);}
+      if(focusKey){const target=panel.querySelector('[data-login-action="'+focusKey+'"]');if(target)target.focus({preventScroll:true});else{status.tabIndex=-1;status.focus({preventScroll:true});}}
+    }
+    async function publicApi(path) {
+      const response=await fetch('/api/providers/'+path,{cache:'no-store',signal:AbortSignal.timeout(20000)});
+      const body=await response.json().catch(()=>({}));
+      if(!response.ok)throw new Error(body.message||'音乐源返回 HTTP '+response.status);
+      return body;
+    }
+    async function probeTrack(id,keyword) {
+      if(probeBusy)return;if(!keyword)throw new Error('请输入歌曲关键词。');probeBusy=true;
+      const started=Date.now(),generation=authGeneration,result={keyword,checking:true};probes.set(id,result);renderProbe(id);
+      try {
+        const found=await publicApi('search?'+new URLSearchParams({provider:id,kw:keyword,limit:'1'}));
+        if(!authenticated||generation!==authGeneration)return;
+        const song=found.songs?.[0];if(!song)throw new Error('未搜索到歌曲，请更换关键词。');
+        result.song=song.name;result.search=true;
+        const query=new URLSearchParams({provider:id,id:song.id});
+        const [playback,lyric]=await Promise.allSettled([publicApi('resolve?'+query),publicApi('lyric?'+query)]);
+        if(!authenticated||generation!==authGeneration)return;
+        result.playback=playback.status==='fulfilled'?Boolean(playback.value.url):null;
+        result.lyric=lyric.status==='fulfilled'?lyric.value.lines?.length||0:null;
+        result.error=playback.status==='rejected'?playback.reason.message:undefined;
+      }catch(error){result.error=error.name==='TimeoutError'?'检测超时，请稍后重试。':error.message;}
+      finally{result.checking=false;result.elapsed=Date.now()-started;probeBusy=false;if(authenticated&&generation===authGeneration){renderProbe(id);const button=document.querySelector('.probe-form button');if(button){button.disabled=!providers.find(provider=>provider.id===selected)?.active;button.textContent='检测歌曲';}}}
+    }
+    function renderProbe(id) {
+      const holder=$('probe-result');if(!holder||selected!==id)return;holder.replaceChildren();const result=probes.get(id);if(!result)return;
+      if(result.checking){holder.append(text('span','正在检查搜索、歌词与播放地址…','muted'));return;}
+      if(result.song)holder.append(text('span','曲目：'+result.song));
+      if(result.search)holder.append(text('span','搜索正常','ok'));
+      if(result.lyric!=null)holder.append(text('span','歌词 '+result.lyric+' 行',result.lyric?'ok':'warn'));
+      if(result.playback!=null)holder.append(text('span',result.playback?'已取得播放地址':'未取得播放地址',result.playback?'ok':'warn'));
+      if(result.error)holder.append(text('span',result.error,'error'));
+      holder.append(text('span',Math.round(result.elapsed/100)/10+' 秒','muted'));
+      if(result.playback===false)holder.append(text('p','上游未提供可播地址，可能涉及账号购买权限、地区限制或曲目下架。请换一首歌曲或检查音源账号。','hint'));
+    }
+    function schedulePoll() {
+      clearTimeout(pollTimer);if(!activeLogin)return;
+      const sessionId=activeLogin.id,providerId=activeLogin.providerId,generation=loginGeneration;
+      pollTimer=setTimeout(async()=>{
+        try {const session=await api('providers/'+encodeURIComponent(providerId)+'/login/'+encodeURIComponent(sessionId));if(generation!==loginGeneration)return;activeLogin=session;renderLogin(session);
+          if(['authorized','expired','failed','cancelled'].includes(session.state)){activeLogin=null;if(session.state==='authorized'){await refreshAll();notice('音源登录成功，凭据已加密保存。');}}else schedulePoll();
+        }catch(error){notice('登录状态查询失败：'+error.message,true);if(authenticated&&generation===loginGeneration)schedulePoll();}
+      },2500);
+    }
+    async function cancelLogin() {
+      const current=activeLogin;if(!current)return;
+      ++loginGeneration;clearTimeout(pollTimer);activeLogin=null;
+      const session=await api('providers/'+encodeURIComponent(current.providerId)+'/login/'+encodeURIComponent(current.id),{method:'DELETE'});renderLogin(session);
+    }
+    async function copyText(value) {
+      if(navigator.clipboard&&window.isSecureContext){await navigator.clipboard.writeText(value);return;}
+      const input=document.createElement('textarea');input.value=value;input.style.position='fixed';input.style.opacity='0';document.body.append(input);input.select();const copied=document.execCommand('copy');input.remove();if(!copied)throw new Error('复制失败，请手动选择并复制地址。');
+    }
+    $('login-form').addEventListener('submit',event=>{event.preventDefault();void busy(event.submitter,async()=>{$('login-error').textContent='';try{const session=await api('session/login',{method:'POST',body:JSON.stringify({username:$('username').value.trim(),password:$('password').value})});$('password').value='';await enter(session);}catch(error){$('login-error').textContent=error.message;}});});
+    $('pair-form').addEventListener('submit',event=>{event.preventDefault();void busy(event.submitter,async()=>{$('login-error').textContent='';try{const session=await api('session/pair',{method:'POST',body:JSON.stringify({code:$('pair-code').value.trim().toUpperCase()})});$('pair-code').value='';await enter({...session,recovery:true});}catch(error){$('login-error').textContent=error.message;}});});
+    $('account-form').addEventListener('submit',event=>{event.preventDefault();$('account-error').textContent='';if($('new-password').value!==$('confirm-password').value){$('account-error').textContent='两次输入的新密码不一致。';$('confirm-password').focus();return;}void busy(event.submitter,async()=>{try{const username=$('account-username').value.trim();await api('account',{method:'POST',body:JSON.stringify({username,password:$('new-password').value,...(!$('current-password-field').hidden?{currentPassword:$('current-password').value}:{})})});showAuthenticated(false);$('username').value=username;$('password').value='';$('login-description').textContent='账号已保存，请使用新密码登录。';$('pair-details').open=false;$('password').focus();}catch(error){$('account-error').textContent=error.message;}});});
+    document.querySelectorAll('[data-view]').forEach(button=>button.addEventListener('click',()=>setView(button.dataset.view,true)));
+    $('refresh-all').addEventListener('click',()=>void refreshAll());
+    $('logout').addEventListener('click',()=>void busy($('logout'),async()=>{await api('session/logout',{method:'POST'});showAuthenticated(false);$('password').value='';$('password').focus();}));
+    api('session').then(enter).catch(()=>showAuthenticated(false));
+    api('session/options').then(options=>{if(!options.accountConfigured){$('login-description').textContent='尚未设置管理员。请先使用一次性配对码创建账号。';$('pair-details').open=true;}}).catch(error=>{$('login-error').textContent='无法连接管理服务：'+error.message;});
+    window.addEventListener('pagehide',()=>{++loginGeneration;clearTimeout(pollTimer);});
+  </script>
+</body>
+</html>

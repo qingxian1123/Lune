@@ -1,15 +1,40 @@
 import { Body, Controller, Get, Header, Post, Req, Res } from '@nestjs/common';
-import { IsString, Length } from 'class-validator';
-import { ConfigService } from '@nestjs/config';
+import { IsOptional, IsString, Length, Matches } from 'class-validator';
 import { accessSync, constants, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { EncryptedCredentialStore } from '../../infrastructure/credentials/encrypted-credential.store';
 import { AdminSessionService, type AdminRequest } from './admin-session.service';
+import { AdminAccountService } from './admin-account.service';
 
 class PairDto {
   @IsString()
   @Length(18, 18)
   code!: string;
+}
+
+class LoginDto {
+  @IsString()
+  @Length(3, 32)
+  username!: string;
+
+  @IsString()
+  @Length(1, 128)
+  password!: string;
+}
+
+class AccountDto {
+  @IsString()
+  @Matches(/^[A-Za-z0-9_.-]{3,32}$/)
+  username!: string;
+
+  @IsString()
+  @Length(12, 128)
+  password!: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(0, 128)
+  currentPassword?: string;
 }
 
 interface HeaderResponse {
@@ -20,8 +45,8 @@ interface HeaderResponse {
 export class AdminSessionController {
   constructor(
     private readonly sessions: AdminSessionService,
-    private readonly config: ConfigService,
     private readonly credentials: EncryptedCredentialStore,
+    private readonly accounts: AdminAccountService,
   ) {}
 
   @Get('ui')
@@ -30,13 +55,39 @@ export class AdminSessionController {
   @Header('Content-Security-Policy', "default-src 'none'; img-src data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'")
   ui(@Req() request: AdminRequest): string {
     this.sessions.assertAdminListener(request);
-    return readFileSync(resolve(__dirname, '../../../../admin-public/index.html'), 'utf8');
+    return readFileSync(resolve(__dirname, '../../../../admin-public/dashboard.html'), 'utf8');
   }
 
   @Post('session/pairing-code')
   @Header('Cache-Control', 'no-store')
   pairingCode(@Req() request: AdminRequest) {
     return this.sessions.issuePairingCode(request);
+  }
+
+  @Get('session/options')
+  options(@Req() request: AdminRequest) {
+    this.sessions.assertAdminListener(request);
+    return { accountConfigured: this.accounts.info().configured };
+  }
+
+  @Post('session/login')
+  async login(@Req() request: AdminRequest, @Res({ passthrough: true }) response: HeaderResponse, @Body() body: LoginDto) {
+    const session = await this.sessions.login(request, body.username, body.password);
+    response.setHeader('Set-Cookie', `lune_admin_session=${session.token}; HttpOnly; SameSite=Strict; Path=/api/admin; Max-Age=1800`);
+    return { csrf: session.csrf, expiresAt: session.expiresAt, recovery: false };
+  }
+
+  @Get('account')
+  account(@Req() request: AdminRequest) {
+    this.sessions.authorize(request);
+    return this.accounts.info();
+  }
+
+  @Post('account')
+  async saveAccount(@Req() request: AdminRequest, @Res({ passthrough: true }) response: HeaderResponse, @Body() body: AccountDto) {
+    await this.sessions.saveAccount(request, body.username, body.password, body.currentPassword);
+    response.setHeader('Set-Cookie', 'lune_admin_session=; HttpOnly; SameSite=Strict; Path=/api/admin; Max-Age=0');
+    return { ok: true, loginRequired: true };
   }
 
   @Post('session/pair')
@@ -69,7 +120,6 @@ export class AdminSessionController {
     return {
       version: metadata.version || 'unknown',
       storageWritable,
-      publicUrl: this.config.get<string>('LUNE_PUBLIC_URL')?.trim() || '',
     };
   }
 

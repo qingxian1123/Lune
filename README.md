@@ -22,11 +22,22 @@ Lune 是一个自托管的多人同步听歌应用。用户在 Windows 或 Andro
 ## 开始使用
 
 1. 服务管理员使用 [Docker Compose 部署包](server-deploy/README.compose.md)部署单实例服务端；已有 Node.js 环境也可按 [systemd 部署指南](docs/DEPLOYMENT.md)操作。
-2. 在本地管理入口连接至少一个音乐源；systemd 部署可按 [音乐源配置与管理](docs/PROVIDERS.md)操作。
+2. 按 [管理员使用说明](server-deploy/ADMIN.md)建立 SSH 隧道并生成一次性配对码，创建管理员账号后登录至少一个音乐源。
 3. 在客户端填写服务地址，输入昵称后创建房间，或通过朋友提供的六位房间码加入。
 4. 搜索歌曲或歌单，加入播放队列，即可一起听歌。
 
 房间没有暂停操作；本机静音和系统打断不会暂停其他成员的播放。具体操作见 [使用说明](docs/USAGE.md)，连接或声音异常见 [播放与连接故障处理](docs/playback-reliability.md)。
+
+## 服务端自部署
+
+当前整理版本为 **服务端 2.1.0**，功能与升级事项见 [版本说明](server-deploy/releases/v2.1.0.md)。
+
+- **Docker Compose**：按 [云服务器自部署指南](server-deploy/README.compose.md)安装，使用固定版本与摘要的镜像。
+- **Node.js / systemd**：按 [服务端部署与运维](docs/DEPLOYMENT.md)准备环境、启动服务并配置反向代理。
+- **管理后台**：按 [管理员使用说明](server-deploy/ADMIN.md)建立 SSH 隧道，在服务器生成配对码，首次创建账号后使用账号密码登录。
+- **音乐源**：在后台完成扫码、凭据检查与单曲检测；服务器地址直接在客户端填写。
+
+管理后台提供「概览 / 音乐源 / 管理员」三个入口。业务默认使用 9527，管理默认使用仅供本机访问的 9528；公网入口由部署模式和反向代理决定。
 
 ## 文档
 
@@ -36,6 +47,8 @@ Lune 是一个自托管的多人同步听歌应用。用户在 Windows 或 Andro
 - [音乐源配置与管理](docs/PROVIDERS.md)
 - [Docker Compose 部署](server-deploy/README.compose.md)
 - [服务端部署与运维](docs/DEPLOYMENT.md)
+- [管理员账号与管理后台](server-deploy/ADMIN.md)
+- [服务端 2.1.0 版本说明](server-deploy/releases/v2.1.0.md)
 - [部署模板说明](server-deploy/README.md)
 
 仓库维护使用与运维文档。内部开发资料保留在本地并由 Git 忽略，不随仓库分发。

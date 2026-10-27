@@ -9,6 +9,9 @@
 
 ## 部署与运维
 
+- [管理员账号与管理后台](../server-deploy/ADMIN.md)：SSH 隧道、配对码、固定账号、音源管理和恢复
+- [服务端 2.1.0 版本说明](../server-deploy/releases/v2.1.0.md)：本次功能、升级事项和验证范围
+
 - [Docker Compose 部署](../server-deploy/README.compose.md)：Linux 云服务器、Caddy 或已有反向代理、管理入口
 - [服务端部署与运维](DEPLOYMENT.md)：发布包、systemd、Nginx、升级和备份
 - [音乐源配置与管理](PROVIDERS.md)：音源启用、账号登录、健康检查和管理接口

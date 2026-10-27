@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { cp, mkdir, rename, stat, writeFile } from 'node:fs/promises';
+import { cp, mkdir, readFile, rename, stat, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 async function main(): Promise<void> {
@@ -12,7 +12,10 @@ async function main(): Promise<void> {
   await stat(resolve(sourceDist, 'main.js'));
   const sourceAdminPublic = resolve(serverRoot, 'admin-public');
   const targetAdminPublic = resolve(deployRoot, 'admin-public');
-  await stat(resolve(sourceAdminPublic, 'index.html'));
+  await stat(resolve(sourceAdminPublic, 'dashboard.html'));
+  const { version } = JSON.parse(await readFile(resolve(serverRoot, 'package.json'), 'utf8')) as { version: string };
+  const releaseNotes = resolve(deployRoot, 'releases', `v${version}.md`);
+  await stat(releaseNotes);
   if (dryRun) {
     console.log(JSON.stringify({ ok: true, dryRun: true, sourceDist, targetDist, sourceAdminPublic, targetAdminPublic }, null, 2));
     return;
@@ -28,15 +31,20 @@ async function main(): Promise<void> {
   await rename(nextDist, targetDist);
 
   const nextAdminPublic = resolve(deployRoot, `.admin-public-next-${process.pid}-${Date.now()}`);
-  await cp(sourceAdminPublic, nextAdminPublic, { recursive: true, force: true });
+  await mkdir(nextAdminPublic, { recursive: true });
+  await cp(resolve(sourceAdminPublic, 'dashboard.html'), resolve(nextAdminPublic, 'dashboard.html'));
   if (await exists(targetAdminPublic)) {
     const backup = resolve(deployRoot, `admin-public.backup-${new Date().toISOString().replace(/[:.]/g, '-')}`);
     await rename(targetAdminPublic, backup);
   }
   await rename(nextAdminPublic, targetAdminPublic);
 
+  await cp(releaseNotes, resolve(deployRoot, 'RELEASE-NOTES.md'));
+
   const release = {
     schemaVersion: 1,
+    version,
+    dataSchemaVersion: 1,
     builtAt: new Date().toISOString(),
     node: process.version,
     gitCommit: gitCommit(workspaceRoot),

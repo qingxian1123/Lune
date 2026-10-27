@@ -1,0 +1,46 @@
+#!/usr/bin/env python3
+"""Issue a one-use pairing code for a systemd deployment without printing secrets."""
+import json
+import os
+import shlex
+import sys
+import urllib.request
+from pathlib import Path
+
+
+def main():
+    if os.geteuid() != 0:
+        raise RuntimeError("请使用 sudo 运行，以读取服务环境文件。")
+    settings = {}
+    env_path = Path(sys.argv[1] if len(sys.argv) > 1 else "/etc/lune/lune.env")
+    for line in env_path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        name, raw = line.split("=", 1)
+        values = shlex.split(raw, comments=True)
+        settings[name.strip()] = " ".join(values)
+    token = settings.get("LUNE_ADMIN_TOKEN", "")
+    if not token:
+        raise RuntimeError("环境文件缺少 LUNE_ADMIN_TOKEN。")
+    port = int(settings.get("LUNE_MANAGE_PORT", "9528"))
+    if not 1 <= port <= 65535:
+        raise RuntimeError("管理端口无效。")
+    request = urllib.request.Request(
+        f"http://127.0.0.1:{port}/api/admin/session/pairing-code",
+        method="POST", headers={"Authorization": "Bearer " + token},
+    )
+    with urllib.request.urlopen(request, timeout=10) as response:
+        result = json.load(response)
+    print("一次性配对码：" + result["code"])
+    print("有效期至（UTC）：" + result["expiresAt"])
+    print(f"浏览器入口：http://127.0.0.1:{port}/api/admin/ui（先建立 SSH 隧道）")
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception as error:
+        # urllib errors do not include the Authorization header.
+        print("无法生成配对码：" + str(error), file=sys.stderr)
+        sys.exit(1)

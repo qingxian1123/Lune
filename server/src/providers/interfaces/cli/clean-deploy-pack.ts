@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { cp, mkdir, rename, stat, writeFile } from 'node:fs/promises';
+import { chmod, cp, mkdir, readFile, rename, stat, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 async function main(): Promise<void> {
@@ -10,6 +10,9 @@ async function main(): Promise<void> {
   const target = resolve(workspaceRoot, 'server-release-clean');
   const sourceDist = resolve(serverRoot, 'dist');
   await stat(resolve(sourceDist, 'main.js'));
+  const { version } = JSON.parse(await readFile(resolve(serverRoot, 'package.json'), 'utf8')) as { version: string };
+  const releaseNotes = resolve(deploySource, 'releases', `v${version}.md`);
+  await stat(releaseNotes);
 
   const allowlist = [
     'dist/',
@@ -17,12 +20,15 @@ async function main(): Promise<void> {
     'config/providers.json',
     'systemd/',
     'bin/lune-provider',
+    'bin/lune-admin-code',
     'nginx/lune.conf',
     'ecosystem.config.cjs',
     '.env.example',
     'package.json',
     'package-lock.json',
     'README.md',
+    'ADMIN.md',
+    'RELEASE-NOTES.md',
   ];
   if (dryRun) {
     console.log(JSON.stringify({ ok: true, dryRun: true, target, allowlist }, null, 2));
@@ -32,10 +38,15 @@ async function main(): Promise<void> {
   const stage = resolve(workspaceRoot, `.server-release-clean-next-${process.pid}-${Date.now()}`);
   await mkdir(stage, { recursive: true });
   await copyDirectory(sourceDist, resolve(stage, 'dist'));
-  await copyDirectory(resolve(serverRoot, 'admin-public'), resolve(stage, 'admin-public'));
+  await copyFile(resolve(serverRoot, 'admin-public', 'dashboard.html'), resolve(stage, 'admin-public', 'dashboard.html'));
   await copyFile(resolve(serverRoot, 'config', 'providers.json'), resolve(stage, 'config', 'providers.json'));
   await copyDirectory(resolve(deploySource, 'systemd'), resolve(stage, 'systemd'));
   await copyFile(resolve(deploySource, 'bin', 'lune-provider'), resolve(stage, 'bin', 'lune-provider'));
+  await copyFile(resolve(deploySource, 'bin', 'lune-admin-code'), resolve(stage, 'bin', 'lune-admin-code'));
+  await chmod(resolve(stage, 'bin', 'lune-provider'), 0o755);
+  await chmod(resolve(stage, 'bin', 'lune-admin-code'), 0o755);
+  await copyFile(resolve(deploySource, 'ADMIN.md'), resolve(stage, 'ADMIN.md'));
+  await copyFile(releaseNotes, resolve(stage, 'RELEASE-NOTES.md'));
   await copyFile(resolve(deploySource, 'nginx', 'lune.conf'), resolve(stage, 'nginx', 'lune.conf'));
   for (const name of [
     'ecosystem.config.cjs',
@@ -45,13 +56,15 @@ async function main(): Promise<void> {
   ]) {
     await copyFile(resolve(deploySource, name), resolve(stage, name));
   }
-  await copyFile(
-    resolve(workspaceRoot, 'docs', 'DEPLOYMENT.md'),
-    resolve(stage, 'README.md'),
-  );
+  const deploymentGuide = (await readFile(resolve(workspaceRoot, 'docs', 'DEPLOYMENT.md'), 'utf8'))
+    .replaceAll('](../server-deploy/ADMIN.md)', '](ADMIN.md)');
+  await writeFile(resolve(stage, 'README.md'), deploymentGuide, 'utf8');
 
   const release = {
     schemaVersion: 1,
+    version,
+    dataSchemaVersion: 1,
+    providerConfigSchemaVersion: 1,
     cleanDeployment: true,
     includesLegacyCredentials: false,
     builtAt: new Date().toISOString(),

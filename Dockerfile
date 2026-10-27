@@ -32,7 +32,7 @@ WORKDIR /opt/lune
 COPY --from=production-dependencies --chown=10001:10001 /opt/lune/node_modules ./node_modules
 COPY --from=build --chown=10001:10001 /build/server/dist ./dist
 COPY --chown=10001:10001 server/package.json ./package.json
-COPY --chown=10001:10001 server/admin-public ./admin-public
+COPY --chown=10001:10001 server/admin-public/dashboard.html ./admin-public/dashboard.html
 USER 10001:10001
 EXPOSE 9527 9528
 STOPSIGNAL SIGTERM
