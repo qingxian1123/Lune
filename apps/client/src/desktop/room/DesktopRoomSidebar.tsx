@@ -7,7 +7,7 @@ import SearchPanel from '../../components/SearchPanel';
 import type { SearchPanelTab } from '../../components/SearchPanel';
 import type { DesktopRoomTab } from './types';
 import DesktopRoomMembers from './DesktopRoomMembers';
-import WorkspaceNavigation, { WorkspaceIcon, workspaceDestinations } from './WorkspaceNavigation';
+import WorkspaceNavigation, { workspaceDestinations } from './WorkspaceNavigation';
 import './full-workspace.css';
 
 interface DesktopRoomSidebarProps {
@@ -52,42 +52,19 @@ export default function DesktopRoomSidebar({
   onReorder,
 }: DesktopRoomSidebarProps) {
   const sidebarRef = useRef<HTMLElement>(null);
-  const compactFocusRequested = useRef(false);
   const shortcut = useDesktopPreferences((state) => state.bindings.toggleLibrary);
   const layout = useDesktopPreferences((state) => state.libraryLayout);
-  const setLayout = useDesktopPreferences((state) => state.setLibraryLayout);
   const [searchTab, setSearchTab] = useState<SearchPanelTab>('songs');
-  const [layoutError, setLayoutError] = useState<string | null>(null);
   const expanded = layout === 'workspace';
   const destination = activeTab === 'search' ? searchTab : activeTab;
   const page = workspaceDestinations.find((item) => item.id === destination)!;
-  const returnToCompact = () => {
-    const error = setLayout('compact');
-    setLayoutError(error);
-    compactFocusRequested.current = !error;
-  };
   useLayoutEffect(() => {
     sidebarRef.current?.toggleAttribute('inert', !open);
   }, [open]);
-  useLayoutEffect(() => {
-    if (!expanded && compactFocusRequested.current) {
-      compactFocusRequested.current = false;
-      sidebarRef.current?.querySelector<HTMLButtonElement>(`#library-tab-${activeTab}`)?.focus();
-    }
-  }, [expanded, activeTab]);
   return (
     <aside ref={sidebarRef} id="room-music-library" className={`terminal-sidebar ${open ? 'is-open' : ''}${expanded ? ' library-workspace' : ''}`} aria-label={expanded ? '完整工作区' : '房间音乐库'} aria-hidden={!open}>
-      {expanded && <WorkspaceNavigation active={destination} queueCount={queue.length} membersCount={members.length}
-        roomCode={roomCode} connected={connected} copied={copied} onCopyCode={onCopyCode} onOpenSettings={onOpenSettings}
+      {expanded && <WorkspaceNavigation active={destination} onShowPlayer={onClose} onOpenSettings={onOpenSettings}
         onSelect={(tab, nextSearchTab) => { if (nextSearchTab) setSearchTab(nextSearchTab); onSelectTab(tab); }} />}
-      {expanded && <header className="workspace-header">
-        <div className="workspace-page-heading"><h2>{page.label}</h2></div>
-        <div className="workspace-header-actions">
-          <button type="button" className="workspace-settings-toggle" onClick={onOpenSettings} aria-label="打开设置" title="设置"><WorkspaceIcon name="settings" /></button>
-          <button type="button" className="workspace-compact-toggle" onClick={returnToCompact} aria-label="切换为简约功能区" title="切换为简约功能区"><WorkspaceIcon name="collapse" /><span>简约模式</span></button>
-          <button type="button" className="workspace-return" onClick={onClose} title={`返回播放页${shortcut ? ` · ${formatShortcut(shortcut)}` : ''}`}><WorkspaceIcon name="back" /><span>返回播放页</span></button>
-        </div>
-      </header>}
       <div className="sidebar-header">
         <div className="side-tabs" role="tablist" aria-label="房间工具" onKeyDown={(event) => {
           const tabs: DesktopRoomTab[] = ['search', 'queue', 'members'];
@@ -150,12 +127,12 @@ export default function DesktopRoomSidebar({
       </div>
 
       <div className="sidebar-content">
-        {layoutError && <p className="workspace-layout-error" role="alert">{layoutError}</p>}
         <div id="library-panel-search" role={expanded ? 'region' : 'tabpanel'} aria-label={expanded ? page.label : undefined} aria-labelledby={expanded ? undefined : 'library-tab-search'} hidden={activeTab !== 'search'}>
           <SearchPanel active={open && activeTab === 'search'} onPick={onPickTrack} onAddMany={onAddMany}
             tab={searchTab} onTabChange={setSearchTab} presentation={expanded ? 'workspace' : 'compact'} />
         </div>
         <div id="library-panel-queue" role={expanded ? 'region' : 'tabpanel'} aria-label={expanded ? '播放队列' : undefined} aria-labelledby={expanded ? undefined : 'library-tab-queue'} hidden={activeTab !== 'queue'}>
+          {expanded && <header className="workspace-section-heading"><h2>播放队列</h2></header>}
           <Queue
             queue={queue}
             currentTrackId={currentTrackId}
@@ -165,6 +142,7 @@ export default function DesktopRoomSidebar({
           />
         </div>
         <div id="library-panel-members" role={expanded ? 'region' : 'tabpanel'} aria-label={expanded ? '房间成员' : undefined} aria-labelledby={expanded ? undefined : 'library-tab-members'} hidden={activeTab !== 'members'}>
+          {expanded && <header className="workspace-section-heading"><h2>房间成员</h2></header>}
           <DesktopRoomMembers roomCode={roomCode} copied={copied} connected={connected} onCopyCode={onCopyCode} onLeave={onLeave}>
             <MemberList members={members} ownerId={ownerId} />
           </DesktopRoomMembers>

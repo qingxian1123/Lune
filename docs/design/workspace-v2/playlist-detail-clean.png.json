@@ -1,0 +1,10 @@
+{
+  "status": "approved-with-adjustments",
+  "approved": true,
+  "adjustments": "Remove the persistent invitation code from the sidebar. Keep its explicit copy action in the members page. User authorized first implementation.",
+  "generatedOn": "2026-10-24",
+  "tool": "image_gen.imagegen",
+  "purpose": "Revised design proposal: remove room/listener status, search statistics, and navigation counts.",
+  "editTarget": "playlist-detail.png",
+  "prompt": "Edit this existing Lune playlist DETAIL design mockup with minimal, precise removals. The supplied image is the EDIT TARGET, not just a style reference. Preserve the same layout, color palette, typography, photograph, breadcrumb, title 夜色慢慢落下, creator/playlist metadata, 全部加入队列 button, song table, row-hover icons, and canvas aspect ratio. Make only the following removals:\n1. Remove 12 next to 播放队列 and 3 next to 房间成员 in left navigation. Keep the navigation labels and icons without numeric badges.\n2. At bottom left delete the green status dot and the entire 3 人在房间 line. Preserve 设置 and 邀请码 206418, arranging them neatly with no empty status row.\n3. In the bottom player remove the lavender dot and entire 3 人一起听 text. Extend the progress slider leftwards to use the freed space naturally and keep balanced spacing. Preserve cover and track 私生活 / 東京事変, elapsed/total time, heart action, volume slider and 下一首.\nDo not add new text, substitutes, avatars, connection indicators, online status, listeners, result counts or decorations. Preserve meaningful music content metadata such as 24 首 in the playlist information, row numbers and song durations. No new buttons, no duplicate return controls, no pause button. Preserve all other image content and artwork exactly."
+}

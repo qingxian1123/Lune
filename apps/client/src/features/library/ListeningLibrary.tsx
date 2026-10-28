@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import type { Dispatch, SetStateAction } from 'react';
 import type { Track } from '@lune/shared';
 import { useRoomStore } from '../../hooks/useRoomStore';
 import FavoriteButton, { BookmarkIcon } from './FavoriteButton';
@@ -16,14 +17,35 @@ function dayLabel(timestamp: number): string {
   return date.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' });
 }
 
-export default function ListeningLibrary({ server, onAdd, onSearch }: {
+export interface ListeningLibraryViewState {
+  view: 'history' | 'favorites';
+  query: string;
+  confirmClear: boolean;
+  notice: string;
+  limit: number;
+}
+
+export const initialLibraryViewState = (): ListeningLibraryViewState => ({
+  view: 'history', query: '', confirmClear: false, notice: '', limit: 50,
+});
+
+export interface SharedLibraryViewState {
+  value: ListeningLibraryViewState;
+  onChange: Dispatch<SetStateAction<ListeningLibraryViewState>>;
+}
+
+export default function ListeningLibrary({ server, onAdd, onSearch, viewState }: {
   server: string; onAdd: (track: Track) => void; onSearch: () => void;
+  viewState?: SharedLibraryViewState;
 }) {
-  const [view, setView] = useState<'history' | 'favorites'>('history');
-  const [query, setQuery] = useState('');
-  const [confirmClear, setConfirmClear] = useState(false);
-  const [notice, setNotice] = useState('');
-  const [limit, setLimit] = useState(50);
+  const [localState, setLocalState] = useState(initialLibraryViewState);
+  const { view, query, confirmClear, notice, limit } = viewState?.value ?? localState;
+  const setState = viewState?.onChange ?? setLocalState;
+  const setView = (value: ListeningLibraryViewState['view']) => setState((state) => ({ ...state, view: value }));
+  const setQuery = (value: string) => setState((state) => ({ ...state, query: value }));
+  const setConfirmClear = (value: boolean) => setState((state) => ({ ...state, confirmClear: value }));
+  const setNotice = (value: string) => setState((state) => ({ ...state, notice: value }));
+  const setLimit = (value: number) => setState((state) => ({ ...state, limit: value }));
   const history = useListeningLibrary((state) => state.history);
   const favorites = useListeningLibrary((state) => state.favorites);
   const storageError = useListeningLibrary((state) => state.storageError);

@@ -143,15 +143,7 @@ export default function Room() {
   return (
     <div className={`room-shell room-recovery room-floating-library${isWindows ? ' room-frameless' : ''}`} style={albumStyle}>
       <AlbumSilhouette coverUrl={track?.coverUrl} />
-      {!isWindows && <DesktopRoomHeader
-        roomCode={displayRoomCode}
-        copied={copied}
-        connected={connected}
-        membersCount={members.length}
-        onCopyCode={copyCode}
-        onOpenLibrary={() => changePanel(true)}
-        onLeave={leaveToHome}
-      />}
+      {!isWindows && <DesktopRoomHeader />}
 
       {errorMessage && (
         <div className="room-error" role="alert">
@@ -212,6 +204,7 @@ export default function Room() {
           void retryPlayback(true);
         }} /></div>
       <TransportBar
+        quiet={panelOpen && libraryLayout === 'workspace'}
         recoveryState={recoveryState}
         connected={connected}
         onSendHeart={onSendHeart}

@@ -20,6 +20,7 @@ interface TransportBarProps {
   onSeek: (ms: number) => void;
   onNext: () => void;
   onSendHeart: (track: Track) => Promise<void>;
+  quiet?: boolean;
 }
 
 export default function TransportBar({
@@ -33,6 +34,7 @@ export default function TransportBar({
   onSeek,
   onNext,
   onSendHeart,
+  quiet = false,
 }: TransportBarProps) {
   const volume = useVolumeStore((state) => state.volume);
   const muted = useVolumeStore((state) => state.muted);
@@ -51,7 +53,7 @@ export default function TransportBar({
   } as CSSProperties;
 
   return (
-    <section className="transport-bar" aria-label="播放控制">
+    <section className={`transport-bar${quiet ? ' is-workspace' : ''}`} aria-label="播放控制">
       <label className={`transport-progress ${isOwner ? '' : 'is-locked'}`} style={progressStyle}>
         <span className="sr-only">播放进度</span>
         <input
@@ -71,7 +73,7 @@ export default function TransportBar({
           {track?.coverUrl ? <img src={track.coverUrl} alt="" /> : <span>L</span>}
         </div>
         <div className="transport-copy">
-          <span>{muted && recoveryState.phase === 'playing' ? '本机静音' : isBuffering && recoveryState.phase === 'playing' ? '正在缓冲' : playbackLabel(recoveryState)}</span>
+          {(!quiet || muted || isBuffering || recoveryState.phase !== 'playing') && <span>{muted && recoveryState.phase === 'playing' ? '本机静音' : isBuffering && recoveryState.phase === 'playing' ? '正在缓冲' : playbackLabel(recoveryState)}</span>}
           <strong>{track?.name || '还没有音乐'}</strong>
           {track?.artists && <small>{track.artists}</small>}
         </div>
@@ -84,7 +86,7 @@ export default function TransportBar({
       </div>
 
       <div className="transport-actions">
-        <span className="transport-link" data-connected={connected} role="img" tabIndex={0}
+        {!quiet && <span className="transport-link" data-connected={connected} role="img" tabIndex={0}
           aria-label={connected ? '房间连接正常' : '房间连接已断开'}>
           <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
             <path className="transport-link-left" d="M10 4.25a8 8 0 0 0 0 15.5" />
@@ -92,7 +94,7 @@ export default function TransportBar({
             <circle className="transport-link-center" cx="12" cy="12" r="2" />
             <path className="transport-link-break" d="m8.5 15.5 7-7" />
           </svg>
-        </span>
+        </span>}
         <FavoriteButton track={track} />
         <HeartButton track={track} onSendHeart={onSendHeart} sessionScope={getServerBaseUrl()} className="transport-heart" />
 

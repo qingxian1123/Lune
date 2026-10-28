@@ -1,4 +1,5 @@
-import { useEffect, useState, useSyncExternalStore, useRef } from 'react';
+import { useEffect, useLayoutEffect, useState, useSyncExternalStore, useRef } from 'react';
+import type { UIEventHandler } from 'react';
 import type { PlaylistSummary, Track } from '@lune/shared';
 import { getPlaylist, getProviders, searchPlaylists, searchTracks } from '../lib/api';
 import HotChartPanel, { providerLabel } from './HotChartPanel';
@@ -6,8 +7,9 @@ import './hearts.css';
 import { getServerBaseUrl } from '../lib/serverConfig';
 import { formatTime } from '../lib/format';
 import { getUiErrorMessage } from '../lib/uiError';
-import ListeningLibrary from '../features/library/ListeningLibrary';
+import ListeningLibrary, { initialLibraryViewState } from '../features/library/ListeningLibrary';
 import FavoriteButton from '../features/library/FavoriteButton';
+import WorkspaceMusicBrowser from './WorkspaceMusicBrowser';
 
 interface SearchPanelProps {
   onPick: (track: Track) => void;
@@ -50,6 +52,15 @@ export default function SearchPanel({ onPick, onAddMany, providerPicker = 'selec
   const serverUrl = useSyncExternalStore(subscribeServer, getServerBaseUrl);
 
   const requests = useRef({ songs: 0, playlists: 0, detail: 0 });
+  const contentRef = useRef<HTMLElement>(null);
+  const scrollPositions = useRef<Record<string, number>>({});
+  const [libraryView, setLibraryView] = useState(initialLibraryViewState);
+  const libraryViewState = { value: libraryView, onChange: setLibraryView };
+  const saveScroll: UIEventHandler<HTMLElement> = (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement) || !target.dataset.scrollKey || !target.getClientRects().length) return;
+    scrollPositions.current[`${presentation}:${target.dataset.scrollKey}`] = target.scrollTop;
+  };
 
   // 搜歌 state
   const [kw, setKw] = useState('');
@@ -75,6 +86,8 @@ export default function SearchPanel({ onPick, onAddMany, providerPicker = 'selec
     setLoading(false); setPlLoading(false); setDetailLoading(false);
     setResults([]); setPlaylists([]); setTracks([]); setSelected(null); setPlView('list');
     setSearched(false); setPlaylistSearched(false);
+    setLibraryView(initialLibraryViewState());
+    scrollPositions.current = {};
     let alive = true;
     getProviders()
       .then((activeProviders) => {
@@ -95,6 +108,7 @@ export default function SearchPanel({ onPick, onAddMany, providerPicker = 'selec
   }, [serverUrl]);
 
   const changeProvider = (nextProvider: string) => {
+    scrollPositions.current = {};
     requests.current.songs++; requests.current.playlists++; requests.current.detail++;
     setLoading(false); setPlLoading(false); setDetailLoading(false);
     setProvider(nextProvider);
@@ -146,6 +160,8 @@ export default function SearchPanel({ onPick, onAddMany, providerPicker = 'selec
   };
 
   const openPlaylist = async (pl: PlaylistSummary) => {
+    delete scrollPositions.current['workspace:detail'];
+    delete scrollPositions.current['compact:detail'];
     const request = ++requests.current.detail;
     const isCurrent = () => request === requests.current.detail && serverUrl === getServerBaseUrl();
     setSelected(pl);
@@ -164,14 +180,33 @@ export default function SearchPanel({ onPick, onAddMany, providerPicker = 'selec
   };
 
   const backToList = () => {
+    requests.current.detail++;
     setPlView('list');
+    setDetailLoading(false);
     setDetailErr('');
   };
 
+  useLayoutEffect(() => {
+    const other = workspace ? 'compact' : 'workspace';
+    contentRef.current?.querySelectorAll<HTMLElement>('[data-scroll-key]').forEach((element) => {
+      if (!element.getClientRects().length) return;
+      const key = element.dataset.scrollKey;
+      element.scrollTop = scrollPositions.current[`${presentation}:${key}`] ?? scrollPositions.current[`${other}:${key}`] ?? 0;
+    });
+  }, [presentation, workspace, tab, plView, loading, plLoading, detailLoading, active]);
+
+  if (workspace) return <WorkspaceMusicBrowser tab={tab} active={active} server={serverUrl} containerRef={contentRef} onScrollCapture={saveScroll} libraryViewState={libraryViewState}
+    source={{ value: provider, providers, onChange: changeProvider }}
+    songs={{ query: kw, onQueryChange: setKw, tracks: results, loading, error: err, searched, onSearch: () => { void doSearch(); } }}
+    playlists={{ query: plKw, onQueryChange: setPlKw, items: playlists, loading: plLoading, error: plErr, searched: playlistSearched,
+      onSearch: () => { void doPlaylistSearch(); }, view: plView, selected, tracks, detailLoading, detailError: detailErr,
+      onOpen: (playlist) => { void openPlaylist(playlist); }, onBack: backToList }}
+    onPick={onPick} onAddMany={onAddMany} onTabChange={setTab} />;
+
   return (
-    <section className="terminal-pane terminal-search">
-      <div className="pane-heading" hidden={workspace && tab === 'library'}>
-        {!workspace && <div><strong>选歌</strong></div>}
+    <section ref={contentRef} onScrollCapture={saveScroll} className="terminal-pane terminal-search">
+      <div className="pane-heading">
+        <div><strong>选歌</strong></div>
         {providerPicker === 'select' && tab !== 'library' && (
           <label className="search-provider-picker flex items-center gap-2 text-xs text-[rgb(var(--lune-muted)/0.58)]">
             <span>音乐源</span>
@@ -207,7 +242,7 @@ export default function SearchPanel({ onPick, onAddMany, providerPicker = 'selec
         </div>
       )}
 
-      <div className="search-mode-tabs search-mode-tabs-library" aria-label="选歌方式" hidden={workspace}>
+      <div className="search-mode-tabs search-mode-tabs-library" aria-label="选歌方式">
         <button
           type="button"
           aria-pressed={tab === 'songs'}
@@ -228,8 +263,8 @@ export default function SearchPanel({ onPick, onAddMany, providerPicker = 'selec
         <button type="button" aria-pressed={tab === 'library'} onClick={() => setTab('library')} className={tab === 'library' ? 'is-active' : ''} title="共听记录与收藏">我的</button>
       </div>
 
-      <div className="library-panel-scroll lune-scrollbar" hidden={tab !== 'library'}>
-        <ListeningLibrary key={serverUrl} server={serverUrl} onAdd={(track) => onAddMany([track])} onSearch={() => setTab('songs')} />
+      <div className="library-panel-scroll lune-scrollbar" data-scroll-key="library" hidden={tab !== 'library'}>
+        <ListeningLibrary key={serverUrl} server={serverUrl} viewState={libraryViewState} onAdd={(track) => onAddMany([track])} onSearch={() => setTab('songs')} />
       </div>
 
       <div hidden={tab !== 'hot'}><HotChartPanel provider={provider} serverUrl={serverUrl} active={active && tab === 'hot'} onPick={(track) => onAddMany([track])} /></div>
@@ -242,7 +277,7 @@ export default function SearchPanel({ onPick, onAddMany, providerPicker = 'selec
               value={kw}
               onChange={(e) => setKw(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && doSearch()}
-              placeholder={workspace ? '搜索歌曲或歌手' : '搜索歌曲'}
+              placeholder="搜索歌曲"
               className="lune-input min-w-0 flex-1 rounded-xl px-3 py-2 text-sm"
             />
             <button
@@ -256,14 +291,7 @@ export default function SearchPanel({ onPick, onAddMany, providerPicker = 'selec
 
           {err && <div className="mt-2 rounded-lg bg-rose-950/35 px-2 py-1.5 text-xs text-rose-200">{err}</div>}
 
-          {workspace && !loading && !err && results.length === 0 && <div className="workspace-search-empty">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="7" /><path d="m16 16 5 5" /></svg>
-            <h3>{searched ? '未找到歌曲' : '搜索歌曲或歌手'}</h3>
-            {!searched && <div><button type="button" onClick={() => setTab('playlists')}>发现歌单</button><button type="button" onClick={() => setTab('hot')}>看看共听热榜</button></div>}
-          </div>}
-          {workspace && loading && <div className="workspace-search-loading" role="status"><span className="sr-only">正在搜索歌曲</span>{[0, 1, 2, 3].map((row) => <i key={row} aria-hidden="true" />)}</div>}
-          {workspace && results.length > 0 && <div className="workspace-result-heading"><span>{results.length} 首歌曲</span><span>专辑 / 音乐源</span><span>时长</span></div>}
-          <ul className="lune-scrollbar mt-2 max-h-72 overflow-y-auto pr-1">
+          <ul data-scroll-key="songs" className="lune-scrollbar mt-2 max-h-72 overflow-y-auto pr-1">
             {results.map((track) => (
               <li
                 key={`${track.provider || provider}:${track.id}`}
@@ -279,7 +307,6 @@ export default function SearchPanel({ onPick, onAddMany, providerPicker = 'selec
                   <div className="truncate text-sm font-medium text-[rgb(var(--lune-text)/0.9)]">{track.name}</div>
                   <div className="truncate text-xs text-[rgb(var(--lune-muted)/0.46)]">{track.artists}</div>
                 </div>
-                {workspace && <div className="workspace-track-album"><span title={track.album}>{track.album || '未知专辑'}</span><small>{providerLabel(track.provider || provider)}</small></div>}
                 <FavoriteButton track={track} server={serverUrl} />
                 <span className="tabular-nums text-xs text-[rgb(var(--lune-muted)/0.52)]">{formatTime(track.duration)}</span>
                 <button type="button" aria-label={`将《${track.name}》加入队列`} onClick={(event) => { event.stopPropagation(); onPick(track); }} className="search-result-action rounded-md bg-[rgb(var(--lune-accent)/0.12)] px-2 py-1 text-xs text-[rgb(var(--lune-accent))] opacity-0 transition group-hover:opacity-100 focus-visible:opacity-100">
@@ -312,12 +339,7 @@ export default function SearchPanel({ onPick, onAddMany, providerPicker = 'selec
 
           {plErr && <div className="mt-2 rounded-lg bg-rose-950/35 px-2 py-1.5 text-xs text-rose-200">{plErr}</div>}
 
-          {workspace && !plLoading && !plErr && playlists.length === 0 && <div className="workspace-search-empty">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></svg>
-            <h3>{playlistSearched ? '未找到歌单' : '搜索歌单'}</h3>
-          </div>}
-          {workspace && plLoading && <div className="workspace-search-loading" role="status"><span className="sr-only">正在搜索歌单</span>{[0, 1, 2, 3].map((row) => <i key={row} aria-hidden="true" />)}</div>}
-          <ul className="playlist-search-results lune-scrollbar mt-2 max-h-72 overflow-y-auto pr-1">
+          <ul data-scroll-key="playlists" className="playlist-search-results lune-scrollbar mt-2 max-h-72 overflow-y-auto pr-1">
             {playlists.map((pl) => (
               <li
                 key={`${pl.provider || provider}:${pl.id}`}
@@ -378,7 +400,7 @@ export default function SearchPanel({ onPick, onAddMany, providerPicker = 'selec
           ) : tracks.length === 0 ? (
             <div className="mt-3 text-center text-xs text-[rgb(var(--lune-muted)/0.52)]">歌单为空</div>
           ) : (
-            <ul className="lune-scrollbar mt-2 max-h-72 overflow-y-auto pr-1">
+            <ul data-scroll-key="detail" className="lune-scrollbar mt-2 max-h-72 overflow-y-auto pr-1">
               {tracks.map((track, idx) => (
                 <li
                   key={`${track.provider || provider}:${track.id}-${idx}`}

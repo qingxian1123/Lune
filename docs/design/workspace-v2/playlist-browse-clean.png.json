@@ -1,0 +1,10 @@
+{
+  "status": "approved-with-adjustments",
+  "approved": true,
+  "adjustments": "Remove the persistent invitation code from the sidebar. Keep its explicit copy action in the members page. User authorized first implementation.",
+  "generatedOn": "2026-10-24",
+  "tool": "image_gen.imagegen",
+  "purpose": "Revised design proposal: remove room/listener status, search statistics, and navigation counts.",
+  "editTarget": "playlist-browse.png",
+  "prompt": "Edit this existing Lune playlist browsing design mockup with minimal, precise removals. The supplied image is the EDIT TARGET, not just a style reference. Preserve the same composition, colors, Chinese typography, album photos, titles, navigation entries, bottom player, and exact canvas aspect ratio. Remove visual noise from status and counts only:\n1. Delete the entire search summary line that says “夜晚” 的歌单 · 8 个结果. Do not replace it with another heading, count, message, badge or placeholder. Move the cover grid and all associated text slightly upwards to close the resulting gap while keeping clear space under the search row.\n2. Remove the number 12 next to 播放队列 and the number 3 next to 房间成员 in the left navigation. Keep both navigation names and icons, with no badges.\n3. At the bottom left remove the colored dot and the entire 3 人在房间 status line. Preserve 设置 and 邀请码 206418; arrange those two utilities neatly without a blank status row.\n4. In the bottom player remove the status dot and the entire 3 人一起听 text. Let the existing playback progress bar extend leftwards into the freed area with balanced spacing. Preserve the cover, track 私生活 / 東京事変, actual elapsed/total time, heart action, volume slider, and 下一首 button.\nDo not introduce any alternative online indicator, listener avatar cluster, connection status, search counts or result messages. Playlist track counts under covers are content metadata and may stay. No change to photographic artwork, no new controls, no 查看 buttons, no play/pause button. Keep the mockup crisp and premium."
+}

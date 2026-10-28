@@ -146,6 +146,12 @@
   border-bottom-color: rgb(255 255 255 / .04);
 }
 
+/* The browser placeholder stays empty and follows the same continuous canvas. */
+:root[data-theme='frosted'] .room-topbar.room-topbar-empty {
+  background: transparent;
+  border-bottom-color: rgb(255 255 255 / .04);
+}
+
 /* Transparent inner controls avoid opaque colored tiles inside the glass. */
 :root[data-theme='frosted'] :is(
   .side-tabs, .search-mode-tabs, .access-tabs, .terminal-field input,
