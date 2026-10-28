@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "overused-font",
+        "value": "space grotesk",
+        "files": [
+          "demo/windows-home/style.css"
+        ],
+        "createdAt": "2026-10-18T06:01:15.373Z",
+        "reason": "Agent: Lune DESIGN.md specifies Space Grotesk Variable for display and control type; this Windows concept demo follows that brand typography."
+      }
+    ]
+  }
+}

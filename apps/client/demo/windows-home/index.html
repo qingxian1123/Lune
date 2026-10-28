@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0e0d13" />
+    <title>Lune Radio · 首页视觉预览</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <div class="radio-home">
+      <header class="radio-topbar">
+        <div class="radio-identity" aria-label="Lune Radio，一起听">
+          <span class="radio-identity-name">LUNE</span>
+          <span class="radio-identity-divider"></span>
+          <span class="radio-identity-sub">RADIO <b>·</b> 一起听</span>
+        </div>
+        <a class="radio-settings" href="/" aria-label="返回正式首页">返回正式首页 <span aria-hidden="true">↗</span></a>
+      </header>
+
+      <main class="radio-stage">
+        <section class="radio-hero" aria-labelledby="radio-title">
+          <div class="radio-hero-copy">
+            <h1 id="radio-title"><span>Follow your</span><strong>inner moonlight<span class="radio-period">.</span></strong></h1>
+            <p class="radio-manifesto">don't hide the madness</p>
+            <p class="radio-together">tonight, together</p>
+          </div>
+          <div class="radio-dial" aria-hidden="true">
+            <div class="radio-dial-scale"></div>
+            <div class="radio-dial-record">
+              <div class="radio-dial-label"><span>LUNE</span><strong>RADIO</strong><small>一起听</small></div>
+            </div>
+            <div class="radio-dial-needle"></div>
+            <span class="radio-dial-caption">TUNE INTO EACH OTHER</span>
+          </div>
+        </section>
+
+        <section class="radio-console" aria-labelledby="radio-entry-title">
+          <div class="radio-console-intro">
+            <span class="radio-console-icon" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+            <h2 id="radio-entry-title">把今晚调到同一频道。</h2>
+            <p>创建一间房，或凭朋友分享的房间码加入。</p>
+          </div>
+          <div class="radio-console-controls">
+            <div class="radio-mode-switch" role="group" aria-label="房间操作">
+              <button id="create-action" class="is-active" type="button" aria-pressed="true">创建房间</button>
+              <button id="join-action" type="button" aria-pressed="false">加入房间</button>
+            </div>
+            <form class="radio-fields" id="entry-form" data-mode="create" novalidate>
+              <label class="radio-field"><span>你的昵称</span><input id="nickname" type="text" maxlength="32" autocomplete="nickname" placeholder="今晚怎么称呼你" /></label>
+              <label class="radio-field" id="room-field" hidden><span>六位房间码</span><input id="room-code" type="text" maxlength="6" autocomplete="off" autocapitalize="characters" placeholder="输入房间码" /></label>
+              <button class="radio-enter" id="form-submit" type="submit"><span>创建房间</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h15m-6-6 6 6-6 6" /></svg></button>
+            </form>
+            <div class="radio-feedback" id="form-feedback" role="status" aria-live="polite"></div>
+          </div>
+        </section>
+      </main>
+      <footer class="radio-footer"><span>WINDOWS HOME · VISUAL CONCEPT</span><span>一间房，几个人，刚好一首歌的距离。</span></footer>
+    </div>
+    <script src="./main.js"></script>
+  </body>
+</html>

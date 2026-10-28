@@ -1,0 +1,30 @@
+@import url('../../node_modules/@fontsource-variable/space-grotesk/index.css');
+@import url('../../src/features/access/radio-home.css');
+
+:root {
+  --font-display: "Space Grotesk Variable", "Space Grotesk", "Segoe UI", sans-serif;
+  --font-editorial: Georgia, "Times New Roman", serif;
+  color: #f2eee8;
+  font-family: "Segoe UI Variable Text", "Segoe UI", "Noto Sans CJK SC", "Microsoft YaHei", system-ui, sans-serif;
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+* { box-sizing: border-box; }
+html, body { min-width: 320px; min-height: 100%; margin: 0; }
+body { color: #f2eee8; background: #0e0d13; }
+h1 { font-size: 80px; }
+h2 { font-size: 30px; }
+button, input { font: inherit; }
+button { cursor: pointer; }
+a { color: inherit; text-decoration: none; }
+[hidden] { display: none !important; }
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: #0e0d13; }
+::-webkit-scrollbar-thumb { border-radius: 8px; background: #42394b; }
+
+@media (max-width: 760px) {
+  h1 { font-size: 46px; }
+  h2 { font-size: 24px; }
+  .radio-home.is-mobile .radio-fields[data-mode='join'] { grid-template-columns: 1fr; }
+}
