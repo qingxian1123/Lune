@@ -170,15 +170,6 @@
   height: 52px;
 }
 
-.settings-layer.is-mobile .shortcut-actions button {
-  min-height: 48px;
-}
-
-.settings-layer.is-mobile .shortcut-save-row {
-  align-items: stretch;
-  flex-direction: column-reverse;
-}
-
 @keyframes mSettingsEnter {
   from { opacity: 0.82; transform: translateY(12px); }
   to { opacity: 1; transform: translateY(0); }

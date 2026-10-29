@@ -39,6 +39,8 @@ export default function SettingsShell({
     const dialog = dialogRef.current;
     if (!dialog || !open) return;
     if (!dialog.open) dialog.showModal();
+    (dialog.querySelector<HTMLButtonElement>('.settings-nav [aria-current="page"]')
+      ?? dialog.querySelector<HTMLButtonElement>('.settings-close'))?.focus();
     return () => {
       if (dialog.open) dialog.close();
     };

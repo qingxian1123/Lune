@@ -31,22 +31,18 @@
   border-radius: 8px;
   overflow: hidden;
 }
-.appearance-preview-moonlight { background: #101011; }
-.appearance-preview-daylight { background: #f6f6f8; }
-.appearance-preview-frosted { background: linear-gradient(125deg, #797579, #353537 80%); }
-.appearance-preview-sidebar { grid-row: 1; border-radius: 3px; opacity: 0.7; }
-.appearance-preview-moonlight .appearance-preview-sidebar { background: #252429; }
-.appearance-preview-daylight .appearance-preview-sidebar { background: #e9e9ee; }
-.appearance-preview-frosted .appearance-preview-sidebar { background: rgb(255 255 255 / .18); backdrop-filter: blur(5px); }
+.appearance-preview-dark { background: #171717; }
+.appearance-preview-light { background: #f7f7f7; }
+.appearance-preview-sidebar { grid-row: 1; border-radius: 3px; }
+.appearance-preview-dark .appearance-preview-sidebar { background: #1e1e1e; }
+.appearance-preview-light .appearance-preview-sidebar { background: #eeeeee; }
 .appearance-preview-album { grid-column: 2; grid-row: 1; width: 49px; height: 49px; border-radius: 5px; }
-.appearance-preview-moonlight .appearance-preview-album { background: linear-gradient(135deg, #4a415c, #b8b0d8); }
-.appearance-preview-daylight .appearance-preview-album { background: linear-gradient(135deg, #fa7e98, #ffb35c); }
-.appearance-preview-frosted .appearance-preview-album { background: linear-gradient(135deg, #a89c94, #756c77 52%, #424244); }
+.appearance-preview-dark .appearance-preview-album { background: #3c3c3c; }
+.appearance-preview-light .appearance-preview-album { background: #d0d0d0; }
 .appearance-preview-lines { display: grid; grid-column: 2; grid-row: 1; align-content: center; gap: 6px; margin-left: 57px; }
-.appearance-preview-lines i { width: 24px; height: 3px; border-radius: 4px; opacity: .45; }
-.appearance-preview-moonlight .appearance-preview-lines i { background: #e9e6f2; }
-.appearance-preview-daylight .appearance-preview-lines i { background: #41414d; }
-.appearance-preview-frosted .appearance-preview-lines i { background: #f5f5f7; }
+.appearance-preview-lines i { width: 24px; height: 3px; border-radius: 4px; }
+.appearance-preview-dark .appearance-preview-lines i { background: #b2b2b2; }
+.appearance-preview-light .appearance-preview-lines i { background: #555555; }
 .appearance-preview-lines i:nth-child(2) { width: 17px; }
 .appearance-preview-lines i:nth-child(3) { width: 21px; }
 

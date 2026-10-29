@@ -400,25 +400,19 @@
   }
 }
 
-:root[data-theme='daylight'] .invitation-home {
+:root[data-color='light'] .invitation-home {
   --invite-sleeve-bg: #2a313a;
   --invite-pass-bg: rgb(var(--lune-bg-soft));
   --invite-field-bg: rgb(var(--lune-surface));
   --invite-field-focus: rgb(var(--lune-bg-soft));
-  --invite-brand: #7b6678;
+  --invite-brand: #555555;
   --invite-cta-bg: #231c26;
   --invite-cta-hover: #312836;
   --invite-cta-ink: #f0efeb;
   --invite-error: #b82548;
 }
 
-:root[data-theme='daylight'] .invitation-sleeve {
+:root[data-color='light'] .invitation-sleeve {
   --invite-ink: #f0efeb;
   --invite-muted: #b0b6bf;
-}
-
-:root[data-theme='frosted'] .invitation-ticket {
-  background: var(--glass-fill);
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.1);
-  backdrop-filter: blur(var(--glass-blur)) saturate(1.1);
 }

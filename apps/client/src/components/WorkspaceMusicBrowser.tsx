@@ -53,17 +53,20 @@ function MusicCover({ src, className = '' }: { src?: string; className?: string 
 function TrackList({ tracks, server, connected, onPick, numbered = false, flow = false }: {
   tracks: Track[]; server: string; connected: boolean; onPick: (track: Track) => void; numbered?: boolean; flow?: boolean;
 }) {
+  const current = useRoomStore((state) => state.playback.track);
   return <div className={`workspace-track-table${numbered ? ' is-numbered' : ''}${flow ? ' is-flow' : ''}`}>
     <div className="workspace-track-columns" aria-hidden="true">
-      {numbered && <span>序号</span>}<span>歌曲</span><span className="workspace-album-column">专辑</span><span>时长</span><span />
+      {numbered && <span>序号</span>}<span>歌曲</span><span className="workspace-artist-column">歌手</span><span className="workspace-album-column">专辑</span><span>时长</span><span />
     </div>
     <ol className="workspace-track-list lune-scrollbar" data-scroll-key={flow ? undefined : 'songs'} aria-label="歌曲列表">
-      {tracks.map((track, index) => <li className="workspace-track-row" key={`${track.provider}:${track.id}:${index}`}>
+      {tracks.map((track, index) => <li className="workspace-track-row" key={`${track.provider}:${track.id}:${index}`}
+        aria-current={current?.id === track.id && (current.provider || '') === (track.provider || '') ? 'true' : undefined}>
         {numbered && <span className="workspace-track-index" aria-hidden="true">{index + 1}</span>}
         <div className="workspace-track-identity">
           <MusicCover src={track.coverUrl} />
           <div className="workspace-track-copy"><strong title={track.name}>{track.name}</strong><small title={track.artists}>{track.artists}</small></div>
         </div>
+        <span className="workspace-artist-column" title={track.artists}>{track.artists}</span>
         <div className="workspace-album-column workspace-track-album"><span title={track.album}>{track.album || '未知专辑'}</span><small>{providerLabel(track.provider || '')}</small></div>
         <span className="workspace-track-duration">{formatTime(track.duration)}</span>
         <div className="workspace-track-row-actions">
@@ -180,9 +183,9 @@ export default function WorkspaceMusicBrowser({ tab, active, server, source, son
       </>}
     </div>
 
-    <div className="workspace-browser-view" hidden={tab !== 'hot'}>
+    <div className="workspace-browser-view workspace-hot-view" hidden={tab !== 'hot'}>
       <header className="workspace-section-heading"><h2>共听热榜</h2>{sourcePicker}</header>
-      <HotChartPanel provider={source.value} serverUrl={server} active={active && tab === 'hot'} onPick={enqueue} disabled={!connected} />
+      <HotChartPanel provider={source.value} serverUrl={server} active={active && tab === 'hot'} onPick={enqueue} disabled={!connected} presentation="workspace" />
     </div>
 
     <div className="workspace-browser-view" hidden={tab !== 'library'}>

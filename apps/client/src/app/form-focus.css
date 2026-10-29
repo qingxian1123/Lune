@@ -4,7 +4,7 @@
 .radio-field { --field-focus-color: var(--radio-accent); }
 
 :root .settings-field input[aria-invalid='true'] { border-color: #d9a3a8; }
-:root[data-theme='daylight'] .settings-field input[aria-invalid='true'] { border-color: #b82548; }
+:root[data-color='light'] .settings-field input[aria-invalid='true'] { border-color: #a1263d; }
 
 :root :is(
   .invitation-field input, .radio-field input, .settings-field input,
@@ -24,7 +24,7 @@
 }
 
 /* A composed search field draws its border on the wrapper, never its input. */
-:root[data-theme] .library-search:focus-within {
+:root[data-color] .library-search:focus-within {
   border-color: rgb(var(--lune-brand));
 }
 
@@ -34,7 +34,7 @@
     .terminal-field input, .lune-input, select.lune-control,
     .playback-notice textarea
   ):focus,
-  :root[data-theme] .library-search:focus-within {
+  :root[data-color] .library-search:focus-within {
     border-color: Highlight;
   }
 }

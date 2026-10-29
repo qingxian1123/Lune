@@ -9,7 +9,7 @@
   isolation: isolate;
   container: room-workspace / inline-size;
 }
-.room-floating-library .room-workspace[data-library-open="true"] { --library-motion-duration: 320ms; }
+.room-floating-library .room-workspace[data-interface="stage"][data-stage-panel="true"] { --library-motion-duration: 320ms; }
 .room-floating-library .terminal-sidebar {
   position: absolute;
   inset: 16px 16px 16px auto;
@@ -73,7 +73,7 @@
   container: playback-stage / inline-size;
 }
 @container room-workspace (min-width: 800px) {
-  .room-floating-library .room-workspace[data-library-open="true"][data-library-layout="compact"] > .now-playing-stage {
+  .room-floating-library .room-workspace[data-interface="stage"][data-stage-panel="true"] > .now-playing-stage {
     width: calc(100% - var(--library-width) - 48px);
   }
 }

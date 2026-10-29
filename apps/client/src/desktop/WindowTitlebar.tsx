@@ -33,7 +33,7 @@ export default function WindowTitlebar() {
   return (
     <>
       <header className="window-titlebar" aria-label="窗口控制">
-        <div className="window-drag-region" data-tauri-drag-region />
+        <div className="window-drag-region" data-tauri-drag-region><span className="window-workspace-brand" data-tauri-drag-region>Lune</span></div>
         <button type="button" aria-label="最小化" title="最小化" onClick={() => void run('minimize')}>
           <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M1 6.5h10" /></svg>
         </button>

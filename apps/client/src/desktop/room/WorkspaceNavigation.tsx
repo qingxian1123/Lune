@@ -2,7 +2,7 @@ import type { SearchPanelTab } from '../../components/SearchPanel';
 import type { DesktopRoomTab } from './types';
 
 export type WorkspaceDestination = SearchPanelTab | 'queue' | 'members';
-type IconName = WorkspaceDestination | 'settings' | 'playing' | 'add';
+type IconName = WorkspaceDestination | 'settings' | 'add';
 
 const iconPaths: Record<IconName, string> = {
   songs: 'M21 21l-5-5M18 10.5a7.5 7.5 0 1 1-15 0 7.5 7.5 0 0 1 15 0Z',
@@ -12,7 +12,6 @@ const iconPaths: Record<IconName, string> = {
   queue: 'M4 5h16M4 10h16M4 15h7M4 20h7M16 14l5 3-5 3z',
   members: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75M13 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z',
   settings: 'M4 7h10M18 7h2M4 17h2M10 17h10M14 4v6M7 14v6',
-  playing: 'M4 14v-3a8 8 0 0 1 16 0v3M4 12H3v7h4v-7H4ZM20 12h1v7h-4v-7h3Z',
   add: 'M12 5v14M5 12h14',
 };
 
@@ -31,21 +30,18 @@ export const workspaceDestinations: { id: WorkspaceDestination; label: string }[
 
 interface Props {
   active: WorkspaceDestination;
-  onShowPlayer: () => void;
   onSelect: (tab: DesktopRoomTab, searchTab?: SearchPanelTab) => void;
   onOpenSettings: () => void;
+  settingsOpen?: boolean;
 }
 
-export default function WorkspaceNavigation({ active, onShowPlayer, onSelect, onOpenSettings }: Props) {
+export default function WorkspaceNavigation({ active, onSelect, onOpenSettings, settingsOpen = false }: Props) {
   return <nav className="workspace-nav" aria-label="工作区导航">
-    <div className="workspace-brand"><span>Lune</span><span>一起听</span></div>
+    <div className="workspace-nav-label">库</div>
     <div className="workspace-nav-links">
-      <button type="button" className="workspace-nav-item" onClick={onShowPlayer} aria-label="正在播放" title="正在播放">
-        <WorkspaceIcon name="playing" /><span>正在播放</span>
-      </button>
       {workspaceDestinations.map((item, index) => <div key={item.id}>
         {index === 4 && <div className="workspace-nav-divider" />}
-        <button type="button" aria-current={active === item.id ? 'page' : undefined} aria-label={item.label} title={item.label}
+        <button type="button" aria-current={!settingsOpen && active === item.id ? 'page' : undefined} aria-label={item.label} title={item.label}
           className="workspace-nav-item" aria-controls={`library-panel-${item.id === 'queue' || item.id === 'members' ? item.id : 'search'}`}
           onClick={() => item.id === 'queue' || item.id === 'members' ? onSelect(item.id) : onSelect('search', item.id)}>
           <WorkspaceIcon name={item.id} /><span>{item.label}</span>
@@ -53,7 +49,7 @@ export default function WorkspaceNavigation({ active, onShowPlayer, onSelect, on
       </div>)}
     </div>
     <div className="workspace-nav-bottom">
-      <button type="button" className="workspace-nav-item" onClick={onOpenSettings} aria-label="设置" title="设置"><WorkspaceIcon name="settings" /><span>设置</span></button>
+      <button type="button" className="workspace-nav-item" onClick={onOpenSettings} aria-current={settingsOpen ? 'page' : undefined} aria-label="设置" title="设置"><WorkspaceIcon name="settings" /><span>设置</span></button>
     </div>
   </nav>;
 }

@@ -1,49 +1,52 @@
 import { createContext, useContext, useLayoutEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-
-export type ThemeId = 'moonlight' | 'daylight' | 'frosted';
+import { migrateColorScheme, type ColorScheme } from '../features/settings/model/preferenceMigration';
 
 const STORAGE_KEY = 'lune:appearance';
 
-function isThemeId(value: unknown): value is ThemeId {
-  return value === 'moonlight' || value === 'daylight' || value === 'frosted';
-}
-
-function readTheme(): ThemeId {
+function readColor(): ColorScheme {
   try {
     const saved = window.localStorage.getItem(STORAGE_KEY);
-    // Keep the selection made before this appearance was named 悦动白昼.
-    if (saved === 'apple-music') return 'daylight';
-    return isThemeId(saved) ? saved : 'moonlight';
+    const color = migrateColorScheme(saved);
+    if (saved !== color) {
+      try {
+        window.localStorage.setItem(STORAGE_KEY, color);
+      } catch {
+        // The migrated choice still applies for this session.
+      }
+    }
+    return color;
   } catch {
-    return 'moonlight';
+    return 'dark';
   }
 }
 
-interface ThemeContextValue {
-  theme: ThemeId;
-  setTheme: (theme: ThemeId) => void;
+interface ColorSchemeContextValue {
+  color: ColorScheme;
+  setColor: (color: ColorScheme) => void;
 }
 
-const ThemeContext = createContext<ThemeContextValue | null>(null);
+const ColorSchemeContext = createContext<ColorSchemeContextValue | null>(null);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<ThemeId>(readTheme);
+  const [color, setColor] = useState<ColorScheme>(readColor);
 
   useLayoutEffect(() => {
-    document.documentElement.dataset.theme = theme;
+    const root = document.documentElement;
+    root.dataset.color = color;
+    delete root.dataset.theme;
     try {
-      window.localStorage.setItem(STORAGE_KEY, theme);
+      window.localStorage.setItem(STORAGE_KEY, color);
     } catch {
-      // Appearance remains available for this session when storage is blocked.
+      // The choice remains available for this session when storage is blocked.
     }
-  }, [theme]);
+  }, [color]);
 
-  return <ThemeContext.Provider value={{ theme, setTheme }}>{children}</ThemeContext.Provider>;
+  return <ColorSchemeContext.Provider value={{ color, setColor }}>{children}</ColorSchemeContext.Provider>;
 }
 
-export function useTheme() {
-  const context = useContext(ThemeContext);
-  if (!context) throw new Error('useTheme must be used inside ThemeProvider');
+export function useColorScheme() {
+  const context = useContext(ColorSchemeContext);
+  if (!context) throw new Error('useColorScheme must be used inside ThemeProvider');
   return context;
 }

@@ -9,9 +9,10 @@ import NowPlaying from '../components/NowPlaying';
 import AlbumSilhouette from '../components/AlbumSilhouette';
 import TransportBar from '../components/TransportBar';
 import { useClientRuntime } from '../app/ClientRuntimeProvider';
-import { formatShortcut, matchesShortcut, useDesktopPreferences } from '../features/settings/model/desktopPreferences';
+import { useDesktopPreferences } from '../features/settings/model/desktopPreferences';
 import '../desktop/room/floating-library.css';
 import SettingsPanel from '../features/settings/SettingsPanel';
+import { roomSettingsSectionIds } from '../features/settings/registry';
 import { useSettingsController } from '../features/settings/model/useSettingsController';
 import { useStageTransition } from '../desktop/room/useStageTransition';
 import PlaybackNotice from '../components/PlaybackNotice';
@@ -28,65 +29,72 @@ export default function Room() {
   const isWindows = useClientRuntime().kind === 'windows';
   const settings = useSettingsController();
   const [sideTab, setSideTab] = useState<DesktopRoomTab>('search');
-  const panelOpen = useDesktopPreferences((state) => state.libraryOpen);
-  const libraryLayout = useDesktopPreferences((state) => state.libraryLayout);
-  const setPanelOpen = useDesktopPreferences((state) => state.setLibraryOpen);
-  const libraryShortcut = useDesktopPreferences((state) => state.bindings.toggleLibrary);
+  const interfaceMode = useDesktopPreferences((state) => state.interfaceMode);
+  const stagePanelOpen = useDesktopPreferences((state) => state.stagePanelOpen);
+  const setStagePanelOpen = useDesktopPreferences((state) => state.setStagePanelOpen);
+  const isFull = interfaceMode === 'full';
   const libraryButtonRef = useRef<HTMLButtonElement>(null);
   const workspaceRef = useRef<HTMLElement>(null);
-  const compactPanelOpen = panelOpen && libraryLayout === 'compact';
-  const captureStage = useStageTransition(workspaceRef, compactPanelOpen);
+  const previousMode = useRef(interfaceMode);
+  const captureStage = useStageTransition(workspaceRef, !isFull && stagePanelOpen);
   const focusRequested = useRef(false);
   const settingsWereOpen = useRef(settings.open);
   const changePanel = useCallback((open: boolean) => {
-    if (useDesktopPreferences.getState().libraryOpen === open) return;
+    if (useDesktopPreferences.getState().interfaceMode !== 'stage') return;
+    if (useDesktopPreferences.getState().stagePanelOpen === open) return;
     captureStage();
     focusRequested.current = true;
-    setPanelOpen(open);
-  }, [setPanelOpen, captureStage]);
+    setStagePanelOpen(open);
+  }, [setStagePanelOpen, captureStage]);
   useLayoutEffect(() => {
-    if (!focusRequested.current) return;
+    if (!focusRequested.current || isFull) return;
     focusRequested.current = false;
-    if (panelOpen) {
-      workspaceRef.current?.querySelector<HTMLButtonElement>('.workspace-nav [aria-current="page"], [role="tab"][aria-selected="true"]')?.focus();
+    if (stagePanelOpen) {
+      workspaceRef.current?.querySelector<HTMLButtonElement>('[role="tab"][aria-selected="true"]')?.focus();
     } else {
       libraryButtonRef.current?.focus();
     }
-  }, [panelOpen]);
+  }, [stagePanelOpen, isFull]);
   useLayoutEffect(() => {
     const justClosed = settingsWereOpen.current && !settings.open;
     settingsWereOpen.current = settings.open;
     if (!justClosed || document.querySelector('dialog[open]')) return;
-    if (panelOpen) {
-      const selector = libraryLayout === 'workspace'
-        ? '.workspace-nav [aria-current="page"]'
-        : '[role="tab"][aria-selected="true"]';
-      workspaceRef.current?.querySelector<HTMLButtonElement>(selector)?.focus();
+    if (isFull) {
+      workspaceRef.current?.querySelector<HTMLButtonElement>('.workspace-nav [aria-current="page"]')?.focus();
+    } else if (stagePanelOpen) {
+      workspaceRef.current?.querySelector<HTMLButtonElement>('[role="tab"][aria-selected="true"]')?.focus();
     } else {
       libraryButtonRef.current?.focus();
     }
-  }, [settings.open, panelOpen, libraryLayout]);
+  }, [settings.open, isFull, stagePanelOpen]);
   useLayoutEffect(() => {
-    const stage = workspaceRef.current?.querySelector<HTMLElement>('.now-playing-stage');
-    stage?.toggleAttribute('inert', panelOpen && libraryLayout === 'workspace');
-    return () => { stage?.removeAttribute('inert'); };
-  }, [panelOpen, libraryLayout]);
+    if (previousMode.current === interfaceMode) return;
+    previousMode.current = interfaceMode;
+    const focusTarget = settings.open
+      ? (isFull
+        ? workspaceRef.current?.querySelector<HTMLButtonElement>('.workspace-settings-nav [aria-current="page"]')
+        : document.querySelector<HTMLButtonElement>('dialog[open] .settings-nav [aria-current="page"]'))
+      : isFull
+        ? workspaceRef.current?.querySelector<HTMLButtonElement>('.workspace-nav [aria-current="page"]')
+        : stagePanelOpen
+          ? workspaceRef.current?.querySelector<HTMLButtonElement>('[role="tab"][aria-selected="true"]')
+          : libraryButtonRef.current;
+    focusTarget?.focus();
+  }, [interfaceMode, isFull, settings.open, stagePanelOpen]);
   useEffect(() => {
+    if (isFull) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.defaultPrevented || event.repeat || event.isComposing || event.keyCode === 229
+        || event.key !== 'Escape' || event.ctrlKey || event.altKey || event.metaKey
         || document.visibilityState !== 'visible' || document.querySelector('dialog[open]')) return;
-      if (matchesShortcut(event, libraryShortcut)) {
-        event.preventDefault();
-        changePanel(!useDesktopPreferences.getState().libraryOpen);
-      } else if (event.key === 'Escape' && !event.ctrlKey && !event.altKey && !event.metaKey
-        && event.target instanceof Element && event.target.closest('.terminal-sidebar')) {
+      if (event.target instanceof Element && event.target.closest('.terminal-sidebar')) {
         event.preventDefault();
         changePanel(false);
       }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [changePanel, libraryShortcut]);
+  }, [changePanel, isFull]);
   const {
     code,
     connected,
@@ -141,8 +149,8 @@ export default function Room() {
   };
 
   return (
-    <div className={`room-shell room-recovery room-floating-library${isWindows ? ' room-frameless' : ''}`} style={albumStyle}>
-      <AlbumSilhouette coverUrl={track?.coverUrl} />
+    <div className={`room-shell room-recovery room-floating-library${isWindows ? ' room-frameless' : ''}${isFull ? ' is-full-workspace' : ' is-stage'}`} style={albumStyle}>
+      {!isFull && <AlbumSilhouette coverUrl={track?.coverUrl} />}
       {!isWindows && <DesktopRoomHeader />}
 
       {errorMessage && (
@@ -157,25 +165,26 @@ export default function Room() {
         <button type="button" onClick={reconnectNow}>立即重连</button>
       </div>}</div>
 
-      <main className="room-workspace" ref={workspaceRef} data-library-open={panelOpen} data-library-layout={libraryLayout}>
-        <NowPlaying
+      <main className="room-workspace" ref={workspaceRef} data-interface={interfaceMode} data-stage-panel={stagePanelOpen}>
+        {!isFull && <NowPlaying
           track={track}
           lines={lines}
           currentIndex={currentIndex}
           isLoadingLyrics={isLoadingLyrics}
-          libraryOpen={compactPanelOpen}
-        />
+          libraryOpen={stagePanelOpen}
+        />}
 
-        <button ref={libraryButtonRef} type="button"
-          className={`library-float-toggle${panelOpen ? ' is-hidden' : ''}`}
-          tabIndex={panelOpen ? -1 : 0} aria-hidden={panelOpen}
-          aria-label="展开音乐库" aria-expanded={panelOpen} aria-controls="room-music-library"
-          title={`展开音乐库${libraryShortcut ? ` · ${formatShortcut(libraryShortcut)}` : ''}`}
+        {!isFull && <button ref={libraryButtonRef} type="button"
+          className={`library-float-toggle${stagePanelOpen ? ' is-hidden' : ''}`}
+          tabIndex={stagePanelOpen ? -1 : 0} aria-hidden={stagePanelOpen}
+          aria-label="展开音乐库" aria-expanded={stagePanelOpen} aria-controls="room-music-library"
+          title="展开音乐库"
           onClick={() => changePanel(true)}>
           <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3" /><path d="M15 4v16M7 9h4M7 13h4" /></svg>
-        </button>
+        </button>}
         <DesktopRoomSidebar
-          open={panelOpen}
+          open={isFull || stagePanelOpen}
+          mode={interfaceMode}
           activeTab={sideTab}
           queue={queue}
           members={members}
@@ -186,6 +195,11 @@ export default function Room() {
           onCopyCode={copyCode}
           onLeave={leaveToHome}
           currentTrackId={track?.id}
+          track={track}
+          lines={lines}
+          currentIndex={currentIndex}
+          loadingLyrics={isLoadingLyrics}
+          settings={settings}
           onSelectTab={selectSideTab}
           onClose={() => changePanel(false)}
           onOpenSettings={() => {
@@ -204,7 +218,7 @@ export default function Room() {
           void retryPlayback(true);
         }} /></div>
       <TransportBar
-        quiet={panelOpen && libraryLayout === 'workspace'}
+        quiet={isFull}
         recoveryState={recoveryState}
         connected={connected}
         onSendHeart={onSendHeart}
@@ -216,7 +230,7 @@ export default function Room() {
         onSeek={onSeek}
         onNext={onNext}
       />
-      <SettingsPanel controller={settings} sectionIds={['server', 'shortcuts', 'appearance', 'workspace']} />
+      {!isFull && <SettingsPanel controller={settings} sectionIds={roomSettingsSectionIds} />}
     </div>
   );
 }

@@ -18,8 +18,8 @@
 .layout-preview-content { display: grid; align-content: start; gap: 12px; flex: 1; }
 .layout-preview-content i { height: 6px; border-radius: 2px; background: rgb(var(--lune-muted) / .2); }
 .layout-preview-content i:first-child { margin-bottom: 1px; background: rgb(var(--lune-brand) / .55); }
-.is-workspace .layout-preview-panel { left: 10px; }
-.is-workspace .layout-preview-nav { display: grid; align-content: start; gap: 10px; width: 26%; padding-right: 8px; border-right: 1px solid rgb(var(--lune-border) / .12); }
+.is-full .layout-preview-panel { left: 10px; }
+.is-full .layout-preview-nav { display: grid; align-content: start; gap: 10px; width: 26%; padding-right: 8px; border-right: 1px solid rgb(var(--lune-border) / .12); }
 .layout-preview-nav i { height: 4px; border-radius: 2px; background: rgb(var(--lune-muted) / .3); }
 .layout-preview-nav i:first-child { background: rgb(var(--lune-brand) / .7); }
 .layout-preview-player { position: absolute; inset: auto 0 0; display: flex; align-items: center; gap: 6px; height: 21px; padding: 4px 10px; border-top: 1px solid rgb(var(--lune-border) / .12); }

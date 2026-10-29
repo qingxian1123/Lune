@@ -1,27 +1,26 @@
-import { useTheme } from '../../../app/ThemeProvider';
-import type { ThemeId } from '../../../app/ThemeProvider';
+import { useColorScheme } from '../../../app/ThemeProvider';
+import type { ColorScheme } from '../model/preferenceMigration';
 import './appearance.css';
 
-const choices: { id: ThemeId; name: string }[] = [
-  { id: 'moonlight', name: '午夜月室' },
-  { id: 'daylight', name: '悦动白昼' },
-  { id: 'frosted', name: '雾面唱片' },
+const choices: { id: ColorScheme; name: string }[] = [
+  { id: 'dark', name: '深色' },
+  { id: 'light', name: '浅色' },
 ];
 
 export default function AppearanceSettingsSection() {
-  const { theme, setTheme } = useTheme();
+  const { color, setColor } = useColorScheme();
 
   return (
     <section className="settings-form appearance-settings" aria-labelledby="appearance-title">
-      <h2 id="appearance-title">外观</h2>
-      <div className="appearance-options" role="group" aria-label="界面样式">
+      <h2 id="appearance-title">配色</h2>
+      <div className="appearance-options" role="group" aria-label="配色">
         {choices.map((choice) => (
           <button
             key={choice.id}
             type="button"
-            aria-pressed={theme === choice.id}
-            className={`appearance-option ${theme === choice.id ? 'is-selected' : ''}`}
-            onClick={() => setTheme(choice.id)}
+            aria-pressed={color === choice.id}
+            className={`appearance-option ${color === choice.id ? 'is-selected' : ''}`}
+            onClick={() => setColor(choice.id)}
           >
             <span className={`appearance-preview appearance-preview-${choice.id}`} aria-hidden="true">
               <span className="appearance-preview-sidebar" />

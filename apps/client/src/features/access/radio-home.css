@@ -561,31 +561,20 @@
   .radio-home *, .radio-home *::before, .radio-home *::after { transition-duration: 0.01ms !important; }
 }
 
-:root[data-theme='daylight'] .radio-home {
-  --radio-bg: #f8f4ef;
-  --radio-surface: #fffdfa;
-  --radio-ink: #29232b;
-  --radio-muted: #625a63;
-  --radio-line: rgb(49 35 55 / 0.18);
-  --radio-accent: #9b527d;
-  --radio-accent-ink: #fff9f6;
-  background: radial-gradient(ellipse 55% 48% at 81% 30%, rgb(194 140 177 / 0.17), transparent 75%), var(--radio-bg);
+:root[data-color='light'] .radio-home {
+  --radio-bg: #f7f7f7;
+  --radio-surface: #ffffff;
+  --radio-ink: #202020;
+  --radio-muted: #555555;
+  --radio-line: #d0d0d0;
+  --radio-accent: #292929;
+  --radio-accent-ink: #f7f7f7;
+  background: var(--radio-bg);
 }
 
-:root[data-theme='daylight'] .radio-dial-record {
-  background: repeating-radial-gradient(circle, transparent 0 5px, rgb(92 49 84 / 0.1) 5.5px 6px, transparent 6.5px 10px), radial-gradient(circle at 36% 28%, #fffaf7, #dccdd9 80%);
-  box-shadow: 18px 28px 55px rgb(81 47 74 / 0.12);
+:root[data-color='light'] .radio-dial-record {
+  background: repeating-radial-gradient(circle, transparent 0 5px, rgb(32 32 32 / 0.08) 5.5px 6px, transparent 6.5px 10px), radial-gradient(circle at 36% 28%, #ffffff, #d9d9d9 80%);
+  box-shadow: 18px 28px 55px rgb(32 32 32 / 0.08);
 }
-:root[data-theme='daylight'] .radio-dial-label { background: #f9edf3; border-color: rgb(76 35 64 / 0.24); }
-:root[data-theme='daylight'] .radio-dial-scale i::after { background: rgb(93 53 88 / 0.4); }
-
-:root[data-theme='frosted'] .radio-home {
-  --radio-bg: #25252a;
-  --radio-surface: #37373d;
-  --radio-ink: #f1f0f4;
-  --radio-muted: #c3c0c9;
-  --radio-line: rgb(255 255 255 / 0.24);
-  --radio-accent: #ded9ed;
-  --radio-accent-ink: #222229;
-  background: radial-gradient(ellipse 50% 55% at 80% 35%, rgb(180 175 202 / 0.15), transparent 75%), var(--radio-bg);
-}
+:root[data-color='light'] .radio-dial-label { background: #eeeeee; border-color: #d0d0d0; }
+:root[data-color='light'] .radio-dial-scale i::after { background: rgb(32 32 32 / 0.35); }

@@ -15,7 +15,7 @@ function endpoint(path: string): string {
 }
 
 export async function getHotChart(serverUrl: string, provider: string, signal: AbortSignal): Promise<HotChart> {
-  return json(fetch(`${serverUrl}/api/charts/hot?window=7d&limit=20&provider=${encodeURIComponent(provider || 'all')}`, { signal }));
+  return json(fetch(`${serverUrl}/api/charts/hot?window=7d&limit=50&provider=${encodeURIComponent(provider || 'all')}`, { signal }));
 }
 
 function providerParam(provider?: string): string {

@@ -1,207 +1,159 @@
-/* 悦动白昼 owns only visual rules. Routes and playback behavior stay shared. */
-:root[data-theme='daylight'] {
-  --lune-bg: 250 250 252;
-  --lune-bg-soft: 255 255 255;
-  --lune-surface: 242 242 246;
-  --lune-surface-2: 232 232 238;
-  --lune-text: 29 29 34;
-  --lune-muted: 105 105 116;
-  --lune-border: 31 31 40;
-  --lune-brand: 220 45 82;
-  --lune-accent: 220 45 82;
-  --lune-accent-soft: 245 158 174;
-  --lune-bg-accent: 250 250 252;
-  --font-display: -apple-system, BlinkMacSystemFont, "Segoe UI Variable Display", "Segoe UI", sans-serif;
-  --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
-  --font-editorial: var(--font-display);
+/* Light Gray. Layout and behavior stay shared; this file only changes color. */
+:root[data-color='light'] {
+  --lune-bg: 247 247 247;
+  --lune-bg-soft: 238 238 238;
+  --lune-surface: 255 255 255;
+  --lune-surface-2: 236 236 236;
+  --lune-hover: 228 228 228;
+  --lune-selected: 217 217 217;
+  --lune-text: 32 32 32;
+  --lune-muted: 85 85 85;
+  --lune-faint: 102 102 102;
+  --lune-border: 32 32 32;
+  --lune-line: 208 208 208;
+  --lune-brand: 41 41 41;
+  --lune-inverse: 247 247 247;
+  --lune-accent: 41 41 41;
+  --lune-accent-soft: 102 102 102;
+  --lune-bg-accent: 247 247 247;
   color-scheme: light;
 }
 
-:root[data-theme='daylight'] body {
+:root[data-color='light'] body {
   background: rgb(var(--lune-bg));
 }
-:root[data-theme='daylight'] .settings-layer { --lune-brand: 220 45 82; }
-
-/* Home: generous album-page typography and a warm listening card. */
-:root[data-theme='daylight'] .access-shell {
-  background: radial-gradient(ellipse 65% 75% at 13% 76%, rgb(251 200 210 / .28), transparent 72%), rgb(var(--lune-bg));
+:root[data-color='light'] .access-shell {
+  background: rgb(var(--lune-bg));
 }
-:root[data-theme='daylight'] .moon-silhouette,
-:root[data-theme='daylight'] .home-particles,
-:root[data-theme='daylight'] .m-moon,
-:root[data-theme='daylight'] .m-particles { display: none; }
-:root[data-theme='daylight'] .brand-mark {
+:root[data-color='light'] .moon-silhouette,
+:root[data-color='light'] .home-particles,
+:root[data-color='light'] .m-moon,
+:root[data-color='light'] .m-particles { display: none; }
+:root[data-color='light'] .brand-mark {
   font-weight: 760;
   letter-spacing: -.045em;
   text-transform: none;
 }
-:root[data-theme='daylight'] .access-header,
-:root[data-theme='daylight'] .m-topline { border-bottom-color: rgb(var(--lune-border) / .08); }
-:root[data-theme='daylight'] .access-intro h1 {
+:root[data-color='light'] .access-header,
+:root[data-color='light'] .m-topline { border-bottom-color: rgb(var(--lune-border) / .08); }
+:root[data-color='light'] .access-intro h1 {
   font-size: clamp(3.8rem, 6.5vw, 6.4rem);
   letter-spacing: -.04em;
   font-weight: 720;
 }
-:root[data-theme='daylight'] .access-intro .headline-primary,
-:root[data-theme='daylight'] .m-hero-l1 { font-weight: 720; }
-:root[data-theme='daylight'] .access-intro .headline-secondary,
-:root[data-theme='daylight'] .m-hero-l2 {
+:root[data-color='light'] .access-intro .headline-primary,
+:root[data-color='light'] .m-hero-l1 { font-weight: 720; }
+:root[data-color='light'] .access-intro .headline-secondary,
+:root[data-color='light'] .m-hero-l2 {
   color: rgb(var(--lune-brand));
   font-weight: 650;
   font-style: normal;
 }
-:root[data-theme='daylight'] .access-terminal {
+:root[data-color='light'] .access-terminal {
   padding: 28px;
   border: 0;
   border-radius: 22px;
   background: rgb(var(--lune-bg-soft));
-  box-shadow: 0 18px 58px rgb(74 55 64 / .09);
+  box-shadow: 0 18px 58px rgb(32 32 32 / .06);
 }
-:root[data-theme='daylight'] .terminal-heading strong,
-:root[data-theme='daylight'] .m-card-head strong { font-weight: 720; }
-:root[data-theme='daylight'] .access-tabs { background: rgb(var(--lune-surface)); }
-:root[data-theme='daylight'] .access-tabs button.is-active {
+:root[data-color='light'] .terminal-heading strong,
+:root[data-color='light'] .m-card-head strong { font-weight: 720; }
+:root[data-color='light'] .access-tabs { background: rgb(var(--lune-surface)); }
+:root[data-color='light'] .access-tabs button.is-active {
   color: rgb(var(--lune-text));
   background: #fff;
   box-shadow: 0 2px 6px rgb(40 40 50 / .09);
 }
-:root[data-theme='daylight'] .access-submit,
-:root[data-theme='daylight'] .settings-save {
+:root[data-color='light'] .access-submit,
+:root[data-color='light'] .settings-save {
   border-color: rgb(var(--lune-brand));
-  color: #fff;
+  color: rgb(var(--lune-inverse));
   background: rgb(var(--lune-brand));
 }
-:root[data-theme='daylight'] .access-submit:hover:not(:disabled),
-:root[data-theme='daylight'] .settings-save:hover:not(:disabled) {
-  color: #fff;
-  background: #bf2449;
-}
-:root[data-theme='daylight'] .terminal-field input,
-:root[data-theme='daylight'] .settings-field input { background: rgb(var(--lune-surface)); }
-:root[data-theme='daylight'] .field-error,
-:root[data-theme='daylight'] .access-message.is-error,
-:root[data-theme='daylight'] .settings-error { color: #b82548; }
+:root[data-color='light'] .terminal-field input,
+:root[data-color='light'] .settings-field input { background: rgb(var(--lune-surface)); }
+:root[data-color='light'] .field-error,
+:root[data-color='light'] .access-message.is-error,
+:root[data-color='light'] .settings-error { color: #b82548; }
 
-/* Desktop player and library. Album art carries the visual weight. */
-:root[data-theme='daylight'] .room-shell { background: rgb(var(--lune-bg)); }
-:root[data-theme='daylight'] .room-workspace > .now-playing-stage,
-:root[data-theme='daylight'] .now-playing-stage {
-  background: radial-gradient(ellipse 56% 64% at 32% 44%, rgb(var(--lune-accent) / .09), transparent 78%), rgb(var(--lune-bg));
+/* Phone keeps its layout. Surfaces follow the light palette. */
+:root[data-color='light'] .m-access-shell {
+  background: rgb(var(--lune-bg));
 }
-:root[data-theme='daylight'] .now-playing-stage .stage-backdrop-layer.is-active { opacity: .16; }
-:root[data-theme='daylight'] .now-playing-stage .cover-main {
-  border: 0;
-  border-radius: 15px;
-  box-shadow: 0 24px 60px rgb(47 37 42 / .2);
-}
-:root[data-theme='daylight'] .now-playing-stage .track-identity h2 {
-  font-weight: 750;
-  letter-spacing: -.03em;
-}
-:root[data-theme='daylight'] .now-playing-stage .track-identity > span {
-  font-family: var(--font-body);
-  font-style: normal;
-}
-:root[data-theme='daylight'] .now-playing-stage .lyric-item-text { color: rgb(var(--lune-text) / .34); }
-:root[data-theme='daylight'] .now-playing-stage .lyric-item[data-role='active'] .lyric-item-text { color: rgb(var(--lune-text)); }
-:root[data-theme='daylight'] .room-floating-library .terminal-sidebar {
-  border: 0;
-  border-radius: 17px;
-  background: rgb(var(--lune-bg-soft) / .95);
-  box-shadow: 0 18px 52px rgb(40 36 45 / .17);
-}
-:root[data-theme='daylight'] .room-floating-library .library-float-toggle {
-  border: 0;
-  color: rgb(var(--lune-brand));
-  background: rgb(var(--lune-bg-soft));
-  box-shadow: 0 6px 22px rgb(40 36 45 / .12);
-}
-:root[data-theme='daylight'] .transport-bar {
-  border-top-color: rgb(var(--lune-border) / .08);
-  background: rgb(255 255 255 / .94);
-  backdrop-filter: blur(18px);
-}
-:root[data-theme='daylight'] .transport-progress { height: 3px; }
-:root[data-theme='daylight'] .transport-cover { border: 0; border-radius: 7px; }
-
-/* Phone: retain Android navigation and touch geometry while changing the visual voice. */
-:root[data-theme='daylight'] .m-access-shell {
-  background: radial-gradient(ellipse 95% 52% at 50% 25%, rgb(255 211 220 / .56), transparent 80%), rgb(var(--lune-bg));
-}
-:root[data-theme='daylight'] .m-hero h1 { font-size: clamp(2.5rem, 10.5vw, 3.5rem); letter-spacing: -.04em; }
-:root[data-theme='daylight'] .m-access-card {
+:root[data-color='light'] .m-hero h1 { font-size: clamp(2.5rem, 10.5vw, 3.5rem); letter-spacing: -.04em; }
+:root[data-color='light'] .m-access-card {
   padding: 24px;
   border: 0;
   border-radius: 22px;
   background: rgb(var(--lune-bg-soft));
-  box-shadow: 0 14px 42px rgb(77 46 57 / .1);
+  box-shadow: 0 14px 42px rgb(32 32 32 / .08);
 }
-:root[data-theme='daylight'] .m-room-shell {
+:root[data-color='light'] .m-room-shell {
   background: rgb(var(--lune-bg));
 }
-:root[data-theme='daylight'] .m-room-glow {
-  background: radial-gradient(ellipse 90% 45% at 50% 34%, rgb(var(--lune-accent) / .12), transparent 75%);
+:root[data-color='light'] .m-room-glow {
+  background: radial-gradient(ellipse 90% 45% at 50% 34%, rgb(32 32 32 / .06), transparent 75%);
 }
-:root[data-theme='daylight'] .m-cover-halo { background: none; }
-:root[data-theme='daylight'] .m-cover {
+:root[data-color='light'] .m-cover-halo { background: none; }
+:root[data-color='light'] .m-cover {
   border-radius: 16px;
-  box-shadow: 0 25px 55px rgb(57 43 50 / .23);
+  box-shadow: 0 25px 55px rgb(32 32 32 / .16);
 }
-:root[data-theme='daylight'] .m-track-id h2 { font-size: clamp(24px, 6vw, 30px); font-weight: 750; }
-:root[data-theme='daylight'] .m-track-id p { color: rgb(var(--lune-brand)); font-weight: 550; }
-:root[data-theme='daylight'] .m-peek-cur { color: rgb(var(--lune-text) / .75); }
-:root[data-theme='daylight'] .m-next {
+:root[data-color='light'] .m-track-id h2 { font-size: clamp(24px, 6vw, 30px); font-weight: 750; }
+:root[data-color='light'] .m-track-id p { color: rgb(var(--lune-brand)); font-weight: 550; }
+:root[data-color='light'] .m-peek-cur { color: rgb(var(--lune-text) / .75); }
+:root[data-color='light'] .m-next {
   border: 0;
-  color: #fff;
+  color: rgb(var(--lune-inverse));
   background: rgb(var(--lune-brand));
   box-shadow: none;
 }
-:root[data-theme='daylight'] .m-dock {
+:root[data-color='light'] .m-dock {
   border: 0;
   background: rgb(var(--lune-bg-soft) / .94);
   box-shadow: 0 5px 22px rgb(52 39 46 / .08);
 }
-:root[data-theme='daylight'] .m-sheet {
+:root[data-color='light'] .m-sheet {
   border: 0;
   background: rgb(var(--lune-bg-soft));
   box-shadow: 0 -16px 48px rgb(52 39 46 / .13);
 }
-:root[data-theme='daylight'] .m-q-content { background: rgb(var(--lune-bg-soft)); }
-:root[data-theme='daylight'] .m-toast {
+:root[data-color='light'] .m-q-content { background: rgb(var(--lune-bg-soft)); }
+:root[data-color='light'] .m-toast {
   color: rgb(var(--lune-text));
   background: rgb(var(--lune-bg-soft) / .97);
   box-shadow: 0 10px 28px rgb(52 39 46 / .14);
 }
-:root[data-theme='daylight'] .playback-notice,
-:root[data-theme='daylight'] .connection-notice {
+:root[data-color='light'] .playback-notice,
+:root[data-color='light'] .connection-notice {
   color: rgb(var(--lune-text));
   background: rgb(var(--lune-surface));
   border-color: rgb(var(--lune-border) / .08);
 }
-:root[data-theme='daylight'] .playback-notice button,
-:root[data-theme='daylight'] .connection-notice button {
+:root[data-color='light'] .playback-notice button,
+:root[data-color='light'] .connection-notice button {
   color: rgb(var(--lune-brand));
   border-color: rgb(var(--lune-brand) / .35);
 }
-:root[data-theme='daylight'] .playback-notice button:hover,
-:root[data-theme='daylight'] .connection-notice button:hover { background: rgb(var(--lune-brand) / .07); }
-:root[data-theme='daylight'] .playback-notice button:focus-visible,
-:root[data-theme='daylight'] .connection-notice button:focus-visible { outline-color: rgb(var(--lune-brand)); }
-:root[data-theme='daylight'] .playback-notice small { color: rgb(var(--lune-muted)); }
-:root[data-theme='daylight'] .playback-notice textarea {
+:root[data-color='light'] .playback-notice button:hover,
+:root[data-color='light'] .connection-notice button:hover { background: rgb(var(--lune-brand) / .07); }
+:root[data-color='light'] .playback-notice button:focus-visible,
+:root[data-color='light'] .connection-notice button:focus-visible { outline-color: rgb(var(--lune-brand)); }
+:root[data-color='light'] .playback-notice small { color: rgb(var(--lune-muted)); }
+:root[data-color='light'] .playback-notice textarea {
   color: rgb(var(--lune-text));
   background: rgb(var(--lune-bg-soft));
 }
-:root[data-theme='daylight'] .room-error,
-:root[data-theme='daylight'] .m-room-error {
+:root[data-color='light'] .room-error,
+:root[data-color='light'] .m-room-error {
   color: #a91f42;
   background: #fff2f4;
   border-color: rgb(169 31 66 / .2);
 }
-:root[data-theme='daylight'] .member-invite small,
-:root[data-theme='daylight'] .member-room-actions button,
-:root[data-theme='daylight'] .window-action-error { color: #a91f42; }
+:root[data-color='light'] .member-invite small,
+:root[data-color='light'] .member-room-actions button,
+:root[data-color='light'] .window-action-error { color: #a91f42; }
 
 @media (max-width: 700px) {
-  :root[data-theme='daylight'] .access-terminal { padding: 22px; }
+  :root[data-color='light'] .access-terminal { padding: 22px; }
 }

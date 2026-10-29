@@ -4,17 +4,22 @@
 
 @layer base {
   :root {
-    --lune-bg: 11 11 12;
-    --lune-bg-soft: 15 15 16;
-    --lune-surface: 21 21 22;
-    --lune-surface-2: 27 27 28;
-    --lune-text: 240 239 235;
-    --lune-muted: 142 141 136;
+    --lune-bg: 23 23 23;
+    --lune-bg-soft: 30 30 30;
+    --lune-surface: 34 34 34;
+    --lune-surface-2: 41 41 41;
+    --lune-hover: 50 50 50;
+    --lune-selected: 60 60 60;
+    --lune-text: 232 232 232;
+    --lune-muted: 178 178 178;
+    --lune-faint: 149 149 149;
     --lune-border: 255 255 255;
-    --lune-brand: 184 176 216;
-    --lune-accent: 184 176 216;
-    --lune-accent-soft: 118 112 139;
-    --lune-bg-accent: 11 11 12;
+    --lune-line: 68 68 68;
+    --lune-brand: 212 212 212;
+    --lune-inverse: 24 24 24;
+    --lune-accent: 212 212 212;
+    --lune-accent-soft: 149 149 149;
+    --lune-bg-accent: 23 23 23;
     --font-display: "Space Grotesk Variable", "Space Grotesk", sans-serif;
     --font-body: "Segoe UI Variable Text", "Segoe UI", "Noto Sans CJK SC", "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif;
     --font-editorial: Georgia, "Times New Roman", serif;
@@ -411,76 +416,6 @@
   background: rgb(var(--lune-brand));
   cursor: pointer;
   transition: color 160ms ease, background 160ms ease, opacity 160ms ease;
-}
-
-.shortcut-field {
-  display: grid;
-  gap: 12px;
-  min-width: 0;
-  padding-block: 2px 22px;
-  border-bottom: 1px solid rgb(var(--lune-border) / 0.08);
-}
-
-.shortcut-field > span {
-  font-size: var(--type-label);
-  color: rgb(var(--lune-muted));
-}
-
-.shortcut-recorder {
-  width: 100%;
-  max-width: 100%;
-  min-height: 50px;
-  padding: 0 15px;
-  border: 1px solid rgb(var(--lune-border) / 0.14);
-  border-radius: 12px;
-  text-align: left;
-  color: rgb(var(--lune-text));
-  background: rgb(var(--lune-surface));
-  cursor: pointer;
-  transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
-}
-
-.shortcut-recorder:hover {
-  background: rgb(var(--lune-surface-2));
-}
-
-.shortcut-recorder.is-recording {
-  border-color: rgb(var(--lune-brand) / 0.72);
-  background: rgb(var(--lune-surface-2));
-  box-shadow: 0 0 0 3px rgb(var(--lune-brand) / 0.1);
-}
-
-.shortcut-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 20px;
-}
-
-.shortcut-actions button {
-  min-height: 36px;
-  padding: 0;
-  border: 0;
-  color: rgb(var(--lune-muted));
-  background: transparent;
-  cursor: pointer;
-  transition: color 160ms ease;
-}
-
-.shortcut-actions button:hover {
-  color: rgb(var(--lune-brand));
-}
-
-.shortcut-save-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 16px;
-}
-
-.shortcut-save-row span {
-  font-size: var(--type-meta);
-  color: rgb(var(--lune-muted));
 }
 
 .settings-save:hover:not(:disabled) {

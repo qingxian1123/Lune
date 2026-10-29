@@ -1,0 +1,192 @@
+/* Viewing-stage glass. Color comes from data-color; this file only supplies the material. */
+
+.room-shell.is-stage {
+  --lune-accent: var(--lune-brand);
+  --lune-accent-soft: var(--lune-faint);
+  --lune-bg-accent: var(--lune-bg);
+  --glass-fill: rgb(42 42 45 / .38);
+  --glass-dense: rgb(32 32 34 / .76);
+  --glass-line: rgb(255 255 255 / .1);
+  --glass-blur: 48px;
+  position: relative;
+  isolation: isolate;
+  background: rgb(var(--lune-bg));
+}
+
+:root[data-color='light'] .room-shell.is-stage {
+  --glass-fill: rgb(247 247 247 / .74);
+  --glass-dense: rgb(255 255 255 / .9);
+  --glass-line: rgb(32 32 32 / .14);
+}
+
+.room-shell.is-stage .album-silhouette {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+}
+.room-shell.is-stage .album-silhouette img {
+  position: absolute;
+  inset: -72px;
+  width: calc(100% + 144px);
+  height: calc(100% + 144px);
+  max-width: none;
+  object-fit: cover;
+  object-position: center;
+  animation: album-material-enter 600ms ease-out;
+}
+.room-shell.is-stage .album-silhouette-ambient {
+  filter: blur(64px) saturate(.45);
+  opacity: .22;
+}
+.room-shell.is-stage .album-silhouette .album-silhouette-artwork {
+  object-position: center 58%;
+  filter: blur(5px) saturate(.28) brightness(.8);
+  opacity: .38;
+}
+.room-shell.is-stage .album-silhouette::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgb(23 23 23 / .28);
+}
+:root[data-color='light'] .room-shell.is-stage .album-silhouette-ambient {
+  filter: blur(72px) saturate(.35) brightness(1.2);
+  opacity: .16;
+}
+:root[data-color='light'] .room-shell.is-stage .album-silhouette .album-silhouette-artwork {
+  filter: blur(8px) saturate(.22) brightness(1.35);
+  opacity: .2;
+}
+:root[data-color='light'] .room-shell.is-stage .album-silhouette::after {
+  background: rgb(247 247 247 / .78);
+}
+
+.room-shell.is-stage .room-workspace,
+.room-shell.is-stage .room-connection-slot,
+.room-shell.is-stage .room-playback-slot { position: relative; z-index: 1; }
+.room-shell.is-stage .room-playback-slot { z-index: 2; }
+.room-shell.is-stage :is(.room-workspace, .room-workspace > .now-playing-stage) { background: transparent; }
+.room-shell.is-stage .stage-backdrop { display: none; }
+
+.room-shell.is-stage .now-playing-stage .lyric-terminal {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.room-shell.is-stage .now-playing-stage .lyric-scroller { inset: 0; }
+.room-shell.is-stage .now-playing-stage .lyric-item-text { color: rgb(255 255 255 / .62); }
+.room-shell.is-stage .now-playing-stage .lyric-item[data-role='near'] .lyric-item-text { color: rgb(255 255 255 / .78); }
+.room-shell.is-stage .now-playing-stage .lyric-item[data-role='active'] .lyric-item-text { color: #f7f7f7; text-shadow: none; }
+.room-shell.is-stage .now-playing-stage .lyric-item-trans { color: rgb(255 255 255 / .7); }
+.room-shell.is-stage .now-playing-stage .lyric-item[data-role='active'] .lyric-item-trans { color: rgb(255 255 255 / .92); }
+.room-shell.is-stage .now-playing-stage .track-identity > span { font-style: normal; }
+.room-shell.is-stage .now-playing-stage .cover-main {
+  border: 0;
+  border-radius: 12px;
+  box-shadow: 0 22px 48px rgb(0 0 0 / .3);
+}
+:root[data-color='light'] .room-shell.is-stage .now-playing-stage .lyric-item-text { color: rgb(32 32 32 / .84); }
+:root[data-color='light'] .room-shell.is-stage .now-playing-stage .lyric-item[data-role='near'] .lyric-item-text { color: rgb(32 32 32 / .92); }
+:root[data-color='light'] .room-shell.is-stage .now-playing-stage .lyric-item[data-role='active'] .lyric-item-text { color: #202020; }
+:root[data-color='light'] .room-shell.is-stage .now-playing-stage .lyric-item-trans { color: rgb(32 32 32 / .66); }
+:root[data-color='light'] .room-shell.is-stage .now-playing-stage .lyric-item[data-role='active'] .lyric-item-trans { color: #202020; }
+:root[data-color='light'] .room-shell.is-stage .now-playing-stage .track-identity,
+:root[data-color='light'] .room-shell.is-stage .now-playing-stage .track-identity h2,
+:root[data-color='light'] .room-shell.is-stage .now-playing-stage .track-identity span { color: #202020; }
+
+.room-shell.is-stage :is(.terminal-sidebar, .library-float-toggle, .transport-bar, .settings-surface) {
+  border-color: var(--glass-line);
+  background-color: var(--glass-fill);
+  background-image: linear-gradient(160deg, rgb(255 255 255 / .06), rgb(255 255 255 / .015) 65%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.08);
+  backdrop-filter: blur(var(--glass-blur)) saturate(1.08);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .06), 0 12px 36px rgb(0 0 0 / .14);
+}
+:root[data-color='light'] .room-shell.is-stage :is(.terminal-sidebar, .library-float-toggle, .transport-bar, .settings-surface) {
+  background-image: linear-gradient(160deg, rgb(255 255 255 / .45), rgb(255 255 255 / .18) 70%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .7), 0 12px 36px rgb(32 32 32 / .08);
+}
+.room-shell.is-stage .terminal-sidebar { border-radius: 16px; }
+.room-shell.is-stage :is(.side-tabs, .search-mode-tabs, .terminal-field input, .settings-field input, .lune-input, .lune-control, .library-search, .room-code) {
+  border-color: var(--glass-line);
+  background: rgb(255 255 255 / .06);
+}
+:root[data-color='light'] .room-shell.is-stage :is(.side-tabs, .search-mode-tabs, .terminal-field input, .settings-field input, .lune-input, .lune-control, .library-search, .room-code) {
+  background: rgb(255 255 255 / .72);
+  color: #202020;
+}
+.room-shell.is-stage :is(.side-tabs button.is-active, .search-mode-tabs button.is-active, .settings-nav button.is-active) {
+  color: #f7f7f7;
+  background: rgb(255 255 255 / .14);
+  box-shadow: none;
+}
+:root[data-color='light'] .room-shell.is-stage :is(.side-tabs button.is-active, .search-mode-tabs button.is-active, .settings-nav button.is-active) {
+  color: #202020;
+  background: rgb(32 32 32 / .08);
+}
+.room-shell.is-stage .transport-next {
+  color: #181818;
+  border-color: transparent;
+  background: #f5f5f7;
+  box-shadow: none;
+}
+:root[data-color='light'] .room-shell.is-stage .transport-next {
+  color: #f7f7f7;
+  background: #292929;
+}
+.room-shell.is-stage :is(.playback-notice, .connection-notice) {
+  color: rgb(var(--lune-text));
+  background: var(--glass-dense);
+  border-color: var(--glass-line);
+}
+.room-shell.is-stage :is(.playback-notice button, .connection-notice button) {
+  color: rgb(var(--lune-text));
+  border-color: var(--glass-line);
+}
+.room-shell.is-stage .playback-notice textarea { background: rgb(0 0 0 / .2); }
+:root[data-color='light'] .room-shell.is-stage .playback-notice textarea { background: rgb(255 255 255 / .8); color: #202020; }
+
+.windows-shell:has(.room-shell.is-stage) { padding-top: 0; }
+.windows-shell .room-shell.is-stage.room-frameless {
+  box-sizing: border-box;
+  height: 100dvh;
+  min-height: 100dvh;
+  padding-top: var(--window-titlebar-height);
+}
+.windows-shell:has(.room-shell.is-stage) > .window-titlebar {
+  background: transparent;
+  border-bottom-color: rgb(255 255 255 / .08);
+}
+:root[data-color='light'] .windows-shell:has(.room-shell.is-stage) > .window-titlebar {
+  border-bottom-color: rgb(32 32 32 / .1);
+  color: #202020;
+}
+.room-shell.is-stage .room-topbar.room-topbar-empty {
+  background: transparent;
+  border-bottom-color: transparent;
+}
+
+@keyframes album-material-enter {
+  from { opacity: .12; }
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .room-shell.is-stage { --glass-fill: rgb(32 32 32 / .96); --glass-dense: rgb(23 23 23); --glass-blur: 0px; }
+  :root[data-color='light'] .room-shell.is-stage { --glass-fill: rgb(247 247 247 / .98); --glass-dense: #fff; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .room-shell.is-stage { --glass-fill: rgb(32 32 32); --glass-dense: rgb(23 23 23); --glass-blur: 0px; }
+  :root[data-color='light'] .room-shell.is-stage { --glass-fill: #f7f7f7; --glass-dense: #fff; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .room-shell.is-stage .album-silhouette img { animation: none; }
+}
+@media (forced-colors: active) {
+  .room-shell.is-stage { --glass-fill: Canvas; --glass-dense: Canvas; --glass-line: CanvasText; --glass-blur: 0px; }
+  .room-shell.is-stage .album-silhouette { display: none; }
+}
