@@ -416,3 +416,63 @@
   --invite-ink: #f0efeb;
   --invite-muted: #b0b6bf;
 }
+
+/* The compact Windows home window follows the card's outline. */
+html:has(.windows-shell .invitation-home),
+body:has(.windows-shell .invitation-home),
+:root[data-color='light'] body:has(.windows-shell .invitation-home),
+#root:has(.windows-shell .invitation-home),
+.windows-shell:has(.invitation-home),
+.windows-shell .invitation-home {
+  background: transparent;
+}
+
+.windows-shell:has(.invitation-home) {
+  padding-top: 0;
+}
+
+.windows-shell .invitation-home {
+  min-height: 100dvh;
+}
+
+.windows-shell .invitation-stage {
+  align-items: stretch;
+  padding: 0;
+}
+
+.windows-shell .invitation-ticket {
+  grid-template-columns: minmax(0, 44fr) 1px minmax(0, 56fr);
+  width: 100%;
+  border: 0;
+  border-radius: 0;
+}
+
+.windows-shell .invitation-perforation {
+  width: 1px;
+  height: auto;
+}
+
+.windows-shell .perforation-line {
+  inset: 14px 0;
+  border-top: 0;
+  border-left: 1px dashed var(--invite-perf);
+}
+
+.windows-shell .perforation-notch {
+  display: none;
+}
+
+.windows-shell .invitation-pass > * {
+  width: 100%;
+  max-width: 352px;
+  align-self: center;
+}
+
+.windows-shell .invitation-home .settings-layer {
+  top: 0;
+  height: 100dvh;
+}
+
+.windows-shell .invitation-home .settings-surface {
+  height: 100dvh;
+}

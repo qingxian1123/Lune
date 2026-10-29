@@ -58,9 +58,9 @@ export default function WindowsInvitationHome() {
       <main className="invitation-stage">
         <section className="invitation-ticket" aria-labelledby="invitation-title">
           {/* Left Pane: Eclipse Moon & Black Vinyl Sleeve */}
-          <div className="invitation-sleeve">
-            <div className="invitation-brand" aria-label="Lune">
-              <span className="invitation-brand-mark">LUNE</span>
+          <div className="invitation-sleeve" data-tauri-drag-region>
+            <div className="invitation-brand" aria-label="Lune" data-tauri-drag-region>
+              <span className="invitation-brand-mark" data-tauri-drag-region>LUNE</span>
             </div>
 
             <div className="invitation-disc-wrap">

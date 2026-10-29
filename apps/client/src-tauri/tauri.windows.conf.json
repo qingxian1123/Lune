@@ -4,14 +4,15 @@
       {
         "label": "main",
         "title": "Lune · 一起听",
-        "width": 960,
-        "height": 640,
+        "width": 700,
+        "height": 420,
         "minWidth": 640,
-        "minHeight": 480,
-        "backgroundColor": "#0b0b0c",
+        "minHeight": 420,
+        "transparent": true,
+        "backgroundColor": "#00000000",
         "decorations": false,
         "shadow": true,
-        "resizable": true
+        "resizable": false
       }
     ]
   }
