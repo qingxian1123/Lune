@@ -1,7 +1,9 @@
 import { version } from '../../package.json';
+import type { PlaybackAdvanceReason } from '@lune/shared';
 
 type Diagnostic = {
-  event: 'connection' | 'media' | 'recovery' | 'drift';
+  event: 'connection' | 'media' | 'recovery' | 'drift' | 'advance';
+  reason?: PlaybackAdvanceReason;
   phase?: string; code?: string | null; hold?: string; attempt?: number; seq?: number;
   rtt?: number; drift?: number; readyState?: number; durationMs?: number; operation?: number;
 };
@@ -11,8 +13,9 @@ const codes = new Set(['CONNECT_TIMEOUT', 'CONNECT_FAILED', 'JOIN_TIMEOUT', 'HEA
   'MEDIA_NETWORK', 'MEDIA_STALL', 'MEDIA_START_TIMEOUT', 'MEDIA_DECODE', 'MEDIA_UNSUPPORTED', 'RECOVERY_EXHAUSTED',
   'CONNECTION', 'OUTPUT_HELD', 'UNPLAYABLE', 'NEXT_TRACK', 'HTTP_401', 'HTTP_403', 'HTTP_404', 'HTTP_429', 'HTTP_500', 'HTTP_503']);
 const phases = new Set(['connecting', 'joining', 'joined', 'reconnecting', 'terminal', 'closed',
-  'idle', 'resolving', 'loading', 'playing', 'buffering', 'recovering', 'waiting', 'failed']);
-const events = new Set(['connection', 'media', 'recovery', 'drift']);
+  'idle', 'resolving', 'loading', 'playing', 'buffering', 'recovering', 'waiting', 'failed', 'sent', 'received']);
+const events = new Set(['connection', 'media', 'recovery', 'drift', 'advance']);
+const advanceReasons = new Set(['manual', 'ended', 'unplayable']);
 const holds = new Set(['none', 'manual', 'noisy', 'system', 'gesture']);
 const entries: Array<Record<string, string | number | null>> = [];
 const maxBytes = 256 * 1024;
@@ -21,6 +24,7 @@ const bytes = (value: unknown) => new TextEncoder().encode(JSON.stringify(value)
 /** Explicit whitelist: callers cannot accidentally export URLs, tokens or errors. */
 export function recordPlaybackEvent(input: Diagnostic): void {
   const entry: Record<string, string | number | null> = { at: Date.now(), event: events.has(input.event) ? input.event : 'UNKNOWN' };
+  if (input.reason && advanceReasons.has(input.reason)) entry.reason = input.reason;
   for (const key of ['phase', 'code', 'hold'] as const) {
     const value = input[key];
     if (typeof value === 'string') entry[key] = (key === 'code' ? codes : key === 'hold' ? holds : phases).has(value) ? value : 'UNKNOWN';

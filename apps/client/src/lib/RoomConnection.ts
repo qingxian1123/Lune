@@ -109,6 +109,9 @@ export class RoomConnection {
         this.reconnect('NOT_JOINED');
         return;
       } else if (msg.type === 'left') this.stop();
+      if (msg.type === 'room_state_changed' && msg.payload.cause === 'advance') {
+        recordPlaybackEvent({ event: 'advance', phase: 'received', seq: msg.payload.playback.seq });
+      }
       this.messages.forEach((fn) => { try { fn(msg); } catch { recordPlaybackEvent({ event: 'connection', code: 'SUBSCRIBER_FAILED' }); } });
     };
     socket.onclose = () => { if (current()) this.reconnect('SOCKET_CLOSED'); };
@@ -118,6 +121,9 @@ export class RoomConnection {
     if (!this.socket || this.socket.readyState !== 1) return false;
     if (message.type !== 'join' && message.type !== 'heartbeat' && (this.state.phase !== 'joined' || this.leaving)) return false;
     try { this.socket.send(JSON.stringify(message)); } catch { this.reconnect('SEND_FAILED'); return false; }
+    if (message.type === 'advance_playback') {
+      recordPlaybackEvent({ event: 'advance', phase: 'sent', reason: message.payload.reason, seq: message.payload.expectedPlaybackSeq });
+    }
     if (message.type === 'join') {
       clearTimeout(this.joinTimer);
       this.joinTimer = setTimeout(() => this.reconnect('JOIN_TIMEOUT'), 10_000);
