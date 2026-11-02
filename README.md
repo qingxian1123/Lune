@@ -1,70 +1,69 @@
-# Lune · 一起听
+![Lune](docs/images/lune-cover.png)
 
-Lune 是一个自托管的多人同步听歌应用。用户在 Windows 或 Android 客户端连接自己的 Lune 服务，创建房间或通过六位房间码加入；房间成员可以共同选歌、调整进度、切歌和维护队列。
+# Lune
 
-项目不提供公共服务器、预置账号或固定音乐源登录态。使用前需要部署服务端，并由服务管理员登录音乐平台账号。
+自托管的多人同步音乐播放器，支持 Windows 和 Android。
 
-## 界面预览
+通过六位房间码加入房间，共享播放进度与队列。所有成员都能选歌、切歌和调整进度。服务端由你部署，音乐源账号由管理员配置。
 
-![Lune Windows 客户端界面：同步播放、歌词与歌单](docs/images/lune-desktop.png)
+[部署](#部署) · [加入房间](#加入房间) · [文档](docs/README.md) · [MIT](LICENSE)
 
-## 功能
+**功能区** · 浏览歌单、管理队列，同时查看当前歌曲和歌词。
 
-- Windows 与 Android 双平台
-- 实时同步播放状态、队列和成员列表，全员平等控制
-- 全员离线后房间与歌单默认保留 24 小时，支持原身份重连与服务重启恢复
-- 单曲搜索、歌单搜索、整单加入、歌词和收藏
-- 网易云音乐和酷狗音乐源
-- Android 后台播放、锁屏媒体卡与耳机断开保护
-- 播放故障有界重试、失效地址重新解析和本地诊断导出
-- 客户端首次启动配置自建服务器地址
+![Lune Windows 功能区：左侧导航、中间歌单详情、右侧播放信息](docs/images/lune-desktop-workspace.png)
 
-## 开始使用
+**播放区** · 专辑封面与歌词居中展示。
 
-1. 服务管理员使用 [Docker Compose 部署包](server-deploy/README.compose.md)部署单实例服务端；已有 Node.js 环境也可按 [systemd 部署指南](docs/DEPLOYMENT.md)操作。
-2. 按 [管理员使用说明](server-deploy/ADMIN.md)建立 SSH 隧道并生成一次性配对码，创建管理员账号后登录至少一个音乐源。
-3. 在客户端填写服务地址，输入昵称后创建房间，或通过朋友提供的六位房间码加入。
-4. 搜索歌曲或歌单，加入播放队列，即可一起听歌。
+![Lune Windows 播放区：专辑背景、封面与同步歌词](docs/images/lune-desktop-stage.png)
 
-房间没有暂停操作；本机静音和系统打断不会暂停其他成员的播放。具体操作见 [使用说明](docs/USAGE.md)，连接或声音异常见 [播放与连接故障处理](docs/playback-reliability.md)。
+## 支持什么
 
-## 服务端自部署
+| 功能 | 当前行为 |
+| --- | --- |
+| 同步听歌 | 共享播放进度、队列和成员列表，所有成员均可控制 |
+| 搜歌与歌单 | 网易云音乐、酷狗；支持搜索、整单加入与歌词 |
+| 记录与收藏 | 保存在本机，按服务器区分，不跨设备同步 |
+| 房间恢复 | 短暂断线自动重连；全员离线后默认保留 24 小时 |
+| Android 播放 | 后台播放、锁屏媒体控制、耳机断开保护 |
 
-当前整理版本为 **服务端 2.1.0**，功能与升级事项见 [版本说明](server-deploy/releases/v2.1.0.md)。
+## 部署
 
-- **Docker Compose**：按 [云服务器自部署指南](server-deploy/README.compose.md)安装，使用固定版本与摘要的镜像。
-- **Node.js / systemd**：按 [服务端部署与运维](docs/DEPLOYMENT.md)准备环境、启动服务并配置反向代理。
-- **管理后台**：按 [管理员使用说明](server-deploy/ADMIN.md)建立 SSH 隧道，在服务器生成配对码，首次创建账号后使用账号密码登录。
-- **音乐源**：在后台完成扫码、凭据检查与单曲检测；服务器地址直接在客户端填写。
+Lune 不提供公共服务器。先部署一个服务实例，再通过管理后台登录音乐源。
 
-管理后台提供「概览 / 音乐源 / 管理员」三个入口。业务默认使用 9527，管理默认使用仅供本机访问的 9528；公网入口由部署模式和反向代理决定。
+| 部署方式 | 入口 |
+| --- | --- |
+| Docker Compose | [Linux 云服务器部署](server-deploy/README.compose.md)，需要可用的发布附件与镜像 |
+| Node.js / systemd | [服务端部署与运维](docs/DEPLOYMENT.md) |
+| 管理后台 | [管理员说明](server-deploy/ADMIN.md)，通过 SSH 隧道访问，首次设置使用一次性配对码 |
 
-## 文档
+服务端 2.1.0 的变更、升级步骤和验证范围见 [版本说明](server-deploy/releases/v2.1.0.md)。仓库中的部署配置不代表镜像或发布附件已经可用。
 
-- [文档索引](docs/README.md)
-- [使用说明](docs/USAGE.md)
-- [播放与连接故障处理](docs/playback-reliability.md)
-- [音乐源配置与管理](docs/PROVIDERS.md)
-- [Docker Compose 部署](server-deploy/README.compose.md)
-- [服务端部署与运维](docs/DEPLOYMENT.md)
-- [管理员账号与管理后台](server-deploy/ADMIN.md)
-- [服务端 2.1.0 版本说明](server-deploy/releases/v2.1.0.md)
-- [部署模板说明](server-deploy/README.md)
+## 加入房间
 
-仓库维护使用与运维文档。内部开发资料保留在本地并由 Git 忽略，不随仓库分发。
+1. 在 Windows 或 Android 客户端填写服务地址。
+2. 输入昵称，创建房间或用六位房间码加入。所有人需要连接同一个服务。
+3. 搜索歌曲或歌单，加入共同队列。
 
-## 技术组成
+房间不支持暂停，本机静音不影响其他成员。详细操作见 [使用说明](docs/USAGE.md)。
 
-客户端使用 Tauri 2、React 和 TypeScript；服务端使用 NestJS 与 WebSocket。音乐源以进程内 Provider 接入，登录凭据加密保存。服务端配置与部署模板位于 `server-deploy/`。
+## 项目结构
 
-## 当前限制
+| 目录 | 内容 |
+| --- | --- |
+| apps/client/ | Tauri 2、React、TypeScript 客户端 |
+| apps/shared/ | 客户端与服务端共享代码 |
+| server/ | NestJS 服务端、WebSocket 同步与音乐源接入 |
+| server-deploy/ | 部署模板与管理说明 |
+| docs/ | 使用、部署与故障处理文档 |
 
-- 房间和可恢复身份保存于服务端数据目录；空房默认在连续离线 24 小时后过期。
-- 服务端必须单实例运行，多实例之间不会共享房间状态。
-- 音乐可用性受上游账号、会员、版权和地区限制。
-- 当前不提供用户账号体系或跨服务发现。
-- Docker Compose 镜像与部署包的发布流程已配置；目标 Linux 环境安装、升级、恢复及 Windows／Android 客户端联调仍待运行验收。
-- 播放恢复首版已完成静态检查，运行回归与 Windows／Android 真机验收尚待完成。
+## 限制与验证范围
+
+- 服务端仅支持单实例，多实例不会共享房间状态。
+- 没有用户账号体系或跨服务发现；普通成员无需登录音乐平台。
+- 歌曲可用性受账号权限、会员、版权和地区限制。
+- Linux 目标环境的安装、升级、恢复，以及 Windows / Android 播放恢复与联调仍待验收。
+
+[连接与播放故障处理](docs/playback-reliability.md) · [音乐源配置](docs/PROVIDERS.md) · [文档索引](docs/README.md)
 
 ## License
 
