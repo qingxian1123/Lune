@@ -2,40 +2,7 @@ import { useEffect, useState } from 'react';
 import SettingsPanel from '../settings/SettingsPanel';
 import { hasSavedServerUrl } from '../../lib/serverConfig';
 import { useAccessController } from './useAccessController';
-
-function EclipseVinyl() {
-  return (
-    <div className="invite-turntable" aria-hidden="true">
-      <svg className="invite-turntable-svg" viewBox="0 0 520 520">
-        <defs>
-          <filter id="eclipse-vinyl-shadow" x="-15%" y="-15%" width="130%" height="130%">
-            <feDropShadow dx="-8" dy="8" stdDeviation="9" floodColor="#000000" floodOpacity="0.58" />
-          </filter>
-        </defs>
-
-        {/* Bottom-left pure white Moon circle */}
-        <circle cx="234" cy="285" r="222" className="eclipse-moon" />
-
-        {/* Top-right offset Black Vinyl Record casting shadow onto the white moon */}
-        <g className="eclipse-vinyl-group" filter="url(#eclipse-vinyl-shadow)">
-          <circle cx="286" cy="235" r="222" className="eclipse-vinyl-body" />
-
-          {/* 4 concentric pinkish-lavender groove rings matching the design comp */}
-          <circle cx="286" cy="235" r="186" className="eclipse-vinyl-groove" />
-          <circle cx="286" cy="235" r="136" className="eclipse-vinyl-groove" />
-          <circle cx="286" cy="235" r="107" className="eclipse-vinyl-groove" />
-          <circle cx="286" cy="235" r="70" className="eclipse-vinyl-groove" />
-
-          {/* Dark plum-tinted center label ring */}
-          <circle cx="286" cy="235" r="56" className="eclipse-vinyl-label" />
-
-          {/* Pure white center hole */}
-          <circle cx="286" cy="235" r="36" className="eclipse-vinyl-hole" />
-        </g>
-      </svg>
-    </div>
-  );
-}
+import AbstractVinyl from './AbstractVinyl';
 
 export default function WindowsInvitationHome() {
   const access = useAccessController({ invitation: true });
@@ -57,27 +24,24 @@ export default function WindowsInvitationHome() {
     <div className="invitation-home">
       <main className="invitation-stage">
         <section className="invitation-ticket" aria-labelledby="invitation-title">
-          {/* Left Pane: Eclipse Moon & Black Vinyl Sleeve */}
           <div className="invitation-sleeve" data-tauri-drag-region>
             <div className="invitation-brand" aria-label="Lune" data-tauri-drag-region>
               <span className="invitation-brand-mark" data-tauri-drag-region>LUNE</span>
             </div>
 
             <div className="invitation-disc-wrap">
-              <EclipseVinyl />
+              <AbstractVinyl />
             </div>
 
             <p className="invitation-tagline">Follow your inner moonlight</p>
           </div>
 
-          {/* Perforated Divider */}
           <div className="invitation-perforation" aria-hidden="true">
             <span className="perforation-notch is-top" />
             <span className="perforation-line" />
             <span className="perforation-notch is-bottom" />
           </div>
 
-          {/* Right Pane: Clean Entry Form */}
           <div className="invitation-pass">
             <header className="invitation-pass-header">
               <h1 id="invitation-title" className="invitation-pass-title">进入房间</h1>

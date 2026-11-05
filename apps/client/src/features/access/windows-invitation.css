@@ -7,19 +7,13 @@
   --invite-ink: rgb(var(--lune-text));
   --invite-muted: rgb(var(--lune-muted));
   --invite-placeholder: rgb(var(--lune-muted) / 0.68);
-  --invite-brand: #ccb8c9;
+  --invite-brand: #dcdbd7;
   --invite-border: rgb(var(--lune-border) / 0.1);
   --invite-border-strong: rgb(var(--lune-border) / 0.18);
   --invite-perf: rgb(var(--lune-border) / 0.13);
-  /* Eclipse Moon & Vinyl palette from the user's design comp */
-  --eclipse-moon-fill: #ffffff;
-  --eclipse-vinyl-fill: #171717;
-  --eclipse-groove-stroke: #ccb8c9;
-  --eclipse-label-fill: #231c26;
-  --eclipse-hole-fill: #ffffff;
-  --invite-cta-bg: #ccb8c9;
-  --invite-cta-hover: #d8c8d6;
-  --invite-cta-ink: #171419;
+  --invite-cta-bg: #e4e3df;
+  --invite-cta-hover: #efeeeb;
+  --invite-cta-ink: #151515;
   --invite-error: #d9a3a8;
   --invite-error-bg: rgb(146 58 72 / 0.18);
   --invite-error-border: rgb(217 163 168 / 0.36);
@@ -54,7 +48,7 @@
   background: var(--invite-pass-bg);
 }
 
-/* Left Pane: Eclipse Moon & Vinyl Sleeve */
+/* Flat vinyl composition: offset arcs alternate light and shadow. */
 .invitation-sleeve {
   display: flex;
   flex-direction: column;
@@ -87,7 +81,7 @@
 
 .invite-turntable {
   display: block;
-  width: 212px;
+  width: min(100%, 236px);
   aspect-ratio: 1;
   padding: 0;
   border: 0;
@@ -99,28 +93,6 @@
   height: 100%;
   display: block;
   overflow: visible;
-}
-
-.eclipse-moon {
-  fill: var(--eclipse-moon-fill);
-}
-
-.eclipse-vinyl-body {
-  fill: var(--eclipse-vinyl-fill);
-}
-
-.eclipse-vinyl-groove {
-  fill: none;
-  stroke: var(--eclipse-groove-stroke);
-  stroke-width: 2.2;
-}
-
-.eclipse-vinyl-label {
-  fill: var(--eclipse-label-fill);
-}
-
-.eclipse-vinyl-hole {
-  fill: var(--eclipse-hole-fill);
 }
 
 .invitation-tagline {
@@ -406,8 +378,8 @@
   --invite-field-bg: rgb(var(--lune-surface));
   --invite-field-focus: rgb(var(--lune-bg-soft));
   --invite-brand: #555555;
-  --invite-cta-bg: #231c26;
-  --invite-cta-hover: #312836;
+  --invite-cta-bg: #1e1e1e;
+  --invite-cta-hover: #2c2c2c;
   --invite-cta-ink: #f0efeb;
   --invite-error: #b82548;
 }
