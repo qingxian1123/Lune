@@ -99,13 +99,10 @@
 }
 
 .desktop-members { display: flex; flex: 1; flex-direction: column; min-height: 0; }
-.member-invite { flex: none; margin: 0 16px; padding: 20px 0 16px; border-bottom: 1px solid rgb(var(--lune-border) / 0.09); }
-.member-invite > span { font-size: 12px; color: rgb(var(--lune-muted)); }
-.member-invite > div { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 8px; }
+.member-invite { display: flex; flex: none; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin: 0 16px; padding: 16px 0; border-bottom: 1px solid rgb(var(--lune-border) / 0.09); }
 .member-invite strong { font-family: var(--font-display); font-size: 20px; font-weight: 560; letter-spacing: 0.14em; }
 .member-invite button, .member-room-actions button, .desktop-leave-dialog button { min-height: 34px; padding: 0 12px; border: 1px solid rgb(var(--lune-border) / 0.15); border-radius: 8px; color: rgb(var(--lune-text)); background: transparent; cursor: pointer; font-size: 13px; }
 .member-invite button:hover, .desktop-leave-dialog button:hover { background: rgb(var(--lune-border) / 0.07); }
-.member-invite small { display: block; margin-top: 10px; color: #d9a3a8; }
 .desktop-members > .terminal-pane { height: auto; }
 .member-room-actions { flex: none; padding: 12px 16px 16px; }
 .member-room-actions button { width: 100%; color: #d9a3a8; }

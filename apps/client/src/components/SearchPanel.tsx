@@ -19,6 +19,7 @@ interface SearchPanelProps {
    * 移动端传 'pills' 渲染主题化胶囊组,避免弹出系统样式菜单。
    */
   active?: boolean;
+  roomActionsAvailable?: boolean;
   providerPicker?: 'select' | 'pills';
   tab?: SearchPanelTab;
   onTabChange?: (tab: SearchPanelTab) => void;
@@ -42,7 +43,7 @@ async function searchSources<T>(sources: string[], search: (source: string) => P
   return Array.from({ length: 20 }, (_, i) => available.flatMap((items) => items[i] ? [items[i]] : [])).flat().slice(0, 20);
 }
 
-export default function SearchPanel({ onPick, onAddMany, providerPicker = 'select', active = true, tab: controlledTab, onTabChange, presentation = 'compact' }: SearchPanelProps) {
+export default function SearchPanel({ onPick, onAddMany, providerPicker = 'select', active = true, roomActionsAvailable = true, tab: controlledTab, onTabChange, presentation = 'compact' }: SearchPanelProps) {
   const [localTab, setLocalTab] = useState<SearchPanelTab>('songs');
   const tab = controlledTab ?? localTab;
   const setTab = (next: SearchPanelTab) => { setLocalTab(next); onTabChange?.(next); };
@@ -267,7 +268,7 @@ export default function SearchPanel({ onPick, onAddMany, providerPicker = 'selec
         <ListeningLibrary key={serverUrl} server={serverUrl} viewState={libraryViewState} onAdd={(track) => onAddMany([track])} onSearch={() => setTab('songs')} />
       </div>
 
-      <div hidden={tab !== 'hot'}><HotChartPanel provider={provider} serverUrl={serverUrl} active={active && tab === 'hot'} onPick={(track) => onAddMany([track])} /></div>
+      <div hidden={tab !== 'hot'}><HotChartPanel provider={provider} serverUrl={serverUrl} active={active && tab === 'hot'} onPick={(track) => onAddMany([track])} disabled={!roomActionsAvailable} /></div>
 
       <div hidden={tab !== 'songs'}>
           <div className="search-query-row flex gap-2">
@@ -296,7 +297,7 @@ export default function SearchPanel({ onPick, onAddMany, providerPicker = 'selec
               <li
                 key={`${track.provider || provider}:${track.id}`}
                 className="lune-item group flex cursor-pointer items-center gap-3 px-2 py-2"
-                onClick={() => onPick(track)}
+                onClick={roomActionsAvailable ? () => onPick(track) : undefined}
               >
                 <div className="h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-[rgb(var(--lune-surface-2))]">
                   {track.coverUrl ? (
@@ -309,7 +310,7 @@ export default function SearchPanel({ onPick, onAddMany, providerPicker = 'selec
                 </div>
                 <FavoriteButton track={track} server={serverUrl} />
                 <span className="tabular-nums text-xs text-[rgb(var(--lune-muted)/0.52)]">{formatTime(track.duration)}</span>
-                <button type="button" aria-label={`将《${track.name}》加入队列`} onClick={(event) => { event.stopPropagation(); onPick(track); }} className="search-result-action rounded-md bg-[rgb(var(--lune-accent)/0.12)] px-2 py-1 text-xs text-[rgb(var(--lune-accent))] opacity-0 transition group-hover:opacity-100 focus-visible:opacity-100">
+                <button type="button" disabled={!roomActionsAvailable} aria-label={`选歌：《${track.name}》`} onClick={(event) => { event.stopPropagation(); onPick(track); }} className="search-result-action rounded-md bg-[rgb(var(--lune-accent)/0.12)] px-2 py-1 text-xs text-[rgb(var(--lune-accent))] opacity-0 transition group-hover:opacity-100 focus-visible:opacity-100 disabled:cursor-not-allowed">
                   加入
                 </button>
               </li>
@@ -385,7 +386,7 @@ export default function SearchPanel({ onPick, onAddMany, providerPicker = 'selec
             </div>
             <button
               onClick={() => onAddMany(tracks)}
-              disabled={detailLoading || tracks.length === 0}
+              disabled={!roomActionsAvailable || detailLoading || tracks.length === 0}
               className="lune-control rounded-lg px-3 py-1.5 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-45"
               title="把整个歌单加入待播队列"
             >
@@ -405,7 +406,7 @@ export default function SearchPanel({ onPick, onAddMany, providerPicker = 'selec
                 <li
                   key={`${track.provider || provider}:${track.id}-${idx}`}
                   className="lune-item group flex cursor-pointer items-center gap-3 px-2 py-2"
-                  onClick={() => onPick(track)}
+                  onClick={roomActionsAvailable ? () => onPick(track) : undefined}
                 >
                   <span className="w-5 shrink-0 text-right tabular-nums text-xs text-[rgb(var(--lune-muted)/0.5)]">
                     {idx + 1}
@@ -416,7 +417,7 @@ export default function SearchPanel({ onPick, onAddMany, providerPicker = 'selec
                   </div>
                   <FavoriteButton track={track} server={serverUrl} />
                   <span className="tabular-nums text-xs text-[rgb(var(--lune-muted)/0.52)]">{formatTime(track.duration)}</span>
-                  <button type="button" aria-label={`将《${track.name}》加入队列`} onClick={(event) => { event.stopPropagation(); onPick(track); }} className="search-result-action rounded-md bg-[rgb(var(--lune-accent)/0.12)] px-2 py-1 text-xs text-[rgb(var(--lune-accent))] opacity-0 transition group-hover:opacity-100 focus-visible:opacity-100">
+                  <button type="button" disabled={!roomActionsAvailable} aria-label={`选歌：《${track.name}》`} onClick={(event) => { event.stopPropagation(); onPick(track); }} className="search-result-action rounded-md bg-[rgb(var(--lune-accent)/0.12)] px-2 py-1 text-xs text-[rgb(var(--lune-accent))] opacity-0 transition group-hover:opacity-100 focus-visible:opacity-100 disabled:cursor-not-allowed">
                     加入
                   </button>
                 </li>

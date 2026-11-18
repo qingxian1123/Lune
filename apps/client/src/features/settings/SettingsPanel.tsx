@@ -22,21 +22,20 @@ export default function SettingsPanel({
     ?? sections[0];
   if (!activeSection) return null;
   const ActiveSection = activeSection.component;
+  const desktopOrder = sectionIds ?? ['server', 'appearance', 'interface'];
+  const desktopSections = desktopOrder.map((id) => {
+    const Section = sections.find((section) => section.id === id)?.component;
+    return Section ? <Section key={id} /> : null;
+  });
 
   if (embedded) {
     if (!controller.open) return null;
     return <SettingsControllerContext.Provider value={controller}>
       <section className="workspace-settings-view" aria-labelledby="workspace-settings-heading">
         <header className="workspace-section-heading"><h2 id="workspace-settings-heading">设置</h2>
-          <button type="button" className="workspace-settings-back" onClick={controller.closeSettings}>返回</button>
+          <button type="button" className="workspace-settings-back" onClick={controller.closeSettings}>返回房间</button>
         </header>
-        <div className="workspace-settings-layout">
-          <nav className="workspace-settings-nav" aria-label="设置项目">
-            {sections.map((section) => <button key={section.id} type="button" aria-current={section.id === activeSection.id ? 'page' : undefined}
-              onClick={() => controller.selectSection(section.id)}>{section.label}</button>)}
-          </nav>
-          <div className="workspace-settings-content"><ActiveSection /></div>
-        </div>
+        <div className="workspace-settings-content settings-overview lune-scrollbar">{desktopSections}</div>
       </section>
     </SettingsControllerContext.Provider>;
   }
@@ -47,12 +46,12 @@ export default function SettingsPanel({
         open={controller.open}
         mobile={mobile}
         categories={settingsCategories}
-        sections={sections}
+        sections={mobile ? sections : []}
         activeSectionId={controller.activeSectionId}
         onSectionChange={controller.selectSection}
         onClose={controller.closeSettings}
       >
-        <ActiveSection />
+        {mobile ? <ActiveSection /> : <div className="settings-overview">{desktopSections}</div>}
       </SettingsShell>
     </SettingsControllerContext.Provider>
   );

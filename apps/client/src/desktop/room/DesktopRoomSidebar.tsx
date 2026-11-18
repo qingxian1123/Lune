@@ -6,7 +6,7 @@ import SearchPanel from '../../components/SearchPanel';
 import type { SearchPanelTab } from '../../components/SearchPanel';
 import type { DesktopRoomTab } from './types';
 import DesktopRoomMembers from './DesktopRoomMembers';
-import WorkspaceNavigation, { workspaceDestinations } from './WorkspaceNavigation';
+import WorkspaceNavigation, { WorkspaceIcon, workspaceDestinations } from './WorkspaceNavigation';
 import WorkspacePlaybackPanel from './WorkspacePlaybackPanel';
 import { roomSettingsSectionIds } from '../../features/settings/registry';
 import SettingsPanel from '../../features/settings/SettingsPanel';
@@ -83,17 +83,36 @@ export default function DesktopRoomSidebar({
     if (detailsOpen) sidebarRef.current?.querySelector<HTMLButtonElement>('.workspace-playback-close')?.focus();
   }, [detailsOpen]);
   useLayoutEffect(() => {
-    if (expanded && settings.open) sidebarRef.current?.querySelector<HTMLButtonElement>('.workspace-settings-nav [aria-current="page"]')?.focus();
+    if (expanded && settings.open) sidebarRef.current?.querySelector<HTMLButtonElement>('.workspace-settings-back')?.focus();
   }, [expanded, settings.open]);
+  const selectDestination = (tab: DesktopRoomTab, nextSearchTab?: SearchPanelTab) => {
+    setDetailsOpen(false);
+    if (settings.open) settings.closeSettings();
+    if (nextSearchTab) setSearchTab(nextSearchTab);
+    onSelectTab(tab);
+  };
+  const showSongSearch = () => {
+    selectDestination('search', 'songs');
+    requestAnimationFrame(() => {
+      const inputs = sidebarRef.current?.querySelectorAll<HTMLInputElement>('#library-panel-search input[type="search"]');
+      Array.from(inputs ?? []).find((input) => !input.closest('[hidden]'))?.focus();
+    });
+  };
   return (
-    <aside ref={sidebarRef} id="room-music-library" className={`terminal-sidebar ${open ? 'is-open' : ''}${expanded ? ' library-workspace' : ''}${detailsOpen ? ' has-playback-details' : ''}`} aria-label={expanded ? '完整工作区' : '房间音乐库'} aria-hidden={!open}
+    <aside ref={sidebarRef} id="room-music-library" className={`terminal-sidebar ${open ? 'is-open' : ''}${expanded ? ' library-workspace' : ''}${detailsOpen ? ' has-playback-details' : ''}`} aria-label={expanded ? '房间操作' : '房间音乐库'} aria-hidden={!open}
       onKeyDown={(event) => {
         if (event.key !== 'Escape' || !expanded) return;
         if (detailsOpen) { event.preventDefault(); event.stopPropagation(); setDetailsOpen(false); detailsButtonRef.current?.focus(); }
         else if (settings.open) { event.preventDefault(); event.stopPropagation(); settings.closeSettings(); }
       }}>
-      {expanded && <WorkspaceNavigation active={destination} settingsOpen={settings.open} onOpenSettings={onOpenSettings}
-        onSelect={(tab, nextSearchTab) => { if (settings.open) settings.closeSettings(); if (nextSearchTab) setSearchTab(nextSearchTab); onSelectTab(tab); }} />}
+      {expanded && <WorkspaceNavigation active={destination} settingsOpen={settings.open} onOpenSettings={() => {
+        setDetailsOpen(false);
+        onOpenSettings();
+      }}
+        playbackToggle={<button ref={detailsButtonRef} type="button" className="workspace-nav-item workspace-details-toggle"
+          aria-controls="workspace-playback-panel" aria-expanded={detailsOpen} aria-label="正在播放" title="正在播放"
+          onClick={() => setDetailsOpen((value) => !value)}><WorkspaceIcon name="playback" /><span>正在播放</span></button>}
+        onSelect={selectDestination} />}
       <div className="sidebar-header">
         <div className="side-tabs" role="tablist" aria-label="房间工具" onKeyDown={(event) => {
           const tabs: DesktopRoomTab[] = ['search', 'queue', 'members'];
@@ -155,11 +174,9 @@ export default function DesktopRoomSidebar({
       </div>
 
       <div className="sidebar-content">
-        {expanded && <button ref={detailsButtonRef} type="button" className="workspace-details-toggle" aria-controls="workspace-playback-panel" aria-expanded={detailsOpen}
-          onClick={() => setDetailsOpen((value) => !value)}>播放详情</button>}
         <div id="library-panel-search" role={expanded ? 'region' : 'tabpanel'} aria-label={expanded ? page.label : undefined} aria-labelledby={expanded ? undefined : 'library-tab-search'} hidden={activeTab !== 'search' || (expanded && settings.open)}>
-          <SearchPanel active={open && activeTab === 'search'} onPick={onPickTrack} onAddMany={onAddMany}
-            tab={searchTab} onTabChange={setSearchTab} presentation={expanded ? 'workspace' : 'compact'} />
+          <SearchPanel active={open && activeTab === 'search' && (!expanded || !settings.open)} onPick={onPickTrack} onAddMany={onAddMany}
+            roomActionsAvailable={connected} tab={searchTab} onTabChange={setSearchTab} presentation={expanded ? 'workspace' : 'compact'} />
         </div>
         <div id="library-panel-queue" role={expanded ? 'region' : 'tabpanel'} aria-label={expanded ? '播放队列' : undefined} aria-labelledby={expanded ? undefined : 'library-tab-queue'} hidden={activeTab !== 'queue' || (expanded && settings.open)}>
           {expanded && <header className="workspace-section-heading"><h2>播放队列</h2></header>}
@@ -167,18 +184,14 @@ export default function DesktopRoomSidebar({
             queue={queue}
             currentTrackId={currentTrackId}
             isOwner={true}
+            connected={connected}
+            onSearch={showSongSearch}
             onRemove={onRemove}
             onReorder={onReorder}
           />
         </div>
         <div id="library-panel-members" role={expanded ? 'region' : 'tabpanel'} aria-label={expanded ? '房间成员' : undefined} aria-labelledby={expanded ? undefined : 'library-tab-members'} hidden={activeTab !== 'members' || (expanded && settings.open)}>
-          {expanded && <header className="workspace-section-heading">
-            <h2>房间成员</h2>
-            <button type="button" className="workspace-invite" onClick={onCopyCode} disabled={!roomCode}>
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
-              <span role="status">{copied ? '已复制' : '邀请朋友'}</span>
-            </button>
-          </header>}
+          {expanded && <header className="workspace-section-heading"><h2>房间成员</h2></header>}
           <DesktopRoomMembers roomCode={roomCode} memberCount={members.length} copied={copied} connected={connected} presentation={expanded ? 'workspace' : 'compact'} onCopyCode={onCopyCode} onLeave={onLeave}>
             <MemberList members={members} ownerId={ownerId} presentation={expanded ? 'workspace' : 'compact'} />
           </DesktopRoomMembers>
@@ -186,7 +199,11 @@ export default function DesktopRoomSidebar({
         {expanded && <div hidden={!settings.open}><SettingsPanel controller={settings} embedded sectionIds={roomSettingsSectionIds} /></div>}
       </div>
       {expanded && <WorkspacePlaybackPanel track={track} queue={queue} lines={lines} currentIndex={currentIndex} loadingLyrics={loadingLyrics}
-        onShowQueue={() => { setDetailsOpen(false); if (settings.open) settings.closeSettings(); onSelectTab('queue'); }} onClose={() => { setDetailsOpen(false); detailsButtonRef.current?.focus(); }} />}
+        onShowQueue={() => {
+          selectDestination('queue');
+          sidebarRef.current?.querySelector<HTMLButtonElement>('.workspace-nav [aria-controls="library-panel-queue"]')?.focus();
+        }}
+        onClose={() => { setDetailsOpen(false); detailsButtonRef.current?.focus(); }} />}
     </aside>
   );
 }

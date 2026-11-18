@@ -52,10 +52,11 @@ interface DesktopPreferences extends DesktopPreferenceState {
 export const useDesktopPreferences = create<DesktopPreferences>((set, get) => ({
   ...loadPreferences(),
   setInterfaceMode: (interfaceMode) => {
-    if (!persist({ interfaceMode, stagePanelOpen: get().stagePanelOpen })) {
-      return '无法保存界面模式，请检查本机存储权限后重试。';
+    const next = { interfaceMode, stagePanelOpen: interfaceMode === 'stage' ? false : get().stagePanelOpen };
+    if (!persist(next)) {
+      return '无法保存房间布局，请重试。';
     }
-    set({ interfaceMode });
+    set(next);
     return null;
   },
   setStagePanelOpen: (stagePanelOpen) => {

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useAccentColor } from '../hooks/useAccentColor';
 import { useRoomController } from '../features/room/useRoomController';
 import DesktopRoomHeader from '../desktop/room/DesktopRoomHeader';
@@ -28,7 +29,8 @@ type AlbumPaletteStyle = CSSProperties & {
 export default function Room() {
   const isWindows = useClientRuntime().kind === 'windows';
   const settings = useSettingsController();
-  const [sideTab, setSideTab] = useState<DesktopRoomTab>('search');
+  const createdRoom = (useLocation().state as { createdRoom?: boolean } | null)?.createdRoom;
+  const [sideTab, setSideTab] = useState<DesktopRoomTab>(() => createdRoom ? 'members' : 'search');
   const interfaceMode = useDesktopPreferences((state) => state.interfaceMode);
   const stagePanelOpen = useDesktopPreferences((state) => state.stagePanelOpen);
   const setStagePanelOpen = useDesktopPreferences((state) => state.setStagePanelOpen);
@@ -72,8 +74,8 @@ export default function Room() {
     previousMode.current = interfaceMode;
     const focusTarget = settings.open
       ? (isFull
-        ? workspaceRef.current?.querySelector<HTMLButtonElement>('.workspace-settings-nav [aria-current="page"]')
-        : document.querySelector<HTMLButtonElement>('dialog[open] .settings-nav [aria-current="page"]'))
+        ? workspaceRef.current?.querySelector<HTMLButtonElement>('.workspace-settings-back')
+        : document.querySelector<HTMLButtonElement>('dialog[open] .settings-close'))
       : isFull
         ? workspaceRef.current?.querySelector<HTMLButtonElement>('.workspace-nav [aria-current="page"]')
         : stagePanelOpen
@@ -161,8 +163,8 @@ export default function Room() {
       )}
 
       <div className="room-connection-slot">{!connected && !needsRejoin && connectionPhase !== 'closed' && <div className="connection-notice" role="status">
-        <span>{recoveryState.phase === 'playing' ? '房间连接已断开，本机仍在播放' : '正在连接房间，恢复后将同步进度'}</span>
-        <button type="button" onClick={reconnectNow}>立即重连</button>
+        <span>{recoveryState.phase === 'playing' ? '房间已断开，本机仍在播放' : '正在连接房间…'}</span>
+        <button type="button" onClick={reconnectNow}>重试连接</button>
       </div>}</div>
 
       <main className="room-workspace" ref={workspaceRef} data-interface={interfaceMode} data-stage-panel={stagePanelOpen}>
@@ -181,6 +183,7 @@ export default function Room() {
           title="展开音乐库"
           onClick={() => changePanel(true)}>
           <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3" /><path d="M15 4v16M7 9h4M7 13h4" /></svg>
+          音乐库
         </button>}
         <DesktopRoomSidebar
           open={isFull || stagePanelOpen}
@@ -212,7 +215,7 @@ export default function Room() {
         />
       </main>
 
-      <div className="room-playback-slot"><PlaybackNotice state={recoveryState} provider={track?.provider} disabled={needsRejoin}
+      <div className="room-playback-slot"><PlaybackNotice compact state={recoveryState} provider={track?.provider} disabled={needsRejoin}
         onRetry={() => { void retryPlayback(); }} onResume={() => {
           const volume = useVolumeStore.getState(); if (volume.muted) volume.toggleMute();
           void retryPlayback(true);

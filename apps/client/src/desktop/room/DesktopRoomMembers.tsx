@@ -34,25 +34,17 @@ export default function DesktopRoomMembers({
   const workspace = presentation === 'workspace';
   return (
     <div className={workspace ? 'desktop-members workspace-members' : 'desktop-members'}>
-      {workspace ? (
-        <section className="workspace-room-card" aria-label="房间邀请码">
-          <div>
-            <strong className="workspace-room-code">{formatRoomCode(roomCode)}</strong>
-            {!connected && <small role="status">正在连接房间…</small>}
-          </div>
-          <p className="workspace-room-presence"><i aria-hidden="true" />{memberCount} 人在线</p>
-        </section>
-      ) : (
-        <section className="member-invite" aria-label="邀请朋友">
-          <span>房间邀请码</span>
-          <div>
-            <strong>{roomCode}</strong>
-            <button type="button" onClick={onCopyCode} disabled={!roomCode} aria-label="复制房间邀请码"><span role="status">{copied ? '已复制' : '复制'}</span></button>
-          </div>
-          {!connected && <small role="status">正在连接房间…</small>}
-        </section>
-      )}
-      {workspace && <h3 className="workspace-members-heading">在线成员</h3>}
+      <section className={workspace ? 'workspace-room-card' : 'member-invite'} aria-label="邀请朋友">
+        <div>
+          <span>房间码</span>
+          <strong className="workspace-room-code">{formatRoomCode(roomCode)}</strong>
+        </div>
+        <button type="button" className="workspace-invite" onClick={onCopyCode} disabled={!roomCode} aria-label={copied ? '已复制房间码，点击再次复制' : undefined}>
+          {copied ? '已复制' : '复制房间码'}
+        </button>
+        <span className="sr-only" role="status">{copied ? '房间码已复制' : ''}</span>
+      </section>
+      {workspace && connected && <p className="workspace-members-heading">{memberCount} 人在线</p>}
       {children}
       <footer className={workspace ? 'workspace-room-actions' : 'member-room-actions'}>
         <button type="button" onClick={() => dialog.current?.showModal()}>离开房间</button>
@@ -60,7 +52,7 @@ export default function DesktopRoomMembers({
       <dialog ref={dialog} className="desktop-leave-dialog" aria-labelledby="desktop-leave-title" aria-describedby="desktop-leave-description">
         {isWindows && <WindowTitlebar />}
         <h2 id="desktop-leave-title">离开房间？</h2>
-        <p id="desktop-leave-description">离开后将停止本机播放。</p>
+        <p id="desktop-leave-description">你这里的音乐会停止播放。</p>
         <div>
           <button type="button" autoFocus onClick={() => dialog.current?.close()}>取消</button>
           <button type="button" className="confirm-leave" onClick={() => { dialog.current?.close(); onLeave(); }}>离开房间</button>

@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Routes, Route, useLocation } from 'react-router-dom';
+import { Navigate, Routes, Route, useLocation, useParams } from 'react-router-dom';
 import { getCurrentWindow, LogicalSize } from '@tauri-apps/api/window';
 import { ClientRuntimeProvider, useClientRuntime } from './app/ClientRuntimeProvider';
 import { ThemeProvider } from './app/ThemeProvider';
@@ -12,8 +12,16 @@ import WindowTitlebar from './desktop/WindowTitlebar';
 import './desktop/desktop.css';
 import './features/access/radio-home.css';
 import './features/access/windows-invitation.css';
+import { getInitialServerUrl } from './lib/serverConfig';
 
 let windowLayoutUpdate = Promise.resolve();
+
+function DesktopRoomRoute() {
+  const { code } = useParams();
+  return getInitialServerUrl()
+    ? <Room />
+    : <Navigate to="/" replace state={{ rejoinRoomCode: code }} />;
+}
 
 function AppRoutes() {
   const runtime = useClientRuntime();
@@ -36,8 +44,8 @@ function AppRoutes() {
     <div className={isWindows ? 'windows-shell' : undefined}>
       {isWindows && !isHome && <WindowTitlebar />}
       <Routes>
-      <Route path="/" element={isMobile ? <MobileHome /> : <Home />} />
-      <Route path="/room/:code" element={isMobile ? <MobileRoom /> : <Room />} />
+        <Route path="/" element={isMobile ? <MobileHome /> : <Home />} />
+        <Route path="/room/:code" element={isMobile ? <MobileRoom /> : <DesktopRoomRoute />} />
       </Routes>
     </div>
   );

@@ -63,7 +63,7 @@ export default function TransportBar({
           step={1000}
           value={Math.min(currentTime, safeDuration)}
           onChange={(event) => onSeek(Number(event.target.value))}
-          disabled={!isOwner || safeDuration <= 0}
+          disabled={!isOwner || !connected || safeDuration <= 0}
           aria-label="播放进度"
         />
       </label>
@@ -86,7 +86,7 @@ export default function TransportBar({
       </div>
 
       <div className="transport-actions">
-        {!quiet && <span className="transport-link" data-connected={connected} role="img" tabIndex={0}
+        {!quiet && <span className="transport-link" data-connected={connected} role="img"
           aria-label={connected ? '房间连接正常' : '房间连接已断开'}>
           <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
             <path className="transport-link-left" d="M10 4.25a8 8 0 0 0 0 15.5" />
@@ -131,7 +131,7 @@ export default function TransportBar({
           type="button"
           className="transport-next"
           onClick={onNext}
-          disabled={!isOwner || !track}
+          disabled={!isOwner || !connected || !track}
           title={isOwner ? '播放下一首' : '仅房主可切歌'}
         >
           <span>下一首</span>

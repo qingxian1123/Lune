@@ -89,9 +89,9 @@ export default function ListeningLibrary({ server, onAdd, onSearch, viewState }:
     </label>
     {storageError && <div className="library-notice" role="alert"><p>{storageError}</p><button type="button" onClick={retrySave}>重试保存</button></div>}
     {confirmClear && <div className="library-notice">
-      <p>清空当前服务器的本机共听记录？收藏会保留，此操作无法撤销。</p>
-      <div className="library-confirm-actions"><button type="button" onClick={() => setConfirmClear(false)}>保留记录</button>
-        <button type="button" onClick={() => { clearHistory(server); setConfirmClear(false); setNotice('共听记录已清空'); }}>确认清空</button></div>
+      <p>清空此服务器上的本机听歌记录？清空后无法恢复。</p>
+      <div className="library-confirm-actions"><button type="button" onClick={() => setConfirmClear(false)}>取消</button>
+        <button type="button" onClick={() => { clearHistory(server); setConfirmClear(false); setNotice('听歌记录已清空'); }}>清空记录</button></div>
     </div>}
     {filtered.length === 0 ? <div className="library-empty">
       <BookmarkIcon />

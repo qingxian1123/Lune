@@ -9,7 +9,7 @@ import { useRoomStore } from '../hooks/useRoomStore';
 import { WorkspaceIcon } from '../desktop/room/WorkspaceNavigation';
 
 export const providerLabel = (provider: string): string =>
-  ({ all: '全部音源', netease: '网易云音乐', kugou: '酷狗音乐' })[provider] || provider;
+  ({ all: '全部平台', netease: '网易云音乐', kugou: '酷狗音乐' })[provider] || provider;
 
 function MusicCover({ src }: { src?: string }) {
   return <span className="workspace-music-cover">
@@ -30,19 +30,10 @@ function WorkspaceHotChart({ serverUrl, disabled, added, onPick, tracks, fetchin
 }) {
   const current = useRoomStore((state) => state.playback.track);
   return <div className="workspace-hot">
-    <div className="workspace-hot-banner" aria-hidden="true">
-      <div className="workspace-hot-banner-copy">
-        <span>共听热榜</span>
-        <strong>TOP 50</strong>
-      </div>
-      <i className="workspace-hot-orb workspace-hot-orb-a" />
-      <i className="workspace-hot-orb workspace-hot-orb-b" />
-      <svg className="workspace-hot-note" viewBox="0 0 24 24"><path d="M9 18V5l12-2v13" /><ellipse cx="6" cy="18" rx="3.2" ry="2.2" /></svg>
-    </div>
     {fetching && !tracks && <div className="workspace-browser-loading" role="status"><span className="sr-only">正在读取近 7 天热度</span>{[0, 1, 2, 3].map((row) => <i key={row} aria-hidden="true" />)}</div>}
     {fetching && tracks && <div className="sr-only" role="status">正在读取近 7 天热度</div>}
-    {error && <div className="workspace-browser-message" role="alert"><p>热榜暂时无法载入。请检查服务器连接后重试。</p><button type="button" onClick={onRetry}>重新载入</button></div>}
-    {tracks?.length === 0 && <div className="workspace-browser-empty" role="status"><p>近 7 天还没有收到爱心。播放一首歌，送出这里的第一颗心吧。</p></div>}
+    {error && <div className="workspace-browser-message" role="alert"><p>热榜加载失败</p><button type="button" onClick={onRetry}>重试</button></div>}
+    {!error && tracks?.length === 0 && <div className="workspace-browser-empty" role="status"><p>近 7 天还没有歌曲收到爱心</p></div>}
     {!!tracks?.length && <div className="workspace-track-table is-numbered">
       <div className="workspace-track-columns" aria-hidden="true">
         <span>#</span><span>歌曲</span><span className="workspace-artist-column">歌手</span><span className="workspace-album-column">专辑</span><span>时长</span><span />

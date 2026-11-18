@@ -1,8 +1,9 @@
+import type { ReactNode } from 'react';
 import type { SearchPanelTab } from '../../components/SearchPanel';
 import type { DesktopRoomTab } from './types';
 
 export type WorkspaceDestination = SearchPanelTab | 'queue' | 'members';
-type IconName = WorkspaceDestination | 'settings' | 'add';
+type IconName = WorkspaceDestination | 'settings' | 'add' | 'play' | 'playback';
 
 const iconPaths: Record<IconName, string> = {
   songs: 'M21 21l-5-5M18 10.5a7.5 7.5 0 1 1-15 0 7.5 7.5 0 0 1 15 0Z',
@@ -13,6 +14,8 @@ const iconPaths: Record<IconName, string> = {
   members: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75M13 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z',
   settings: 'M4 7h10M18 7h2M4 17h2M10 17h10M14 4v6M7 14v6',
   add: 'M12 5v14M5 12h14',
+  play: 'm8 5 12 7-12 7z',
+  playback: 'M4 14v-3a8 8 0 0 1 16 0v3M4 12h2a2 2 0 0 1 2 2v4H6a2 2 0 0 1-2-2zM20 12h-2a2 2 0 0 0-2 2v4h2a2 2 0 0 0 2-2z',
 };
 
 export function WorkspaceIcon({ name }: { name: IconName }) {
@@ -33,12 +36,13 @@ interface Props {
   onSelect: (tab: DesktopRoomTab, searchTab?: SearchPanelTab) => void;
   onOpenSettings: () => void;
   settingsOpen?: boolean;
+  playbackToggle: ReactNode;
 }
 
-export default function WorkspaceNavigation({ active, onSelect, onOpenSettings, settingsOpen = false }: Props) {
-  return <nav className="workspace-nav" aria-label="工作区导航">
-    <div className="workspace-nav-label">库</div>
+export default function WorkspaceNavigation({ active, onSelect, onOpenSettings, settingsOpen = false, playbackToggle }: Props) {
+  return <nav className="workspace-nav" aria-label="房间导航">
     <div className="workspace-nav-links">
+      {playbackToggle}
       {workspaceDestinations.map((item, index) => <div key={item.id}>
         {index === 4 && <div className="workspace-nav-divider" />}
         <button type="button" aria-current={!settingsOpen && active === item.id ? 'page' : undefined} aria-label={item.label} title={item.label}

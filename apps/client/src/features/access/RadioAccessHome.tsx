@@ -1,5 +1,7 @@
 import SettingsPanel from '../settings/SettingsPanel';
+import { useEffect, useRef, useState } from 'react';
 import { useAccessController } from './useAccessController';
+import type { AccessMode } from './useAccessController';
 
 const tuningMarks = Array.from({ length: 48 }, (_, index) => index);
 
@@ -25,7 +27,17 @@ function TuningDial() {
 }
 
 export default function RadioAccessHome({ mobile = false }: { mobile?: boolean }) {
-  const access = useAccessController();
+  const access = useAccessController({ mobile });
+  const [mode, setMode] = useState<AccessMode>(() => access.roomCode ? 'join' : 'create');
+  const roomCodeInput = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (mode === 'join' && !access.settings.open) roomCodeInput.current?.focus();
+  }, [mode, access.settings.open]);
+
+  const switchMode = (value: AccessMode) => {
+    setMode(value);
+    access.clearError();
+  };
 
   return (
     <div className={`radio-home${mobile ? ' is-mobile' : ''}`}>
@@ -60,30 +72,30 @@ export default function RadioAccessHome({ mobile = false }: { mobile?: boolean }
 
           <div className="radio-console-controls">
             <div className="radio-mode-switch" role="group" aria-label="房间操作">
-              <button type="button" aria-pressed={access.mode === 'create'} className={access.mode === 'create' ? 'is-active' : undefined} onClick={() => access.switchMode('create')}>创建房间</button>
-              <button type="button" aria-pressed={access.mode === 'join'} className={access.mode === 'join' ? 'is-active' : undefined} onClick={() => access.switchMode('join')}>加入房间</button>
+              <button type="button" aria-pressed={mode === 'create'} className={mode === 'create' ? 'is-active' : undefined} disabled={access.busy} onClick={() => switchMode('create')}>创建房间</button>
+              <button type="button" aria-pressed={mode === 'join'} className={mode === 'join' ? 'is-active' : undefined} disabled={access.busy} onClick={() => switchMode('join')}>加入房间</button>
             </div>
 
-            <div className="radio-fields" data-mode={access.mode}>
+            <form className="radio-fields" data-mode={mode} onSubmit={(event) => { event.preventDefault(); void access.enterRoom(mode); }}>
               <label className="radio-field">
                 <span>你的昵称</span>
-                <input value={access.nickname} onChange={(event) => access.setNickname(event.target.value)} onKeyDown={(event) => event.key === 'Enter' && void access.enterRoom()} maxLength={32} autoComplete="nickname" placeholder="今晚怎么称呼你" aria-invalid={access.error?.field === 'nickname'} aria-describedby={access.error?.field === 'nickname' ? 'radio-nickname-error' : undefined} />
+                <input value={access.nickname} onChange={(event) => access.setNickname(event.target.value)} readOnly={access.busy} maxLength={32} autoComplete="nickname" placeholder="今晚怎么称呼你" aria-invalid={access.error?.field === 'nickname'} aria-describedby={access.error?.field === 'nickname' ? 'radio-nickname-error' : undefined} />
                 {access.error?.field === 'nickname' && <small id="radio-nickname-error" className="radio-field-error">{access.error.message}</small>}
               </label>
 
-              {access.mode === 'join' && (
+              {mode === 'join' && (
                 <label className="radio-field">
                   <span>六位房间码</span>
-                  <input ref={access.roomCodeInputRef} value={access.roomCode} onChange={(event) => access.setRoomCode(event.target.value)} onKeyDown={(event) => event.key === 'Enter' && void access.enterRoom()} maxLength={6} autoCapitalize="characters" autoComplete="off" className="radio-code-input" placeholder="输入房间码" aria-invalid={access.error?.field === 'roomCode'} aria-describedby={access.error?.field === 'roomCode' ? 'radio-code-error' : undefined} />
+                  <input ref={roomCodeInput} value={access.roomCode} onChange={(event) => access.setRoomCode(event.target.value)} readOnly={access.busy} autoCapitalize="characters" autoComplete="off" className="radio-code-input" placeholder="输入房间码" aria-invalid={access.error?.field === 'roomCode'} aria-describedby={access.error?.field === 'roomCode' ? 'radio-code-error' : undefined} />
                   {access.error?.field === 'roomCode' && <small id="radio-code-error" className="radio-field-error">{access.error.message}</small>}
                 </label>
               )}
 
-              <button type="button" className="radio-enter" onClick={() => void access.enterRoom()} disabled={access.busy}>
-                <span>{access.busy ? '正在进入房间…' : access.mode === 'create' ? '创建房间' : '加入房间'}</span>
+              <button type="submit" className="radio-enter" disabled={access.busy}>
+                <span>{access.busy ? '正在进入房间…' : mode === 'create' ? '创建房间' : '加入房间'}</span>
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h15m-6-6 6 6-6 6" /></svg>
               </button>
-            </div>
+            </form>
             <div className="radio-feedback" role="status" aria-live="polite">{access.error && !access.error.field ? access.error.message : null}</div>
           </div>
         </section>

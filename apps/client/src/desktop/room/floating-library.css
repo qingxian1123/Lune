@@ -47,18 +47,19 @@
 }
 .room-floating-library .library-float-toggle {
   position: absolute;
-  top: calc(50% - 22px);
+  top: 12px;
   right: 16px;
   z-index: 41;
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 12px;
   border: 1px solid rgb(var(--lune-border) / 0.16);
   border-radius: 14px;
   color: rgb(var(--lune-muted));
   background: rgb(var(--lune-surface));
+  font-size: 13px;
   cursor: pointer;
   transition: opacity 160ms ease, visibility 160ms, color 160ms ease;
 }
@@ -152,6 +153,9 @@
     height: 100%;
     max-height: 540px;
   }
+}
+.room-floating-library .room-workspace[data-interface="stage"][data-stage-panel="false"] .stage-content {
+  padding-top: 56px;
 }
 @media (max-height: 580px) {
   .room-floating-library .now-playing-stage .stage-content { padding-block: 12px; gap: 16px; }

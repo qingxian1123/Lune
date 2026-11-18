@@ -20,8 +20,7 @@ export default function MemberList({ members, ownerId, presentation = 'compact' 
             <li key={member.id} className="workspace-member-row">
               <span className="workspace-member-avatar" aria-hidden="true">{initialOf(member.nickname)}</span>
               <strong>{member.nickname}</strong>
-              <span className="workspace-member-role">{owner ? '房主' : '成员'}</span>
-              <i className="workspace-member-status" aria-hidden="true" />
+              {owner && <span className="workspace-member-role">房主</span>}
             </li>
           );
         })}

@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
+import { useLocation } from 'react-router-dom';
 import type { SettingsCategoryDefinition, SettingsSectionDefinition } from './model/types';
 import { useClientRuntime } from '../../app/ClientRuntimeProvider';
 import WindowTitlebar from '../../desktop/WindowTitlebar';
@@ -27,6 +28,7 @@ export default function SettingsShell({
 }: SettingsShellProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const isWindows = useClientRuntime().kind === 'windows';
+  const isHome = useLocation().pathname === '/';
   const showNavigation = sections.length > 1;
   const visibleCategories = categories
     .map((category) => ({
@@ -61,7 +63,7 @@ export default function SettingsShell({
         if (!mobile && event.target === event.currentTarget) onClose();
       }}
     >
-      {isWindows && <WindowTitlebar />}
+      {isWindows && !isHome && <WindowTitlebar />}
       <section className="settings-surface">
         <header className="settings-header">
           <strong id="settings-title">设置</strong>

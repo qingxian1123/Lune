@@ -8,7 +8,7 @@ export function createOverlayNavigation(enabled: boolean): OverlayNavigation {
       if (!enabled || active) return () => undefined;
 
       const current = (window.history.state ?? {}) as Record<string, unknown>;
-      window.history.pushState({ ...current, luneOverlay: true }, '');
+      if (!current.luneOverlay) window.history.pushState({ ...current, luneOverlay: true }, '');
       active = true;
 
       const onPopState = () => {
@@ -17,7 +17,10 @@ export function createOverlayNavigation(enabled: boolean): OverlayNavigation {
       };
 
       window.addEventListener('popstate', onPopState);
-      return () => window.removeEventListener('popstate', onPopState);
+      return () => {
+        active = false;
+        window.removeEventListener('popstate', onPopState);
+      };
     },
 
     dismiss() {

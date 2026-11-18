@@ -9,7 +9,7 @@ export const settingsCategories: SettingsCategoryDefinition[] = [
   { id: 'system', label: '系统', order: 30 },
 ].sort((left, right) => left.order - right.order);
 
-export const roomSettingsSectionIds = ['server', 'appearance', 'interface'];
+export const roomSettingsSectionIds = ['interface', 'appearance', 'server'];
 
 export const settingsSections: SettingsSectionDefinition[] = [
   {

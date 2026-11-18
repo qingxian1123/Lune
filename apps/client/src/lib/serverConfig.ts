@@ -18,7 +18,7 @@ export function normalizeServerUrl(input: string): string {
     throw new Error('服务器地址格式不正确');
   }
   if (!['http:', 'https:'].includes(parsed.protocol)) {
-    throw new Error('服务器地址只支持 HTTP 或 HTTPS');
+    throw new Error('请输入以 http:// 或 https:// 开头的服务器地址');
   }
   if (parsed.username || parsed.password) {
     throw new Error('服务器地址不能包含用户名或密码');
@@ -42,13 +42,13 @@ export function getInitialServerUrl(): string {
   return readStoredUrl() || (BUILD_DEFAULT ? normalizeServerUrl(BUILD_DEFAULT) : '');
 }
 
-export function hasSavedServerUrl(): boolean {
-  return Boolean(readStoredUrl());
-}
-
 export function saveServerUrl(input: string): string {
   const normalized = normalizeServerUrl(input);
-  window.localStorage.setItem(STORAGE_KEY, normalized);
+  try {
+    window.localStorage.setItem(STORAGE_KEY, normalized);
+  } catch {
+    throw new Error('无法保存服务器地址。请检查应用的存储权限后重试。');
+  }
   window.dispatchEvent(new Event('lune-server-changed'));
   return normalized;
 }
@@ -87,7 +87,7 @@ export async function testServerConnection(input: string): Promise<{
     });
     const health = await response.json().catch(() => null) as ServerHealth | null;
     if (response.status === 503 && health?.ok === false && Array.isArray(health.providers)) {
-      throw new Error('服务已启动，但音乐源暂不可用。请联系服务管理员检查音乐源。');
+      throw new Error('服务器已连通，但音乐暂不可用。请联系管理员。');
     }
     if (!response.ok || health?.ok !== true) {
       throw new Error('服务暂时无法使用。请稍后重试，或联系服务管理员。');
@@ -113,7 +113,7 @@ function testWebSocket(url: string): Promise<void> {
     try {
       socket = new WebSocket(url);
     } catch {
-      reject(new Error('服务可访问，但实时连接失败。请联系服务管理员检查 WebSocket 转发。'));
+      reject(new Error('服务器已连通，但无法连接房间。请联系管理员。'));
       return;
     }
 
@@ -125,7 +125,7 @@ function testWebSocket(url: string): Promise<void> {
       socket.onopen = socket.onerror = socket.onclose = null;
       try { socket.close(); } catch { /* The connection has already closed. */ }
       if (connected) resolve();
-      else reject(new Error('服务可访问，但实时连接失败。请联系服务管理员检查 WebSocket 转发。'));
+      else reject(new Error('服务器已连通，但无法连接房间。请联系管理员。'));
     };
     const timer = window.setTimeout(() => finish(false), 5_000);
     socket.onopen = () => finish(true);

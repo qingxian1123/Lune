@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef } from 'react';
 import type { ReactNode, RefObject, UIEventHandler } from 'react';
 import type { PlaylistSummary, Track } from '@lune/shared';
 import type { SearchPanelTab } from './SearchPanel';
@@ -53,7 +53,8 @@ function MusicCover({ src, className = '' }: { src?: string; className?: string 
 function TrackList({ tracks, server, connected, onPick, numbered = false, flow = false }: {
   tracks: Track[]; server: string; connected: boolean; onPick: (track: Track) => void; numbered?: boolean; flow?: boolean;
 }) {
-  const current = useRoomStore((state) => state.playback.track);
+  const { track: current, status } = useRoomStore((state) => state.playback);
+  const action = status === 'idle' ? '播放' : '加入队列';
   return <div className={`workspace-track-table${numbered ? ' is-numbered' : ''}${flow ? ' is-flow' : ''}`}>
     <div className="workspace-track-columns" aria-hidden="true">
       {numbered && <span>序号</span>}<span>歌曲</span><span className="workspace-artist-column">歌手</span><span className="workspace-album-column">专辑</span><span>时长</span><span />
@@ -72,23 +73,23 @@ function TrackList({ tracks, server, connected, onPick, numbered = false, flow =
         <div className="workspace-track-row-actions">
           <FavoriteButton track={track} server={server} />
           <button type="button" className="workspace-add-track" disabled={!connected}
-            aria-label={`将《${track.name}》加入队列`} title={connected ? '加入队列' : '连接房间后可加入队列'} onClick={() => onPick(track)}><WorkspaceIcon name="add" /></button>
+            aria-label={status === 'idle' ? `播放《${track.name}》` : `将《${track.name}》加入队列`}
+            title={action} onClick={() => onPick(track)}><WorkspaceIcon name={status === 'idle' ? 'play' : 'add'} /></button>
         </div>
       </li>)}
     </ol>
   </div>;
 }
 
-function SearchFeedback({ state, empty, children }: { state: SearchState; empty: boolean; children: ReactNode }) {
+function SearchFeedback({ state, empty, prompt, children }: { state: SearchState; empty: boolean; prompt: string; children: ReactNode }) {
   if (state.loading) return <div className="workspace-browser-loading" role="status"><span className="sr-only">正在搜索</span>{[0, 1, 2, 3].map((row) => <i key={row} aria-hidden="true" />)}</div>;
   if (state.error) return <div className="workspace-browser-message" role="alert"><p>{state.error}</p><button type="button" onClick={state.onSearch}>重新搜索</button></div>;
-  if (empty) return <div className="workspace-browser-empty"><WorkspaceIcon name="songs" /><p>{state.searched ? '没有找到相关内容，换个关键词试试' : '搜索喜欢的音乐，和朋友一起听'}</p></div>;
+  if (empty) return <div className="workspace-browser-empty" role="status"><WorkspaceIcon name="songs" /><p>{state.searched ? '没找到结果，试试其他关键词' : prompt}</p></div>;
   return children;
 }
 
 export default function WorkspaceMusicBrowser({ tab, active, server, source, songs, playlists, onPick, onAddMany, onTabChange, containerRef, onScrollCapture, libraryViewState }: Props) {
   const connected = useRoomStore((state) => state.connected);
-  const [notice, setNotice] = useState('');
   const playlistList = useRef<HTMLUListElement>(null);
   const playlistScroll = useRef(0);
   const selectedCard = useRef<HTMLButtonElement | null>(null);
@@ -109,16 +110,9 @@ export default function WorkspaceMusicBrowser({ tab, active, server, source, son
     if (playlistList.current) playlistList.current.scrollTop = 0;
   }, [server, source.value]);
 
-  const pick = (track: Track) => {
-    onPick(track);
-    setNotice(`已请求将《${track.name}》加入队列`);
-  };
-  const enqueue = (track: Track) => {
-    onAddMany([track]);
-    setNotice(`已请求将《${track.name}》加入队列`);
-  };
+  const enqueue = (track: Track) => onAddMany([track]);
   const sourcePicker = <select className="workspace-source lune-control" value={source.value} disabled={source.providers.length === 0}
-    onChange={(event) => source.onChange(event.target.value)} aria-label="选择音乐源">
+    onChange={(event) => source.onChange(event.target.value)} aria-label="选择音乐平台">
     {['all', ...source.providers].map((provider) => <option key={provider} value={provider}>{providerLabel(provider)}</option>)}
   </select>;
   const searchToolbar = (state: SearchState, label: string) => <form className="workspace-search-toolbar" role="search" aria-label={label}
@@ -135,15 +129,15 @@ export default function WorkspaceMusicBrowser({ tab, active, server, source, son
     <div className="workspace-browser-view" hidden={tab !== 'songs'}>
       <header className="workspace-section-heading"><h2>搜索音乐</h2></header>
       {searchToolbar(songs, '搜索歌曲或歌手')}
-      <SearchFeedback state={songs} empty={songs.tracks.length === 0}>
-        <TrackList tracks={songs.tracks} server={server} connected={connected} onPick={pick} />
+      <SearchFeedback state={songs} empty={songs.tracks.length === 0} prompt="输入歌名或歌手开始搜索">
+        <TrackList tracks={songs.tracks} server={server} connected={connected} onPick={onPick} />
       </SearchFeedback>
     </div>
 
     <div className="workspace-browser-view" hidden={tab !== 'playlists' || playlists.view !== 'list'}>
       <header className="workspace-section-heading"><h2>发现歌单</h2></header>
       {searchToolbar(playlists, '搜索歌单名')}
-      <SearchFeedback state={playlists} empty={playlists.items.length === 0}>
+      <SearchFeedback state={playlists} empty={playlists.items.length === 0} prompt="输入歌单名开始搜索">
         <ul ref={playlistList} className="workspace-playlist-grid lune-scrollbar" data-scroll-key="playlists" aria-label="歌单列表">
           {playlists.items.map((playlist) => <li key={`${playlist.provider}:${playlist.id}`}>
             <button type="button" className="workspace-playlist-card" aria-label={`打开歌单《${playlist.name}》`}
@@ -172,13 +166,13 @@ export default function WorkspaceMusicBrowser({ tab, active, server, source, son
               <h2>{playlists.selected.name}</h2>
               <p>{playlists.selected.creator || '未知创建者'}<span aria-hidden="true"> · </span>{playlists.selected.trackCount} 首<span aria-hidden="true"> · </span>{providerLabel(playlists.selected.provider || source.value)}</p>
               <button type="button" className="workspace-add-all" disabled={!connected || playlists.detailLoading || playlists.tracks.length === 0}
-                title={connected ? '把整个歌单加入待播队列' : '连接房间后可加入队列'} onClick={() => { onAddMany(playlists.tracks); setNotice('已请求将歌单加入队列'); }}>全部加入队列</button>
+                onClick={() => onAddMany(playlists.tracks)}>全部加入队列</button>
             </div>
           </header>
           {playlists.detailLoading ? <div className="workspace-browser-loading" role="status"><span className="sr-only">正在载入歌单</span>{[0, 1, 2, 3].map((row) => <i key={row} aria-hidden="true" />)}</div>
             : playlists.detailError ? <div className="workspace-browser-message" role="alert"><p>{playlists.detailError}</p><button type="button" onClick={() => { if (playlists.selected) playlists.onOpen(playlists.selected); }}>重新载入</button></div>
               : playlists.tracks.length === 0 ? <div className="workspace-browser-empty"><p>这个歌单还没有歌曲</p></div>
-                : <TrackList tracks={playlists.tracks} server={server} connected={connected} onPick={pick} numbered flow />}
+                : <TrackList tracks={playlists.tracks} server={server} connected={connected} onPick={onPick} numbered flow />}
         </div>
       </>}
     </div>
@@ -192,6 +186,5 @@ export default function WorkspaceMusicBrowser({ tab, active, server, source, son
       <header className="workspace-section-heading"><h2>我的音乐</h2></header>
       <div className="workspace-personal-scroll lune-scrollbar" data-scroll-key="library"><ListeningLibrary key={server} server={server} viewState={libraryViewState} onAdd={enqueue} onSearch={() => onTabChange('songs')} /></div>
     </div>
-    <span className="sr-only" role="status">{notice}</span>
   </section>;
 }

@@ -23,6 +23,8 @@ interface QueueProps {
   queue: QueueItem[];
   currentTrackId?: string;
   isOwner: boolean;
+  connected?: boolean;
+  onSearch?: () => void;
   onRemove: (itemId: string) => void;
   onReorder: (itemId: string, beforeItemId: string | null) => void;
 }
@@ -37,6 +39,7 @@ interface SortableTrackProps {
   entry: QueueEntry;
   currentTrackId?: string;
   isOwner: boolean;
+  connected: boolean;
   canReorder: boolean;
   onRemove: (itemId: string) => void;
 }
@@ -45,6 +48,7 @@ function SortableTrack({
   entry,
   currentTrackId,
   isOwner,
+  connected,
   canReorder,
   onRemove,
 }: SortableTrackProps) {
@@ -91,8 +95,9 @@ function SortableTrack({
           type="button"
           onClick={() => onRemove(entry.id)}
           className="track-remove"
-          aria-label={`移除《${track.name}》`}
+          aria-label={`从队列移除《${track.name}》`}
           title="移除"
+          disabled={!connected}
         >
           ✕
         </button>
@@ -105,6 +110,8 @@ export default function Queue({
   queue,
   currentTrackId,
   isOwner,
+  connected = true,
+  onSearch,
   onRemove,
   onReorder,
 }: QueueProps) {
@@ -130,16 +137,17 @@ export default function Queue({
           <small>0 首</small>
         </div>
         <div className="terminal-empty">
-          <span>＋</span>
-          <strong>队列为空</strong>
-          <small>从搜索中添加歌曲</small>
+          <strong>还没有待播歌曲</strong>
+          {onSearch
+            ? <button type="button" className="lune-control queue-search" onClick={onSearch}>去搜索歌曲</button>
+            : <small>从搜索中添加歌曲</small>}
         </div>
       </section>
     );
   }
 
   const handleDragEnd = ({ active, over }: DragEndEvent) => {
-    if (!over || active.id === over.id) return;
+    if (!connected || !over || active.id === over.id) return;
     const fromIndex = entries.findIndex((entry) => entry.id === active.id);
     const toIndex = entries.findIndex((entry) => entry.id === over.id);
     if (fromIndex < 0 || toIndex < 0) return;
@@ -153,7 +161,7 @@ export default function Queue({
     <section className="terminal-pane">
       <div className="pane-heading">
         <div><strong>播放队列</strong></div>
-        <small>{queue.length} 首 · 拖动排序</small>
+        <small>{queue.length} 首</small>
       </div>
       <DndContext
         key={entries.map((entry) => entry.id).join('|')}
@@ -169,7 +177,8 @@ export default function Queue({
                 entry={entry}
                 currentTrackId={currentTrackId}
                 isOwner={isOwner}
-                canReorder={entries.length > 1}
+                connected={connected}
+                canReorder={isOwner && connected && entries.length > 1}
                 onRemove={onRemove}
               />
             ))}

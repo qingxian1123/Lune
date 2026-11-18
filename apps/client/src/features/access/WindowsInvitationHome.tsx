@@ -1,33 +1,17 @@
-import { useEffect, useState } from 'react';
 import SettingsPanel from '../settings/SettingsPanel';
-import { hasSavedServerUrl } from '../../lib/serverConfig';
 import { useAccessController } from './useAccessController';
 import AbstractVinyl from './AbstractVinyl';
+import RoomAccessForm from './RoomAccessForm';
 
 export default function WindowsInvitationHome() {
-  const access = useAccessController({ invitation: true });
-  const firstConnection = !hasSavedServerUrl();
-  const [serverEditorRevealed, setServerEditorRevealed] = useState(false);
-
-  useEffect(() => {
-    if (access.settings.serverError || access.error?.field === 'server') {
-      setServerEditorRevealed(true);
-    }
-  }, [access.error?.field, access.settings.serverError]);
-
-  const showServerEditor = firstConnection || serverEditorRevealed;
-  const serverError = access.error?.field === 'server'
-    ? access.error.message
-    : access.settings.serverError;
+  const access = useAccessController();
 
   return (
     <div className="invitation-home">
       <main className="invitation-stage">
         <section className="invitation-ticket" aria-labelledby="invitation-title">
           <div className="invitation-sleeve" data-tauri-drag-region>
-            <div className="invitation-brand" aria-label="Lune" data-tauri-drag-region>
-              <span className="invitation-brand-mark" data-tauri-drag-region>LUNE</span>
-            </div>
+            <h1 id="invitation-title" className="invitation-brand" aria-label="Lune" data-tauri-drag-region>LUNE</h1>
 
             <div className="invitation-disc-wrap">
               <AbstractVinyl />
@@ -42,119 +26,20 @@ export default function WindowsInvitationHome() {
             <span className="perforation-notch is-bottom" />
           </div>
 
+          <button
+            type="button"
+            className="invitation-settings-trigger"
+            onClick={access.settings.openSettings}
+            disabled={access.busy}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 7h10M18 7h2M4 17h2M10 17h10M14 4v6M7 14v6" />
+            </svg>
+            设置
+          </button>
+
           <div className="invitation-pass">
-            <header className="invitation-pass-header">
-              <h1 id="invitation-title" className="invitation-pass-title">进入房间</h1>
-              <button
-                type="button"
-                className="invitation-settings-trigger"
-                onClick={access.settings.openSettings}
-                aria-label="打开设置"
-                title="设置"
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M4 7h10M18 7h2M4 17h2M10 17h10M14 4v6M7 14v6" />
-                </svg>
-              </button>
-            </header>
-
-            <form
-              className="invitation-form"
-              onSubmit={(event) => {
-                event.preventDefault();
-                void access.enterRoom();
-              }}
-              noValidate
-            >
-              <label className="invitation-field">
-                <span className="invitation-field-head">
-                  <span>昵称</span>
-                </span>
-                <input
-                  value={access.nickname}
-                  onChange={(event) => access.setNickname(event.target.value)}
-                  maxLength={32}
-                  autoComplete="nickname"
-                  autoFocus
-                  placeholder="输入你的昵称"
-                  aria-invalid={access.error?.field === 'nickname'}
-                  aria-describedby={access.error?.field === 'nickname' ? 'invitation-name-error' : undefined}
-                />
-                {access.error?.field === 'nickname' && (
-                  <small id="invitation-name-error" className="invitation-error">
-                    {access.error.message}
-                  </small>
-                )}
-              </label>
-
-              <label className="invitation-field">
-                <span className="invitation-field-head">
-                  <span>房间码</span>
-                  <em>选填</em>
-                </span>
-                <input
-                  ref={access.roomCodeInputRef}
-                  value={access.roomCode}
-                  onChange={(event) => access.setRoomCode(event.target.value)}
-                  maxLength={6}
-                  autoCapitalize="characters"
-                  autoComplete="off"
-                  spellCheck={false}
-                  className="invitation-code-input"
-                  placeholder="留空创建，或输入 6 位房间码"
-                  aria-invalid={access.error?.field === 'roomCode'}
-                  aria-describedby={access.error?.field === 'roomCode' ? 'invitation-code-error' : undefined}
-                />
-                {access.error?.field === 'roomCode' && (
-                  <small id="invitation-code-error" className="invitation-error">
-                    {access.error.message}
-                  </small>
-                )}
-              </label>
-
-              {showServerEditor && (
-                <label className="invitation-field">
-                  <span className="invitation-field-head">
-                    <span>服务器地址</span>
-                  </span>
-                  <input
-                    value={access.settings.serverUrl}
-                    onChange={(event) => access.settings.setServerUrl(event.target.value)}
-                    inputMode="url"
-                    autoCapitalize="none"
-                    autoCorrect="off"
-                    spellCheck={false}
-                    placeholder="https://lune.example.com"
-                    aria-invalid={Boolean(serverError)}
-                    aria-describedby={serverError ? 'invitation-server-error' : undefined}
-                  />
-                  {serverError && (
-                    <small id="invitation-server-error" className="invitation-error">
-                      {serverError}
-                    </small>
-                  )}
-                </label>
-              )}
-
-              {access.error && !access.error.field && (
-                <p className="invitation-alert" role="alert">
-                  {access.error.message}
-                </p>
-              )}
-
-              <button type="submit" className="invitation-submit" disabled={access.busy}>
-                <span>
-                  {access.busy
-                    ? '正在进入…'
-                    : access.mode === 'join'
-                      ? '加入房间'
-                      : '创建房间'}
-                </span>
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M5 12h14m-5-5 5 5-5 5" />
-                </svg>
-              </button>
-            </form>
+            <RoomAccessForm access={access} />
           </div>
         </section>
       </main>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useClientRuntime } from '../../../app/ClientRuntimeProvider';
 import { useServerConfig } from '../../../hooks/useServerConfig';
 import type { SettingsController } from './types';
@@ -13,55 +13,65 @@ export function useSettingsController({ openOnMissing = true }: { openOnMissing?
   const [open, setOpen] = useState(() => openOnMissing && !server.serverUrl.trim());
   const [activeSectionId, setActiveSectionId] = useState('server');
   const [serverError, setServerError] = useState<string>();
+  const serverBeforeSettings = useRef(server.serverUrl);
+  const editedInSettings = useRef(false);
+  const saving = useRef(false);
+
+  const finishClosing = useCallback(() => {
+    if (editedInSettings.current && !saving.current) {
+      server.setServerUrl(serverBeforeSettings.current);
+      editedInSettings.current = false;
+    }
+    setServerError(undefined);
+    setOpen(false);
+  }, [server.setServerUrl]);
 
   useEffect(() => {
     if (!open) return;
-    return runtime.overlayNavigation.push(() => {
-      setServerError(undefined);
-      setOpen(false);
-    });
-  }, [open, runtime.overlayNavigation]);
+    return runtime.overlayNavigation.push(finishClosing);
+  }, [finishClosing, open, runtime.overlayNavigation]);
 
   const openSettings = useCallback(() => {
+    serverBeforeSettings.current = server.serverUrl;
+    editedInSettings.current = false;
     setActiveSectionId('server');
     setOpen(true);
-  }, []);
-
-  const closeSettings = useCallback(() => {
-    setServerError(undefined);
-    if (runtime.overlayNavigation.dismiss()) return;
-    setOpen(false);
-  }, [runtime.overlayNavigation]);
-
-  const setServerUrl = useCallback((value: string) => {
-    setServerError(undefined);
-    server.setServerUrl(value);
-  }, [server.setServerUrl]);
-
-  const saveServer = useCallback(async () => {
-    setServerError(undefined);
-    try {
-      await server.verify();
-      closeSettings();
-    } catch (cause) {
-      setServerError(getServerError(cause));
-    }
-  }, [closeSettings, server.verify]);
-
-  const ensureServerConfigured = useCallback(() => {
-    if (server.serverUrl.trim()) return true;
-    setServerError('请输入服务器地址');
-    setOpen(true);
-    return false;
   }, [server.serverUrl]);
 
-  const verifyServerForAccess = useCallback(async (openOnError = true) => {
+  const closeSettings = useCallback(() => {
+    if (runtime.overlayNavigation.dismiss()) return;
+    finishClosing();
+  }, [finishClosing, runtime.overlayNavigation]);
+
+  const setServerUrl = useCallback((value: string) => {
+    if (saving.current) return;
+    if (open) editedInSettings.current = true;
+    setServerError(undefined);
+    server.setServerUrl(value);
+  }, [open, server.setServerUrl]);
+
+  const saveServer = useCallback(async () => {
+    if (saving.current || server.state === 'testing' || server.state === 'ready') return;
+    saving.current = true;
+    setServerError(undefined);
+    try {
+      serverBeforeSettings.current = await server.verify();
+      editedInSettings.current = false;
+      if (runtime.layout === 'mobile') closeSettings();
+    } catch (cause) {
+      setServerError(getServerError(cause));
+    } finally {
+      saving.current = false;
+    }
+  }, [closeSettings, runtime.layout, server.state, server.verify]);
+
+  const verifyServerForAccess = useCallback(async () => {
+    setServerError(undefined);
     try {
       await server.verify();
       return true;
     } catch (cause) {
       setServerError(getServerError(cause));
-      if (openOnError) setOpen(true);
       return false;
     }
   }, [server.verify]);
@@ -77,7 +87,6 @@ export function useSettingsController({ openOnMissing = true }: { openOnMissing?
     selectSection: setActiveSectionId,
     setServerUrl,
     saveServer,
-    ensureServerConfigured,
     verifyServerForAccess,
   };
 }
