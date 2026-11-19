@@ -36,13 +36,6 @@ export function toTriplet({ r, g, b }: RGB): string {
   return `${Math.round(r)} ${Math.round(g)} ${Math.round(b)}`;
 }
 
-/** "r g b" -> {r,g,b}，解析失败返回 null */
-export function fromTriplet(str: string): RGB | null {
-  const parts = str.split(/\s+/).map((n) => Number(n));
-  if (parts.length !== 3 || parts.some((n) => Number.isNaN(n))) return null;
-  return { r: parts[0], g: parts[1], b: parts[2] };
-}
-
 function clamp(v: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, v));
 }

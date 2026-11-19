@@ -61,11 +61,6 @@ WixTools/
 *.rpm
 
 # =========================
-# Prisma (if reintroduced)
-# =========================
-server/src/prisma/generated/
-
-# =========================
 # Environment / secrets
 # Keep *.example templates tracked
 # =========================
