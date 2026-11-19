@@ -12,6 +12,11 @@
       "requestTimeoutMs": 10000,
       "healthCheckIntervalMs": 1800000,
       "refreshIntervalMs": 21600000
+    },
+    "bilibili": {
+      "enabled": true,
+      "requestTimeoutMs": 8000,
+      "healthCheckIntervalMs": 1800000
     }
   },
   "routing": {

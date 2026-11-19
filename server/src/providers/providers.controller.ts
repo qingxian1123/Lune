@@ -22,6 +22,10 @@ class SearchQueryDto {
   @IsOptional()
   @IsString()
   provider?: string;
+
+  @IsOptional()
+  @IsString()
+  precision?: string;
 }
 
 class ResolveQueryDto {
@@ -91,7 +95,15 @@ export class ProvidersController {
   async search(@Query() q: SearchQueryDto) {
     const provider = this.pick(q.provider);
     const limit = q.limit && q.limit > 0 && q.limit <= 100 ? Math.floor(q.limit) : 20;
-    return provider.search(q.kw, limit);
+    const precision = q.precision === 'strict' || q.precision === 'broad' ? q.precision : undefined;
+    return provider.search(q.kw, limit, precision);
+  }
+
+  @Get('video-parts')
+  async videoParts(@Query('id') id: string, @Query('provider') providerId: string) {
+    const provider = this.pick(providerId);
+    if (!provider.videoParts || typeof id !== 'string') throw new NotFoundException('无可用的投稿选集');
+    return provider.videoParts(id);
   }
 
   /** 解析为可播 URL */

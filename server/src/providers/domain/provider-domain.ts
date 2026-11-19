@@ -5,6 +5,7 @@ export type ProviderCapability =
   | 'resolve'
   | 'lyric'
   | 'playlist-search'
+  | 'video-parts'
   | 'playlist';
 
 export type ProviderRuntimeStatus =

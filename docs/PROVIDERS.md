@@ -1,6 +1,6 @@
 # 音乐源配置与管理
 
-Lune 通过服务端进程内 Provider 接入音乐平台。当前注册 `netease` 和 `kugou`，两者都支持歌曲搜索、播放地址解析、歌词、歌单搜索和歌单导入，并通过二维码完成账号登录。
+Lune 通过服务端进程内 Provider 接入网易云音乐（`netease`）、酷狗音乐（`kugou`）和哔哩哔哩（`bilibili`）。网易云和酷狗支持二维码登录、歌曲、歌词和歌单。哔哩哔哩使用公开投稿和音频区资源，Windows 客户端提供搜索和分 P 选择。
 
 ## 配置
 
@@ -21,6 +21,11 @@ Lune 通过服务端进程内 Provider 接入音乐平台。当前注册 `neteas
       "requestTimeoutMs": 10000,
       "healthCheckIntervalMs": 1800000,
       "refreshIntervalMs": 21600000
+    },
+    "bilibili": {
+      "enabled": true,
+      "requestTimeoutMs": 8000,
+      "healthCheckIntervalMs": 1800000
     }
   },
   "routing": {
@@ -31,6 +36,10 @@ Lune 通过服务端进程内 Provider 接入音乐平台。当前注册 `neteas
 ```
 
 `defaultProvider` 必须存在且已启用。配置路径由 `LUNE_CONFIG_FILE` 指定。
+
+升级已有部署时，将上例的 `bilibili` 项合并到实际使用的 `providers.json` 后重启服务。使用兼容模式的部署可将 `bilibili` 追加到 `MUSIC_PROVIDERS`。在 Windows 客户端的搜索框旁打开音源面板即可启用哔哩哔哩，在总设置的「音源」里可修改 B 站搜索精度。
+
+哔哩哔哩支持搜索音乐投稿，也可输入公开的 `BV` 或 `au` 编号和完整链接。单 P 投稿直接选歌，多 P 投稿可勾选分 P 后批量加入。音频区的关键词覆盖依赖上游接口。播放流量经 Lune 服务转发，并保留进度拖动所需的 Range 请求。
 
 ## 初始化与登录
 

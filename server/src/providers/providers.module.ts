@@ -7,6 +7,8 @@ import { NeteaseAuthAdapter } from './netease/netease-auth.adapter';
 import { KugouApiService } from './kugou/kugou-api.service';
 import { KugouProvider } from './kugou/kugou.provider';
 import { KugouAuthAdapter } from './kugou/kugou-auth.adapter';
+import { BilibiliProvider } from './bilibili/bilibili.provider';
+import { BilibiliAudioController } from './bilibili/bilibili-audio.controller';
 import { ProviderConfigService } from './infrastructure/config/provider-config.service';
 import { EncryptedCredentialStore } from './infrastructure/credentials/encrypted-credential.store';
 import { LocalProviderEventBus } from './infrastructure/events/local-provider-event-bus';
@@ -22,7 +24,7 @@ import { ProviderApplicationErrorFilter } from './interfaces/http/provider-appli
 
 @Module({
   imports: [ConfigModule],
-  controllers: [ProvidersController, ProviderAdminController, AdminSessionController],
+  controllers: [ProvidersController, BilibiliAudioController, ProviderAdminController, AdminSessionController],
   providers: [
     LocalProviderEventBus,
     ProviderStatusStore,
@@ -34,6 +36,7 @@ import { ProviderApplicationErrorFilter } from './interfaces/http/provider-appli
     KugouApiService,
     KugouProvider,
     KugouAuthAdapter,
+    BilibiliProvider,
     {
       provide: ProviderAuthService,
       inject: [
@@ -70,6 +73,7 @@ import { ProviderApplicationErrorFilter } from './interfaces/http/provider-appli
         NeteaseAuthAdapter,
         KugouProvider,
         KugouAuthAdapter,
+        BilibiliProvider,
         ProviderConfigService,
       ],
       useFactory: (
@@ -78,6 +82,7 @@ import { ProviderApplicationErrorFilter } from './interfaces/http/provider-appli
         neteaseAuth: NeteaseAuthAdapter,
         kugou: KugouProvider,
         kugouAuth: KugouAuthAdapter,
+        bilibili: BilibiliProvider,
         config: ProviderConfigService,
       ) => {
         registry.register({
@@ -99,6 +104,15 @@ import { ProviderApplicationErrorFilter } from './interfaces/http/provider-appli
           },
           catalog: kugou,
           auth: kugouAuth,
+        });
+        registry.register({
+          descriptor: {
+            id: 'bilibili',
+            displayName: '哔哩哔哩',
+            capabilities: ['search', 'resolve', 'video-parts'],
+            requiresAccount: false,
+          },
+          catalog: bilibili,
         });
         registry.setActive(config.getActiveProviderIds());
         if (registry.getDefaultId() !== config.getSnapshot().defaultProvider) {

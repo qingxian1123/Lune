@@ -17,6 +17,16 @@ export interface Track {
   duration: number; // 毫秒
 }
 
+export type BilibiliSearchPrecision = 'strict' | 'balanced' | 'broad';
+
+export interface BilibiliVideoSummary {
+  id: string;
+  name: string;
+  creator: string;
+  coverUrl: string;
+  duration: number;
+}
+
 /**
  * 待播队列中的一次入队实例。
  *
@@ -97,6 +107,7 @@ export interface RoomTokenPayload {
 /** 搜索结果音轨(可在前端列表直接展示,与 Track 兼容) */
 export interface ProviderSearchResult {
   songs: Track[];
+  videos?: BilibiliVideoSummary[];
 }
 
 /** 解析后可播放音轨(含可播 URL 与失效标记) */
@@ -149,7 +160,8 @@ export interface ProviderPlaylistSearchResult {
  */
 export interface MusicProvider {
   readonly id: string;
-  search(keyword: string, limit?: number): Promise<ProviderSearchResult>;
+  search(keyword: string, limit?: number, precision?: BilibiliSearchPrecision): Promise<ProviderSearchResult>;
+  videoParts?(videoId: string): Promise<Track[]>;
   resolve(songId: string): Promise<ProviderResolveResult>;
   lyric(songId: string): Promise<ProviderLyricResult>;
   playlist?(playlistId: string): Promise<Track[]>;
