@@ -11,10 +11,11 @@ import type {
 } from '@lune/shared';
 import { EncryptedCredentialStore } from '../infrastructure/credentials/encrypted-credential.store';
 
-const { cloudsearch, song_url_v1, song_detail, playlist_detail, lyric } = NeteaseCloudMusicApi;
+const { cloudsearch, song_url, song_url_v1, song_detail, playlist_detail, lyric } = NeteaseCloudMusicApi;
 
 /** 取流时从高到低尝试的音质等级 */
 const RESOLVE_LEVELS = ['exhigh', 'higher', 'standard'] as const;
+const FALLBACK_BITRATE = 320_000;
 
 /**
  * 网易云音乐 Provider。
@@ -94,7 +95,7 @@ export class NeteaseProvider implements MusicProvider {
         duration: song.dt || 0,
       };
 
-      // 从高到低取第一个可播 URL
+      // 优先使用多音质接口，必要时用同一账号请求按码率取流。
       let url: string | null = null;
       let receivedUrlResponse = false;
       for (const level of RESOLVE_LEVELS) {
@@ -106,8 +107,22 @@ export class NeteaseProvider implements MusicProvider {
             url = urlData.url;
             break;
           }
+        } catch (error: any) {
+          // -460 会拒绝整个取流接口，继续换音质也会被拒绝。
+          if (error?.body?.code === -460) break;
+        }
+      }
+      if (!url) {
+        try {
+          const urlRes = await song_url(this.withCookie({ id, br: FALLBACK_BITRATE }) as any);
+          const data = urlRes.body?.data;
+          const urlData = Array.isArray(data) ? data[0] : undefined;
+          if (urlData) {
+            receivedUrlResponse = true;
+            if (typeof urlData.url === 'string' && !urlData.freeTrialInfo) url = urlData.url || null;
+          }
         } catch {
-          // 某音质失败则尝试下一级
+          // 请求异常不能据此确认歌曲不可播。
         }
       }
       if (!url) this.logger.warn(`resolve 无可播 URL: id=${songId}`);
