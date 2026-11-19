@@ -1,0 +1,101 @@
+.bilibili-video-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 58px;
+  padding: 6px 8px;
+  border-bottom: 1px solid rgb(var(--lune-border) / .1);
+}
+
+.bilibili-video-row img {
+  flex: none;
+  width: 50px;
+  height: 36px;
+  border-radius: 6px;
+  object-fit: cover;
+}
+
+.bilibili-video-copy {
+  display: grid;
+  flex: 1;
+  gap: 3px;
+  min-width: 0;
+}
+
+.bilibili-video-copy strong,
+.bilibili-video-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bilibili-video-copy strong { font-size: .875rem; font-weight: 600; }
+.bilibili-video-copy small,
+.bilibili-parts-heading p { color: rgb(var(--lune-muted)); font-size: .75rem; }
+
+.bilibili-video-action {
+  flex: none;
+  min-height: 36px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: .8125rem;
+}
+
+.bilibili-parts {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+
+.bilibili-parts-back {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 4px;
+  min-height: 36px;
+  color: rgb(var(--lune-muted));
+  font-size: .8125rem;
+}
+
+.bilibili-parts-heading h3 {
+  overflow-wrap: anywhere;
+  color: rgb(var(--lune-text));
+  font-size: clamp(1rem, 2vw, 1.25rem);
+  font-weight: 600;
+}
+
+.bilibili-parts-list {
+  min-height: 0;
+  max-height: 360px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.bilibili-parts-list label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  padding: 6px 3px;
+  border-bottom: 1px solid rgb(var(--lune-border) / .1);
+  font-size: .875rem;
+}
+
+.bilibili-parts-list input {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  accent-color: rgb(var(--lune-accent));
+}
+
+.bilibili-parts-list label span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.bilibili-parts-list time { color: rgb(var(--lune-muted)); font-variant-numeric: tabular-nums; }
+.bilibili-parts-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+@media (pointer: coarse) {
+  .bilibili-parts-back,
+  .bilibili-video-action,
+  .bilibili-parts-list label { min-height: 48px; }
+}

@@ -81,9 +81,10 @@ export class HeartStore {
     return operation;
   }
 
-  chart(provider = 'all', limit = 20, now = Date.now()): HotChart {
+  chart(provider: string | string[] = 'all', limit = 20, now = Date.now()): HotChart {
+    const providers = typeof provider === 'string' ? (provider === 'all' ? null : [provider]) : provider;
     const rows = Object.entries(this.data.tracks).flatMap(([key, entry]) => {
-      if (provider !== 'all' && entry.track.provider !== provider) return [];
+      if (providers && !providers.includes(entry.track.provider ?? '')) return [];
       const heartCount = Object.values(entry.hourlyHeartCounts).flat().reduce(
         (sum, [at, count]) => sum + (at > now - HEART_WINDOW_MS && at <= now ? count : 0), 0,
       );

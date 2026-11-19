@@ -2,6 +2,7 @@ import SettingsShell from './SettingsShell';
 import { SettingsControllerContext } from './model/SettingsControllerContext';
 import type { SettingsController } from './model/types';
 import { settingsCategories, settingsSections } from './registry';
+import { useClientRuntime } from '../../app/ClientRuntimeProvider';
 
 interface SettingsPanelProps {
   controller: SettingsController;
@@ -16,13 +17,15 @@ export default function SettingsPanel({
   sectionIds,
   embedded = false,
 }: SettingsPanelProps) {
+  const windows = useClientRuntime().kind === 'windows';
   const sections = settingsSections.filter((section) => (!sectionIds || sectionIds.includes(section.id))
-    && (!mobile || section.id !== 'interface'));
+    && (!mobile || section.id !== 'interface')
+    && (windows || section.id !== 'bilibili'));
   const activeSection = sections.find((section) => section.id === controller.activeSectionId)
     ?? sections[0];
   if (!activeSection) return null;
   const ActiveSection = activeSection.component;
-  const desktopOrder = sectionIds ?? ['server', 'appearance', 'interface'];
+  const desktopOrder = sectionIds ?? ['server', 'appearance', 'interface', 'bilibili'];
   const desktopSections = desktopOrder.map((id) => {
     const Section = sections.find((section) => section.id === id)?.component;
     return Section ? <Section key={id} /> : null;

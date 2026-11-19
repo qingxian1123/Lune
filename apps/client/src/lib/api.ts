@@ -1,4 +1,5 @@
 import type {
+  BilibiliSearchPrecision,
   HotChart,
   PlaylistSummary,
   ProviderLyricResult,
@@ -14,8 +15,9 @@ function endpoint(path: string): string {
   return `${getServerBaseUrl()}${path}`;
 }
 
-export async function getHotChart(serverUrl: string, provider: string, signal: AbortSignal): Promise<HotChart> {
-  return json(fetch(`${serverUrl}/api/charts/hot?window=7d&limit=50&provider=${encodeURIComponent(provider || 'all')}`, { signal }));
+export async function getHotChart(serverUrl: string, providers: string[], signal: AbortSignal): Promise<HotChart> {
+  const scope = providers.length === 1 ? providerParam(providers[0]) : `&providers=${encodeURIComponent(providers.join(','))}`;
+  return json(fetch(`${serverUrl}/api/charts/hot?window=7d&limit=50${scope}`, { signal }));
 }
 
 function providerParam(provider?: string): string {
@@ -61,9 +63,14 @@ export async function joinRoom(code: string, nickname: string): Promise<{
   }));
 }
 
-export async function getProviders(): Promise<string[]> {
-  const result = await json<{ providers: string[] }>(fetch(endpoint('/api/providers')));
-  return result.providers;
+export interface ProviderCatalogEntry {
+  id: string;
+  capabilities?: string[];
+}
+
+export async function getProviders(): Promise<ProviderCatalogEntry[]> {
+  const result = await json<{ providers: string[]; details?: ProviderCatalogEntry[] }>(fetch(endpoint('/api/providers')));
+  return result.details ?? result.providers.map((id) => ({ id }));
 }
 
 export async function checkProviderReady(provider?: string): Promise<boolean> {
@@ -74,17 +81,24 @@ export async function checkProviderReady(provider?: string): Promise<boolean> {
   return status === 'ready' || status === 'degraded';
 }
 
-export async function searchTracks(kw: string, limit = 20, provider?: string): Promise<Track[]> {
-  const r: ProviderSearchResult = await json(
-    fetch(endpoint(`/api/providers/search?kw=${encodeURIComponent(kw)}&limit=${limit}${providerParam(provider)}`)),
-  );
-  return r.songs;
+export function searchTracks(kw: string, limit = 20, provider?: string, precision?: BilibiliSearchPrecision): Promise<ProviderSearchResult> {
+  const filter = provider === 'bilibili' && precision ? `&precision=${precision}` : '';
+  return json(fetch(endpoint(`/api/providers/search?kw=${encodeURIComponent(kw)}&limit=${limit}${providerParam(provider)}${filter}`)));
+}
+
+export function getBilibiliVideoParts(id: string): Promise<Track[]> {
+  return json(fetch(endpoint(`/api/providers/video-parts?provider=bilibili&id=${encodeURIComponent(id)}`)));
 }
 
 export async function resolveTrack(id: string, provider?: string, signal?: AbortSignal): Promise<ProviderResolveResult> {
-  return boundedRequest((requestSignal) => json(fetch(
-    endpoint(`/api/providers/resolve?id=${encodeURIComponent(id)}${providerParam(provider)}`), { signal: requestSignal },
+  const server = getServerBaseUrl();
+  const result = await boundedRequest((requestSignal) => json<ProviderResolveResult>(fetch(
+    `${server}/api/providers/resolve?id=${encodeURIComponent(id)}${providerParam(provider)}`, { signal: requestSignal },
   )), signal);
+  if (result.track.provider === 'bilibili' && result.url?.startsWith('/api/providers/bilibili/audio?')) {
+    return { ...result, url: server + result.url };
+  }
+  return result;
 }
 
 export async function getLyric(id: string, provider?: string): Promise<ProviderLyricResult> {

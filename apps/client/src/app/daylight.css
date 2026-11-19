@@ -11,6 +11,7 @@
   --lune-faint: 102 102 102;
   --lune-border: 32 32 32;
   --lune-line: 208 208 208;
+  --lune-focus-border: rgb(32 32 32 / 0.38);
   --lune-brand: 41 41 41;
   --lune-inverse: 247 247 247;
   --lune-accent: 41 41 41;

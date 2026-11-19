@@ -15,6 +15,7 @@
     --lune-faint: 149 149 149;
     --lune-border: 255 255 255;
     --lune-line: 68 68 68;
+    --lune-focus-border: rgb(255 255 255 / 0.3);
     --lune-brand: 212 212 212;
     --lune-inverse: 24 24 24;
     --lune-accent: 212 212 212;
@@ -70,6 +71,14 @@
     font: inherit;
   }
 
+  input[type='search']::-webkit-search-decoration,
+  input[type='search']::-webkit-search-cancel-button,
+  input[type='search']::-webkit-search-results-button,
+  input[type='search']::-webkit-search-results-decoration {
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
   button {
     -webkit-tap-highlight-color: transparent;
   }
@@ -119,15 +128,25 @@
 
 .lune-scrollbar {
   scrollbar-width: thin;
-  scrollbar-color: rgb(var(--lune-border) / 0.2) transparent;
+  scrollbar-color: rgb(var(--lune-border) / 0.18) transparent;
 }
 
 .lune-scrollbar::-webkit-scrollbar {
-  width: 3px;
+  width: 5px;
+  height: 5px;
+}
+
+.lune-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .lune-scrollbar::-webkit-scrollbar-thumb {
-  background: rgb(var(--lune-border) / 0.2);
+  border-radius: 999px;
+  background: rgb(var(--lune-border) / 0.18);
+}
+
+.lune-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgb(var(--lune-border) / 0.3);
 }
 
 /* Home — midnight editorial */

@@ -11,6 +11,15 @@
         ],
         "createdAt": "2026-10-18T13:40:17.988Z",
         "reason": "Agent: apps/client/DESIGN.md explicitly specifies Space Grotesk Variable for Lune brand display and controls; this Windows homepage demo follows that committed typography."
+      },
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "apps/client/src/components/source-picker.css"
+        ],
+        "createdAt": "2026-11-19T14:08:28.304Z",
+        "reason": "Assistant triage: .source-picker-mark > i uses this border to draw the play triangle inside the confirmed source-picker icon."
       }
     ]
   }

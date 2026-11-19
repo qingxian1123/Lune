@@ -20,12 +20,12 @@
   .terminal-field input, .lune-input, select.lune-control,
   .playback-notice textarea
 ):focus:not([aria-invalid='true']) {
-  border-color: var(--field-focus-color, rgb(var(--lune-brand)));
+  border-color: var(--field-focus-color, var(--lune-focus-border));
 }
 
 /* A composed search field draws its border on the wrapper, never its input. */
 :root[data-color] .library-search:focus-within {
-  border-color: rgb(var(--lune-brand));
+  border-color: var(--lune-focus-border);
 }
 
 @media (forced-colors: active) {
