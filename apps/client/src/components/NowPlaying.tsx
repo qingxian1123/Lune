@@ -144,7 +144,14 @@ export default function NowPlaying({
     : '专辑封面';
 
   if (!track) {
-    return <section className="now-playing-stage" aria-label="正在播放" />;
+    return (
+      <section className="now-playing-stage is-empty" aria-label="正在播放">
+        <div className="stage-empty">
+          <div className="stage-empty-moon" aria-hidden="true" />
+          <strong>还没有音乐</strong>
+        </div>
+      </section>
+    );
   }
 
   return (

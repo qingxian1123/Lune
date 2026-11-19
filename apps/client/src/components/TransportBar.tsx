@@ -21,6 +21,8 @@ interface TransportBarProps {
   onNext: () => void;
   onSendHeart: (track: Track) => Promise<void>;
   quiet?: boolean;
+  viewMode?: 'full' | 'stage';
+  onToggleViewMode?: () => void;
 }
 
 export default function TransportBar({
@@ -35,6 +37,8 @@ export default function TransportBar({
   onNext,
   onSendHeart,
   quiet = false,
+  viewMode,
+  onToggleViewMode,
 }: TransportBarProps) {
   const volume = useVolumeStore((state) => state.volume);
   const muted = useVolumeStore((state) => state.muted);
@@ -69,11 +73,32 @@ export default function TransportBar({
       </label>
 
       <div className="transport-track">
+        {onToggleViewMode && viewMode && (
+          <button
+            type="button"
+            className={`transport-view-toggle${viewMode === 'full' ? ' is-full' : ''}`}
+            onClick={onToggleViewMode}
+            aria-label={viewMode === 'stage' ? '切到选歌页' : '切到播放页'}
+            title={viewMode === 'stage' ? '切到选歌页' : '切到播放页'}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m7 14 5-5 5 5" />
+            </svg>
+          </button>
+        )}
         <div className="transport-cover">
           {track?.coverUrl ? <img src={track.coverUrl} alt="" /> : <span>L</span>}
         </div>
         <div className="transport-copy">
-          {(!quiet || muted || isBuffering || recoveryState.phase !== 'playing') && <span>{muted && recoveryState.phase === 'playing' ? '本机静音' : isBuffering && recoveryState.phase === 'playing' ? '正在缓冲' : playbackLabel(recoveryState)}</span>}
+          {(muted || isBuffering || (recoveryState.phase !== 'playing' && recoveryState.phase !== 'idle')) && (
+            <span>
+              {muted && recoveryState.phase === 'playing'
+                ? '本机静音'
+                : isBuffering && recoveryState.phase === 'playing'
+                  ? '正在缓冲'
+                  : playbackLabel(recoveryState)}
+            </span>
+          )}
           <strong>{track?.name || '还没有音乐'}</strong>
           {track?.artists && <small>{track.artists}</small>}
         </div>
@@ -86,15 +111,6 @@ export default function TransportBar({
       </div>
 
       <div className="transport-actions">
-        {!quiet && <span className="transport-link" data-connected={connected} role="img"
-          aria-label={connected ? '房间连接正常' : '房间连接已断开'}>
-          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path className="transport-link-left" d="M10 4.25a8 8 0 0 0 0 15.5" />
-            <path className="transport-link-right" d="M14 4.25a8 8 0 0 1 0 15.5" />
-            <circle className="transport-link-center" cx="12" cy="12" r="2" />
-            <path className="transport-link-break" d="m8.5 15.5 7-7" />
-          </svg>
-        </span>}
         <FavoriteButton track={track} />
         <HeartButton track={track} onSendHeart={onSendHeart} sessionScope={getServerBaseUrl()} className="transport-heart" />
 

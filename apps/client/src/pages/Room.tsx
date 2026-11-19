@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
+import type { Track } from '@lune/shared';
 import { useLocation } from 'react-router-dom';
 import { useAccentColor } from '../hooks/useAccentColor';
 import { useRoomController } from '../features/room/useRoomController';
@@ -32,9 +33,31 @@ export default function Room() {
   const createdRoom = (useLocation().state as { createdRoom?: boolean } | null)?.createdRoom;
   const [sideTab, setSideTab] = useState<DesktopRoomTab>(() => createdRoom ? 'members' : 'search');
   const interfaceMode = useDesktopPreferences((state) => state.interfaceMode);
+  const setInterfaceMode = useDesktopPreferences((state) => state.setInterfaceMode);
   const stagePanelOpen = useDesktopPreferences((state) => state.stagePanelOpen);
   const setStagePanelOpen = useDesktopPreferences((state) => state.setStagePanelOpen);
   const isFull = interfaceMode === 'full';
+  const [toast, setToast] = useState<{ id: number; text: string } | null>(null);
+  const toastId = useRef(0);
+  const showToast = useCallback((text: string) => {
+    toastId.current += 1;
+    setToast({ id: toastId.current, text });
+  }, []);
+  useEffect(() => {
+    if (!toast) return;
+    const timeout = window.setTimeout(() => setToast(null), 1800);
+    return () => window.clearTimeout(timeout);
+  }, [toast]);
+  const onTrackAction = useCallback((picked: Track, action: 'play' | 'queue') => {
+    showToast(action === 'play' ? `即将播放《${picked.name}》` : `已加入队列《${picked.name}》`);
+  }, [showToast]);
+  const onTracksAdded = useCallback((tracks: Track[]) => {
+    showToast(tracks.length === 1 ? `已加入队列《${tracks[0].name}》` : `已加入 ${tracks.length} 首歌曲`);
+  }, [showToast]);
+  const toggleViewMode = useCallback(() => {
+    if (settings.open) settings.closeSettings();
+    setInterfaceMode(isFull ? 'stage' : 'full');
+  }, [isFull, setInterfaceMode, settings]);
   const libraryButtonRef = useRef<HTMLButtonElement>(null);
   const workspaceRef = useRef<HTMLElement>(null);
   const previousMode = useRef(interfaceMode);
@@ -127,7 +150,10 @@ export default function Room() {
     onReorder,
     onSeek,
     leaveToHome,
-  } = useRoomController();
+  } = useRoomController({ onTrackAction, onTracksAdded });
+  useEffect(() => {
+    if (copied) showToast('已复制房间码');
+  }, [copied, showToast]);
   const roomServerUrl = useRef(getServerBaseUrl());
   useEffect(() => {
     const onServerChanged = () => {
@@ -222,6 +248,8 @@ export default function Room() {
         }} /></div>
       <TransportBar
         quiet={isFull}
+        viewMode={interfaceMode}
+        onToggleViewMode={toggleViewMode}
         recoveryState={recoveryState}
         connected={connected}
         onSendHeart={onSendHeart}
@@ -233,6 +261,11 @@ export default function Room() {
         onSeek={onSeek}
         onNext={onNext}
       />
+      {toast && (
+        <div key={toast.id} className="desktop-toast" role="status" aria-live="polite">
+          {toast.text}
+        </div>
+      )}
       {!isFull && <SettingsPanel controller={settings} sectionIds={roomSettingsSectionIds} />}
     </div>
   );

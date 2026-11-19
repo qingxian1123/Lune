@@ -55,7 +55,9 @@ export function useAccessController({ mobile = false }: { mobile?: boolean } = {
   };
 
   const setRoomCode = (value: string) => {
-    setRoomCodeState(value.replace(/\s+/g, '').toUpperCase());
+    const trimmed = value.trim();
+    const extracted = trimmed.length > 6 ? trimmed.match(/\b([A-Za-z0-9]{6})\b/)?.[1] : undefined;
+    setRoomCodeState((extracted ?? value.replace(/\s+/g, '')).toUpperCase());
     if (error?.field !== 'nickname') setError(null);
   };
 

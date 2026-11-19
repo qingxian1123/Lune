@@ -30,10 +30,6 @@ export default function MemberList({ members, ownerId, presentation = 'compact' 
 
   return (
     <section className="terminal-pane">
-      <div className="pane-heading">
-        <div><strong>房间成员</strong></div>
-        <small>{members.length} 人在线</small>
-      </div>
       <ul className="member-terminal-list">
         {members.map((member) => {
           const owner = member.id === ownerId || member.isOwner;
@@ -49,7 +45,6 @@ export default function MemberList({ members, ownerId, presentation = 'compact' 
               </span>
               <span className="member-copy">
                 <strong>{member.nickname}</strong>
-                <small>{owner ? '房主' : '在线'}</small>
               </span>
               {owner && (
                 <span className="member-role">房主</span>

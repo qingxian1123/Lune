@@ -18,7 +18,7 @@ export default function WorkspacePlaybackPanel({ track, queue, lines, currentInd
   const cover = track?.coverUrl && failedCover !== track.coverUrl ? track.coverUrl : '';
   const next = queue[0]?.track;
 
-  return <aside id="workspace-playback-panel" className="workspace-playback-panel" aria-label="播放详情">
+  return <aside id="workspace-playback-panel" className="workspace-playback-panel lune-scrollbar" aria-label="播放详情">
     <header className="workspace-playback-heading">
       <h2>正在播放</h2>
       <button type="button" className="workspace-playback-close" onClick={onClose} aria-label="收起播放详情"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg></button>

@@ -18,6 +18,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import type { QueueItem, Track } from '@lune/shared';
 import { formatTime } from '../lib/format';
+import { useClientRuntime } from '../app/ClientRuntimeProvider';
 
 interface QueueProps {
   queue: QueueItem[];
@@ -56,6 +57,9 @@ function SortableTrack({
     useSortable({ id: entry.id, disabled: !canReorder });
   const { track, index } = entry;
   const current = track.id === currentTrackId;
+  const windows = useClientRuntime().kind === 'windows';
+  const subtitle = windows && track.provider === 'bilibili' && track.album
+    ? [track.artists, track.album].filter(Boolean).join(' · ') : track.artists;
   const style: CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -87,7 +91,7 @@ function SortableTrack({
       </div>
       <div className="terminal-track-copy">
         <strong>{track.name}</strong>
-        <small>{track.artists}</small>
+        <small>{subtitle}</small>
       </div>
       <span className="track-duration">{formatTime(track.duration)}</span>
       {isOwner && (
@@ -132,14 +136,10 @@ export default function Queue({
   if (queue.length === 0) {
     return (
       <section className="terminal-pane empty-pane">
-        <div className="pane-heading">
-          <div><strong>播放队列</strong></div>
-          <small>0 首</small>
-        </div>
         <div className="terminal-empty">
-          <strong>还没有待播歌曲</strong>
+          <strong>队列为空</strong>
           {onSearch
-            ? <button type="button" className="lune-control queue-search" onClick={onSearch}>去搜索歌曲</button>
+            ? <button type="button" className="lune-control queue-search" onClick={onSearch}>去选歌</button>
             : <small>从搜索中添加歌曲</small>}
         </div>
       </section>
@@ -159,10 +159,6 @@ export default function Queue({
 
   return (
     <section className="terminal-pane">
-      <div className="pane-heading">
-        <div><strong>播放队列</strong></div>
-        <small>{queue.length} 首</small>
-      </div>
       <DndContext
         key={entries.map((entry) => entry.id).join('|')}
         sensors={sensors}

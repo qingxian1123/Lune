@@ -33,7 +33,7 @@ export default function DesktopRoomMembers({
   const isWindows = useClientRuntime().kind === 'windows';
   const workspace = presentation === 'workspace';
   return (
-    <div className={workspace ? 'desktop-members workspace-members' : 'desktop-members'}>
+    <div className={workspace ? 'desktop-members workspace-members lune-scrollbar' : 'desktop-members'}>
       <section className={workspace ? 'workspace-room-card' : 'member-invite'} aria-label="邀请朋友">
         <div>
           <span>房间码</span>

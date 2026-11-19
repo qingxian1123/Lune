@@ -85,13 +85,20 @@ export default function ListeningLibrary({ server, onAdd, onSearch, viewState }:
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 4 4" /></svg>
       <span className="sr-only">搜索记录与收藏中的歌曲、歌手或专辑</span>
       <input type="search" value={query} placeholder="搜索歌曲或歌手"
-        onChange={(event) => { setQuery(event.target.value); setLimit(50); }} />
+        onChange={(event) => { setQuery(event.target.value); setLimit(50); }}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape' && query) {
+            event.preventDefault();
+            event.stopPropagation();
+            setQuery('');
+          }
+        }} />
     </label>
     {storageError && <div className="library-notice" role="alert"><p>{storageError}</p><button type="button" onClick={retrySave}>重试保存</button></div>}
     {confirmClear && <div className="library-notice">
-      <p>清空此服务器上的本机听歌记录？清空后无法恢复。</p>
+      <p>清空听歌记录？清空后无法恢复。</p>
       <div className="library-confirm-actions"><button type="button" onClick={() => setConfirmClear(false)}>取消</button>
-        <button type="button" onClick={() => { clearHistory(server); setConfirmClear(false); setNotice('听歌记录已清空'); }}>清空记录</button></div>
+        <button type="button" onClick={() => { clearHistory(server); setConfirmClear(false); setNotice('已清空记录'); }}>清空记录</button></div>
     </div>}
     {filtered.length === 0 ? <div className="library-empty">
       <BookmarkIcon />
@@ -105,13 +112,14 @@ export default function ListeningLibrary({ server, onAdd, onSearch, viewState }:
             ? <img src={entry.track.coverUrl} alt="" loading="lazy" onError={(event) => { event.currentTarget.style.visibility = 'hidden'; }} />
             : <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 17V5l11-2v12M9 8l11-2" /><circle cx="6" cy="17" r="3" /><circle cx="17" cy="15" r="3" /></svg>}</div>
           <div className="library-track">
-            <strong title={[entry.track.name, entry.track.artists].filter(Boolean).join(' · ')}>{entry.track.name}</strong>
+            <strong title={entry.track.name}>{entry.track.name}</strong>
+            {entry.track.artists && <small title={entry.track.artists}>{entry.track.artists}</small>}
           </div>
           <div className="library-row-actions">
             <FavoriteButton track={entry.track} server={server} />
             <button type="button" className="library-add" disabled={!connected}
-              title={connected ? '加入待播队列' : '连接房间后可加入队列'} aria-label={`将《${entry.track.name}》加入队列`}
-              onClick={() => { onAdd(entry.track); setNotice(`已请求将《${entry.track.name}》加入队列`); }}>加入</button>
+              title={connected ? '加入队列' : '连接房间后可加入队列'} aria-label={`将《${entry.track.name}》加入队列`}
+              onClick={() => { onAdd(entry.track); setNotice(`已加入队列《${entry.track.name}》`); }}>加入</button>
           </div>
         </li>)}</ul>
       </section>)}

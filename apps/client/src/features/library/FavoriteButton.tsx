@@ -19,7 +19,7 @@ export default function FavoriteButton({ track, server = getServerBaseUrl() }: {
     const timeout = window.setTimeout(() => setError(null), 6000);
     return () => window.clearTimeout(timeout);
   }, [error]);
-  const label = saved ? '取消收藏' : '收藏到本机';
+  const label = saved ? '取消收藏' : '收藏';
   return <span className="library-save-wrap">
     <button type="button" className={`library-save ${saved ? 'is-saved' : ''}`}
       disabled={!track} aria-pressed={saved} aria-label={track ? `${label}《${track.name}》` : label}

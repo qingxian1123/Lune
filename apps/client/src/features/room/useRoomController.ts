@@ -74,7 +74,7 @@ export function useRoomController(options: RoomControllerOptions = {}) {
   const clearError = useRoomStore((state) => state.clearError);
   const send = useCallback((message: ClientMessage) => {
     if (leavingRef.current || !transportSend(message)) {
-      setActionError('尚未加入房间，请等待连接恢复后重试');
+      setActionError('房间连接中，请稍后再试');
       return false;
     }
     setActionError(null);
@@ -215,7 +215,7 @@ export function useRoomController(options: RoomControllerOptions = {}) {
   const onSeek = useCallback(
     (position: number) => {
       if (!connected) {
-        setActionError('尚未加入房间，请等待连接恢复后重试');
+        setActionError('房间连接中，请稍后再试');
         return;
       }
       if (!track || !Number.isFinite(position)) return;
@@ -244,7 +244,7 @@ export function useRoomController(options: RoomControllerOptions = {}) {
       await navigator.clipboard.writeText(displayRoomCode);
       setCopied(true);
     } catch {
-      setCopyError('复制失败，请手动复制房间邀请码');
+      setCopyError('复制失败，请手动复制房间码');
     }
   }, [displayRoomCode]);
 
@@ -273,13 +273,13 @@ export function useRoomController(options: RoomControllerOptions = {}) {
   }, [code, navigate, serverUrl]);
 
   const protocolErrorMessage = lastErrorCode === 'ROOM_NOT_FOUND'
-    ? '房间已过期或不存在，请重新加入或创建房间'
+    ? '房间已关闭或不存在，请重新加入或创建'
     : lastErrorCode === 'AUTH_INVALID' || lastErrorCode === 'MEMBER_INVALID'
-      ? '房间身份已失效，请重新加入'
+      ? '连接已过期，请重新加入房间'
       : lastErrorCode === 'NOT_JOINED'
-        ? '尚未加入房间，请重新加入'
+        ? '已与房间断开，请重新加入'
         : lastErrorCode === 'STORAGE_UNAVAILABLE'
-          ? '服务器暂时无法保存房间，请稍后重试'
+          ? '服务器暂时无法保存房间，请稍后再试'
           : null;
 
   return {

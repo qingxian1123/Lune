@@ -437,6 +437,34 @@
   }
 }
 
+.now-playing-stage.is-empty {
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.now-playing-stage .stage-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  text-align: center;
+}
+
+.now-playing-stage .stage-empty-moon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 32% 32%, rgb(var(--lune-brand) / 0.28), rgb(var(--lune-brand) / 0.06) 65%, transparent 100%);
+  border: 1px solid rgb(var(--lune-brand) / 0.24);
+}
+
+.now-playing-stage .stage-empty strong {
+  font-size: 16px;
+  font-weight: 560;
+  color: rgb(var(--lune-text) / 0.86);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .now-playing-stage .lyric-list,
   .now-playing-stage .lyric-item,

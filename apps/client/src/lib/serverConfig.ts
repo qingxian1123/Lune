@@ -79,7 +79,7 @@ export async function testServerConnection(input: string): Promise<{
     });
     const liveHealth = await live.json().catch(() => null) as ServerHealth | null;
     if (!live.ok || liveHealth?.ok !== true) {
-      throw new Error('此地址未返回 Lune 服务。请核对服务器地址，或联系服务管理员。');
+      throw new Error('这个地址不是 Lune 服务器，请核对地址');
     }
 
     const response = await fetch(`${url}/api/health/ready`, {
@@ -87,19 +87,19 @@ export async function testServerConnection(input: string): Promise<{
     });
     const health = await response.json().catch(() => null) as ServerHealth | null;
     if (response.status === 503 && health?.ok === false && Array.isArray(health.providers)) {
-      throw new Error('服务器已连通，但音乐暂不可用。请联系管理员。');
+      throw new Error('服务器已连接，但音乐暂不可用');
     }
     if (!response.ok || health?.ok !== true) {
-      throw new Error('服务暂时无法使用。请稍后重试，或联系服务管理员。');
+      throw new Error('服务器暂时不可用，请稍后再试');
     }
     await testWebSocket(webSocketUrlFor(url));
     return { url, health };
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') {
-      throw new Error('连接超时。请核对服务器地址、网络和服务状态。');
+      throw new Error('连接超时，请检查网络或地址');
     }
     if (error instanceof TypeError || error instanceof SyntaxError) {
-      throw new Error('无法连接此地址。请核对服务器地址、网络，以及服务是否已启动。');
+      throw new Error('连不上这个地址，请检查网络或核对地址');
     }
     throw error;
   } finally {
@@ -113,7 +113,7 @@ function testWebSocket(url: string): Promise<void> {
     try {
       socket = new WebSocket(url);
     } catch {
-      reject(new Error('服务器已连通，但无法连接房间。请联系管理员。'));
+      reject(new Error('服务器已连接，但无法加入房间'));
       return;
     }
 
@@ -125,7 +125,7 @@ function testWebSocket(url: string): Promise<void> {
       socket.onopen = socket.onerror = socket.onclose = null;
       try { socket.close(); } catch { /* The connection has already closed. */ }
       if (connected) resolve();
-      else reject(new Error('服务器已连通，但无法连接房间。请联系管理员。'));
+      else reject(new Error('服务器已连接，但无法加入房间'));
     };
     const timer = window.setTimeout(() => finish(false), 5_000);
     socket.onopen = () => finish(true);
