@@ -2,5 +2,5 @@
   "identifier": "default",
   "description": "Lune 主窗口默认权限",
   "windows": ["main"],
-  "permissions": ["core:default", "shell:default", "lune-media:default"]
+  "permissions": ["core:default", "lune-media:default"]
 }

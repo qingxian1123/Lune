@@ -23,10 +23,5 @@
     "security": {
       "csp": null
     }
-  },
-  "plugins": {
-    "shell": {
-      "open": true
-    }
   }
 }
