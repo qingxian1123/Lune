@@ -222,14 +222,6 @@ export type ServerMessage =
   | { type: 'heartbeat_ack'; payload: { serverTime: number; clientTime: number } }
   | { type: 'error'; payload: { message: string; code?: RoomErrorCode } };
 
-// ============ 每日最佳(接口预留,P4 仅类型 + 路由签名) ============
-
-/** 每日最佳推荐条目 */
-export interface DailyBest {
-  date: string; // YYYY-MM-DD
-  tracks: Track[];
-}
-
 export interface HotChart {
   window: '7d';
   generatedAt: string;

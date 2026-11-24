@@ -6,7 +6,6 @@ import { Controller, Get } from '@nestjs/common';
 import { RoomsModule } from './rooms/rooms.module';
 import { ProvidersModule } from './providers/providers.module';
 import { SyncModule } from './sync/sync.module';
-import { DailyBestModule } from './daily-best/daily-best.module';
 import { ProviderRegistry } from './providers/provider.registry';
 
 @Controller('health')
@@ -43,7 +42,6 @@ class HealthController {
     RoomsModule,
     ProvidersModule,
     SyncModule,
-    DailyBestModule,
   ],
   controllers: [HealthController],
   providers: [
