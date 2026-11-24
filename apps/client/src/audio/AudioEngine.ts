@@ -106,9 +106,6 @@ export class AudioEngine {
     this.startAuthorized = false; this.confirmed = false;
     this.audio.pause(); this.applyGain({ immediate: true }); this.publish();
   }
-  setOutputSuppressed(value: boolean, _options: { immediate?: boolean } = {}): void {
-    if (value) this.setHold('manual'); else this.releaseHold();
-  }
 
   async load(url: string, offset: number | (() => number) = 0, signal?: AbortSignal): Promise<MediaResult> {
     this.retire();

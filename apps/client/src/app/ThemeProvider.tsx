@@ -34,7 +34,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   useLayoutEffect(() => {
     const root = document.documentElement;
     root.dataset.color = color;
-    delete root.dataset.theme;
     try {
       window.localStorage.setItem(STORAGE_KEY, color);
     } catch {

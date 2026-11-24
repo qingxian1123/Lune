@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { ClientPlatformKind, PlatformCapabilities } from './contracts';
+import type { ClientPlatformKind } from './contracts';
 
 const MOBILE_MEDIA_QUERY = '(max-width: 767px)';
 
@@ -23,14 +23,6 @@ export function detectPlatformKind(): ClientPlatformKind {
     return 'windows';
   }
   return 'browser';
-}
-
-export function getPlatformCapabilities(kind: ClientPlatformKind): PlatformCapabilities {
-  return {
-    backgroundAudio: kind === 'android',
-    systemBack: kind === 'android',
-    systemMediaControls: kind !== 'browser',
-  };
 }
 
 export function useIsMobileLayout(): boolean {
