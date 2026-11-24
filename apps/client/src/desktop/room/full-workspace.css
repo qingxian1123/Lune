@@ -38,7 +38,6 @@
 .library-workspace .workspace-query input { min-height: 42px; font-size: 14px; }
 .workspace-search-submit { display: grid; place-items: center; flex: none; width: 36px; height: 34px; border: 0; border-radius: 6px; background: transparent; color: rgb(var(--lune-muted)); }
 .workspace-search-submit:hover:not(:disabled) { color: rgb(var(--lune-text)); background: rgb(var(--lune-border) / .05); }
-.library-workspace .workspace-source { flex: none; width: auto; max-width: 180px; min-width: 128px; min-height: 44px; margin: 0; padding: 0 12px; border: 1px solid rgb(var(--lune-border) / .12); border-radius: 10px; background: rgb(var(--lune-bg-soft)); color: rgb(var(--lune-text)); font-size: 13px; }
 .workspace-playlist-grid { display: grid; flex: 1; min-height: 0; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 28px 24px; align-content: start; margin: 0; padding: 4px 4px 16px; list-style: none; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
 .workspace-playlist-grid > li { min-width: 0; }
 .workspace-playlist-card { display: flex; flex-direction: column; gap: 12px; width: 100%; padding: 0; border: 0; border-radius: 10px; color: rgb(var(--lune-text)); background: transparent; text-align: left; }
@@ -150,7 +149,6 @@
   .workspace-section-heading h2 { font-size: 22px; }
   .workspace-section-heading { margin-bottom: 20px; }
   .workspace-search-toolbar { gap: 10px; margin-bottom: 20px; }
-  .library-workspace .workspace-source { min-width: 108px; max-width: 144px; padding-inline: 8px; font-size: 12px; }
   .workspace-playlist-hero { grid-template-columns: 120px minmax(0, 1fr); gap: 20px; }
   .workspace-playlist-description h2 { font-size: 24px; }
   .workspace-playlist-description > p { margin: 8px 0 16px; font-size: 12px; }
@@ -159,9 +157,6 @@
   .library-workspace .terminal-track { gap: 8px; }
 }
 @container room-workspace (max-width: 540px) {
-  .workspace-search-toolbar:has(.workspace-source) { flex-wrap: wrap; }
-  .workspace-search-toolbar:has(.workspace-source) .workspace-query { flex-basis: 100%; }
-  .workspace-search-toolbar .workspace-source { margin-left: auto; min-height: 36px; }
   .workspace-playlist-grid { gap: 22px 14px; }
   .workspace-playlist-hero { grid-template-columns: 88px minmax(0, 1fr); gap: 16px; align-items: start; }
   .workspace-playlist-description h2 { font-size: 20px; }
@@ -198,7 +193,7 @@
   .workspace-track-row-actions > .library-save-wrap, .workspace-track-row-actions > .workspace-add-track { opacity: 1; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .room-floating-library .terminal-sidebar.library-workspace, .workspace-nav-item, .workspace-playlist-copy > strong, .workspace-playlist-card .workspace-playlist-artwork > img, .workspace-track-row, .workspace-track-row-actions > *, .library-workspace .workspace-query, .library-workspace .workspace-source, .workspace-playback-next button, .transport-bar.is-workspace .transport-progress, .transport-bar.is-workspace .transport-next { transition: none; }
+  .room-floating-library .terminal-sidebar.library-workspace, .workspace-nav-item, .workspace-playlist-copy > strong, .workspace-playlist-card .workspace-playlist-artwork > img, .workspace-track-row, .workspace-track-row-actions > *, .library-workspace .workspace-query, .workspace-playback-next button, .transport-bar.is-workspace .transport-progress, .transport-bar.is-workspace .transport-next { transition: none; }
 }
 
 /* Full workspace uses the global grayscale tokens and ignores the album tint. */
@@ -218,12 +213,10 @@
 .workspace-nav-divider { margin: 18px 8px; }
 .workspace-nav-bottom { border: 0; }
 .workspace-section-heading h2 { font-size: 26px; }
-.library-workspace .workspace-query, .library-workspace .workspace-source { min-height: 44px; border: 1px solid rgb(var(--lune-line)); border-radius: 8px; background: rgb(var(--lune-surface-2)); color: rgb(var(--lune-text)); transition: border-color 160ms ease, background-color 160ms ease; }
+.library-workspace .workspace-query { min-height: 44px; border: 1px solid rgb(var(--lune-line)); border-radius: 8px; background: rgb(var(--lune-surface-2)); color: rgb(var(--lune-text)); transition: border-color 160ms ease, background-color 160ms ease; }
 .library-workspace .workspace-query { padding: 0 10px 0 8px; }
-.library-workspace .workspace-query:hover:not(:focus-within), .library-workspace .workspace-source:hover:not(:focus) { border-color: rgb(var(--lune-border) / .22); }
+.library-workspace .workspace-query:hover:not(:focus-within) { border-color: rgb(var(--lune-border) / .22); }
 .library-workspace .workspace-query:focus-within { background: rgb(var(--lune-surface)); }
-.library-workspace .workspace-source { cursor: pointer; }
-.library-workspace .workspace-source option { background: rgb(var(--lune-bg-soft)); color: rgb(var(--lune-text)); }
 .workspace-query .workspace-search-submit { order: -1; width: 32px; height: 32px; color: rgb(var(--lune-faint)); transition: color 140ms ease, background-color 140ms ease; }
 .workspace-query:focus-within .workspace-search-submit, .workspace-query .workspace-search-submit.has-query { color: rgb(var(--lune-muted)); }
 .workspace-query .workspace-search-submit:hover:not(:disabled) { color: rgb(var(--lune-text)); background: rgb(var(--lune-border) / .06); }

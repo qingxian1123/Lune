@@ -25,10 +25,8 @@ interface Props {
   tab: SearchPanelTab;
   active: boolean;
   server: string;
-  source: { value: string; onChange: (id: string) => void };
-  songSources: string[];
-  songDefaultLabel: string;
-  playlistSources: string[];
+  sourcePickers: Record<'songs' | 'playlists' | 'hot', ReactNode>;
+  playlistSourceKey: string;
   chartSources: string[];
   songs: SearchState & { tracks: Track[] };
   videos: BilibiliVideoRowsProps;
@@ -113,7 +111,7 @@ function SearchFeedback({ state, empty, prompt, children }: { state: SearchState
   return children;
 }
 
-export default function WorkspaceMusicBrowser({ tab, active, server, source, songSources, songDefaultLabel, playlistSources, chartSources, songs, videos, videoError, partsView, playlists, onPick, onAddMany, onTabChange, containerRef, onScrollCapture, libraryViewState }: Props) {
+export default function WorkspaceMusicBrowser({ tab, active, server, sourcePickers, playlistSourceKey, chartSources, songs, videos, videoError, partsView, playlists, onPick, onAddMany, onTabChange, containerRef, onScrollCapture, libraryViewState }: Props) {
   const connected = useRoomStore((state) => state.connected);
   const playlistList = useRef<HTMLUListElement>(null);
   const playlistScroll = useRef(0);
@@ -133,18 +131,10 @@ export default function WorkspaceMusicBrowser({ tab, active, server, source, son
     playlistScroll.current = 0;
     selectedCard.current = null;
     if (playlistList.current) playlistList.current.scrollTop = 0;
-  }, [server, source.value]);
+  }, [server, playlistSourceKey]);
 
   const enqueue = (track: Track) => onAddMany([track]);
-  const sourcePicker = (providers: string[], defaultLabel = providerLabel('all')) => {
-    if (providers.length <= 1) return null;
-    return <select className="workspace-source lune-control" value={providers.includes(source.value) ? source.value : 'all'}
-      onChange={(event) => source.onChange(event.target.value)} aria-label="选择音乐源">
-      <option value="all">{defaultLabel}</option>
-      {providers.map((id) => <option key={id} value={id}>{providerLabel(id)}</option>)}
-    </select>;
-  };
-  const searchToolbar = (state: SearchState, label: string, providers: string[], defaultLabel?: string) => <form className="workspace-search-toolbar" role="search" aria-label={label}
+  const searchToolbar = (state: SearchState, label: string, picker: ReactNode) => <form className="workspace-search-toolbar" role="search" aria-label={label}
     onSubmit={(event) => {
       event.preventDefault();
       if (!state.query.trim()) {
@@ -165,13 +155,13 @@ export default function WorkspaceMusicBrowser({ tab, active, server, source, son
         }} />
       <button type="submit" className={`workspace-search-submit${state.query.trim() ? ' has-query' : ''}`} disabled={!state.enabled || state.loading} aria-label={state.loading ? '正在搜索' : label} title={label}><WorkspaceIcon name="songs" /></button>
     </div>
-    {sourcePicker(providers, defaultLabel)}
+    {picker}
   </form>;
 
   return <section ref={containerRef} onScrollCapture={onScrollCapture} className="workspace-music-browser">
     <div className="workspace-browser-view" hidden={tab !== 'songs' || Boolean(partsView)}>
       <header className="workspace-section-heading"><h2>搜索音乐</h2></header>
-      {searchToolbar(songs, '搜索歌曲或歌手', songSources, songDefaultLabel)}
+      {searchToolbar(songs, '搜索歌曲或歌手', sourcePickers.songs)}
       {videoError && <p className="workspace-browser-message" role="alert">{videoError}</p>}
       <SearchFeedback state={songs} empty={songs.tracks.length === 0 && videos.videos.length === 0} prompt={songs.enabled ? '输入歌名或歌手' : '选择要搜索的音源'}>
         <TrackList tracks={songs.tracks} server={server} connected={connected} onPick={onPick}
@@ -182,7 +172,7 @@ export default function WorkspaceMusicBrowser({ tab, active, server, source, son
 
     <div className="workspace-browser-view" hidden={tab !== 'playlists' || playlists.view !== 'list'}>
       <header className="workspace-section-heading"><h2>发现歌单</h2></header>
-      {searchToolbar(playlists, '搜索歌单', playlistSources)}
+      {searchToolbar(playlists, '搜索歌单', sourcePickers.playlists)}
       <SearchFeedback state={playlists} empty={playlists.items.length === 0} prompt={playlists.enabled ? '输入歌单名' : '选择支持歌单搜索的音源'}>
         <ul ref={playlistList} className="workspace-playlist-grid lune-scrollbar" data-scroll-key="playlists" aria-label="歌单列表">
           {playlists.items.map((playlist) => <li key={`${playlist.provider}:${playlist.id}`}>
@@ -224,8 +214,10 @@ export default function WorkspaceMusicBrowser({ tab, active, server, source, son
     </div>
 
     <div className="workspace-browser-view workspace-hot-view" hidden={tab !== 'hot'}>
-      <header className="workspace-section-heading"><h2>共听热榜</h2>{sourcePicker(songSources)}</header>
-      <HotChartPanel providers={chartSources} serverUrl={server} active={active && tab === 'hot'} onPick={enqueue} disabled={!connected} presentation="workspace" />
+      <header className="workspace-section-heading"><h2>共听热榜</h2>{sourcePickers.hot}</header>
+      {chartSources.length > 0
+        ? <HotChartPanel providers={chartSources} serverUrl={server} active={active && tab === 'hot'} onPick={enqueue} disabled={!connected} presentation="workspace" />
+        : <div className="workspace-browser-empty" role="status"><p>选择要查看的音源</p></div>}
     </div>
 
     <div className="workspace-browser-view" hidden={tab !== 'library'}>

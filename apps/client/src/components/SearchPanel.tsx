@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useState, useSyncExternalStore, useRef } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useState, useSyncExternalStore, useRef } from 'react';
 import type { UIEventHandler } from 'react';
 import type { BilibiliVideoSummary, PlaylistSummary, Track } from '@lune/shared';
 import { getBilibiliVideoParts, getPlaylist, getProviders, searchPlaylists, searchTracks, type ProviderCatalogEntry } from '../lib/api';
@@ -28,7 +28,8 @@ interface SearchPanelProps {
 
 export type SearchPanelTab = 'songs' | 'playlists' | 'hot' | 'library';
 type PlaylistView = 'list' | 'detail';
-type SongSearchScope = 'compact' | 'legacy';
+type SongSearchScope = 'compact' | 'workspace' | 'legacy';
+type MultiSourceSongScope = Exclude<SongSearchScope, 'legacy'>;
 
 interface SongSearchState {
   results: Track[];
@@ -39,6 +40,13 @@ interface SongSearchState {
 }
 
 const emptySongSearch: SongSearchState = { results: [], videos: [], loading: false, error: '', searched: false };
+const emptySongSearches = { compact: emptySongSearch, workspace: emptySongSearch, legacy: emptySongSearch };
+
+function toggleProvider(providers: string[], selected: string[], id: string) {
+  return selected.includes(id)
+    ? selected.filter((source) => source !== id)
+    : providers.filter((source) => source === id || selected.includes(source));
+}
 
 const subscribeServer = (listener: () => void) => {
   window.addEventListener('storage', listener);
@@ -61,23 +69,32 @@ export default function SearchPanel({ onPick, onAddMany, active = true, roomActi
   const tab = controlledTab ?? localTab;
   const setTab = (next: SearchPanelTab) => { setLocalTab(next); onTabChange?.(next); };
   const workspace = presentation === 'workspace';
-  const useCompactSources = windows && !workspace;
-  const songScope: SongSearchScope = useCompactSources ? 'compact' : 'legacy';
+  const songScope: SongSearchScope = workspace || windows ? presentation : 'legacy';
   const [providers, setProviders] = useState<ProviderCatalogEntry[]>([]);
-  const [compactSources, setCompactSources] = useState<string[] | null>(null);
+  const [songSelections, setSongSelections] = useState<Partial<Record<MultiSourceSongScope, string[]>>>({});
+  const [playlistSelection, setPlaylistSelection] = useState<string[] | null>(null);
+  const [chartSelection, setChartSelection] = useState<string[] | null>(null);
   const [legacyProvider, setLegacyProvider] = useState('all');
   const songSources = providers.filter((source) => source.capabilities?.includes('search') ?? true).map(({ id }) => id);
   const regularSongSources = songSources.filter((id) => id !== 'bilibili');
   const defaultSongSources = regularSongSources.length ? regularSongSources : songSources;
   const playlistSources = providers.filter((source) => source.capabilities?.includes('playlist-search') ?? source.id !== 'bilibili').map(({ id }) => id);
-  const selectedCompactSources = compactSources ?? defaultSongSources;
   const selectedLegacySongs = songSources.includes(legacyProvider) ? [legacyProvider] : defaultSongSources;
-  const selectedPlaylists = playlistSources.includes(legacyProvider) ? [legacyProvider] : playlistSources;
-  const chartSources = songSources.includes(legacyProvider) ? [legacyProvider] : windows ? ['all'] : songSources;
+  const selectedSongs = songScope === 'legacy' ? selectedLegacySongs : songSelections[songScope] ?? defaultSongSources;
+  const selectedPlaylists = workspace
+    ? playlistSelection ?? playlistSources
+    : playlistSources.includes(legacyProvider) ? [legacyProvider] : playlistSources;
+  const playlistSourceKey = selectedPlaylists.join(',');
+  const previousPlaylistSourceKey = useRef(playlistSourceKey);
+  const selectedChartSources = chartSelection ?? songSources;
+  const legacyChartSources = songSources.includes(legacyProvider) ? [legacyProvider] : windows ? ['all'] : songSources;
+  const workspaceChartSources = windows && selectedChartSources.length > 0 && selectedChartSources.length === songSources.length
+    ? ['all']
+    : selectedChartSources;
   const precision = useBilibiliPreferences((state) => state.precision);
   const serverUrl = useSyncExternalStore(subscribeServer, getServerBaseUrl);
 
-  const requests = useRef({ songs: { compact: 0, legacy: 0 }, playlists: 0, detail: 0, video: 0 });
+  const requests = useRef({ songs: { compact: 0, workspace: 0, legacy: 0 }, playlists: 0, detail: 0, video: 0 });
   const contentRef = useRef<HTMLElement>(null);
   const videoTrigger = useRef<HTMLButtonElement | null>(null);
   const restoreVideoFocus = useRef(false);
@@ -92,9 +109,7 @@ export default function SearchPanel({ onPick, onAddMany, active = true, roomActi
 
   // 搜歌 state
   const [kw, setKw] = useState('');
-  const [songSearches, setSongSearches] = useState<Record<SongSearchScope, SongSearchState>>({
-    compact: emptySongSearch, legacy: emptySongSearch,
-  });
+  const [songSearches, setSongSearches] = useState(emptySongSearches);
   const { results, videos, loading, error: err, searched } = songSearches[songScope];
   const updateSongSearch = (update: Partial<SongSearchState>) => {
     setSongSearches((current) => ({ ...current, [songScope]: { ...current[songScope], ...update } }));
@@ -116,13 +131,14 @@ export default function SearchPanel({ onPick, onAddMany, active = true, roomActi
   const [detailErr, setDetailErr] = useState('');
 
   useEffect(() => {
-    requests.current.songs.compact++; requests.current.songs.legacy++;
+    requests.current.songs.compact++; requests.current.songs.workspace++; requests.current.songs.legacy++;
     requests.current.playlists++; requests.current.detail++; requests.current.video++;
-    setSongSearches({ compact: emptySongSearch, legacy: emptySongSearch });
+    setSongSearches(emptySongSearches);
     setPlLoading(false); setDetailLoading(false);
     setPlaylists([]); setTracks([]); setSelected(null); setPlView('list');
     setVideoSelection(null); setVideoLoadingId(null); setVideoError('');
-    setProviders([]); setCompactSources(null); setLegacyProvider('all');
+    setProviders([]); setSongSelections({}); setLegacyProvider('all');
+    setPlaylistSelection(null); setChartSelection(null);
     setPlErr(''); setDetailErr(''); setPlaylistSearched(false);
     setLibraryView(initialLibraryViewState());
     scrollPositions.current = {};
@@ -153,19 +169,13 @@ export default function SearchPanel({ onPick, onAddMany, active = true, roomActi
     setVideoLoadingId(null);
   }, [active, tab]);
 
-  const chooseLegacySource = (id: string) => {
-    if (id === legacyProvider) return;
-    delete scrollPositions.current['workspace:songs'];
-    if (!windows) delete scrollPositions.current['compact:songs'];
+  const resetPlaylistSearch = useCallback(() => {
     for (const mode of ['compact', 'workspace']) {
       delete scrollPositions.current[`${mode}:playlists`];
       delete scrollPositions.current[`${mode}:detail`];
     }
-    requests.current.songs.legacy++; requests.current.playlists++; requests.current.detail++; requests.current.video++;
-    setLegacyProvider(id);
-    setSongSearches((current) => ({ ...current, legacy: emptySongSearch }));
+    requests.current.playlists++; requests.current.detail++;
     setPlLoading(false); setDetailLoading(false);
-    setVideoSelection(null); setVideoLoadingId(null); setVideoError('');
     setPlaylists([]);
     setTracks([]);
     setSelected(null);
@@ -173,21 +183,51 @@ export default function SearchPanel({ onPick, onAddMany, active = true, roomActi
     setPlErr('');
     setDetailErr('');
     setPlaylistSearched(false);
+  }, []);
+
+  useLayoutEffect(() => {
+    if (previousPlaylistSourceKey.current === playlistSourceKey) return;
+    previousPlaylistSourceKey.current = playlistSourceKey;
+    resetPlaylistSearch();
+  }, [playlistSourceKey, resetPlaylistSearch]);
+
+  const chooseLegacySource = (id: string) => {
+    if (id === legacyProvider) return;
+    delete scrollPositions.current['compact:songs'];
+    requests.current.songs.legacy++; requests.current.video++;
+    setLegacyProvider(id);
+    setSongSearches((current) => ({ ...current, legacy: emptySongSearch }));
+    setVideoSelection(null); setVideoLoadingId(null); setVideoError('');
+    resetPlaylistSearch();
   };
 
-  const toggleSource = (id: string) => {
-    const next = selectedCompactSources.includes(id)
-      ? selectedCompactSources.filter((source) => source !== id)
-      : songSources.filter((source) => source === id || selectedCompactSources.includes(source));
-    delete scrollPositions.current['compact:songs'];
-    requests.current.songs.compact++; requests.current.video++;
-    setCompactSources(next);
+  const toggleSongSource = (id: string) => {
+    if (songScope === 'legacy') return;
+    const next = toggleProvider(songSources, selectedSongs, id);
+    delete scrollPositions.current[`${presentation}:songs`];
+    requests.current.songs[songScope]++; requests.current.video++;
+    setSongSelections((current) => ({ ...current, [songScope]: next }));
     updateSongSearch({ ...emptySongSearch, searched: searched || loading });
     setVideoSelection(null); setVideoLoadingId(null); setVideoError('');
     if (searched || loading) void doSearch(next);
   };
 
-  const selectedSongs = useCompactSources ? selectedCompactSources : selectedLegacySongs;
+  const togglePlaylistSource = (id: string) => {
+    const next = toggleProvider(playlistSources, selectedPlaylists, id);
+    previousPlaylistSourceKey.current = next.join(',');
+    setPlaylistSelection(next);
+    resetPlaylistSearch();
+    if (playlistSearched || plLoading) {
+      setPlaylistSearched(true);
+      void doPlaylistSearch(next);
+    }
+  };
+
+  const toggleChartSource = (id: string) => {
+    delete scrollPositions.current['workspace:hot'];
+    setChartSelection(toggleProvider(songSources, selectedChartSources, id));
+  };
+
   const doSearch = async (sources = selectedSongs) => {
     if (!kw.trim() || !sources.length) return;
     const request = ++requests.current.songs[songScope];
@@ -197,7 +237,7 @@ export default function SearchPanel({ onPick, onAddMany, active = true, roomActi
     setVideoError(''); setVideoLoadingId(null); setVideoSelection(null);
     try {
       const result = await searchSources<Track | BilibiliVideoSummary>(sources, async (source) => {
-        const { songs, videos: matches = [] } = await searchTracks(kw.trim(), 20, source, useCompactSources ? precision : undefined);
+        const { songs, videos: matches = [] } = await searchTracks(kw.trim(), 20, source, windows ? precision : undefined);
         return [...songs.map((track) => ({ ...track, provider: track.provider || source })), ...matches];
       });
       if (isCurrent()) {
@@ -214,14 +254,14 @@ export default function SearchPanel({ onPick, onAddMany, active = true, roomActi
     }
   };
 
-  const doPlaylistSearch = async () => {
-    if (!plKw.trim() || !selectedPlaylists.length) return;
+  const doPlaylistSearch = async (sources = selectedPlaylists) => {
+    if (!plKw.trim() || !sources.length) return;
     const request = ++requests.current.playlists;
     const isCurrent = () => request === requests.current.playlists && serverUrl === getServerBaseUrl();
     setPlLoading(true);
     setPlErr('');
     try {
-      const result = await searchSources(selectedPlaylists, async (source) =>
+      const result = await searchSources(sources, async (source) =>
         (await searchPlaylists(plKw.trim(), 20, source)).map((item) => ({ ...item, provider: item.provider || source })));
       if (isCurrent()) { setPlaylists(result); setPlaylistSearched(true); }
     } catch (e) {
@@ -289,26 +329,32 @@ export default function SearchPanel({ onPick, onAddMany, active = true, roomActi
     contentRef.current?.querySelectorAll<HTMLElement>('[data-scroll-key]').forEach((element) => {
       if (!element.getClientRects().length) return;
       const key = element.dataset.scrollKey;
-      const sharedPosition = windows && key === 'songs' ? 0 : scrollPositions.current[`${other}:${key}`];
+      const sharedPosition = key === 'songs' ? 0 : scrollPositions.current[`${other}:${key}`];
       element.scrollTop = scrollPositions.current[`${presentation}:${key}`] ?? sharedPosition ?? 0;
     });
     if (!videoSelection && restoreVideoFocus.current) {
       restoreVideoFocus.current = false;
       videoTrigger.current?.focus({ preventScroll: true });
     }
-  }, [presentation, workspace, windows, tab, plView, videoSelection, loading, plLoading, detailLoading, active]);
+  }, [presentation, workspace, tab, plView, videoSelection, loading, plLoading, detailLoading, active]);
 
   const songSearchEnabled = selectedSongs.length > 0;
   const playlistSearchEnabled = selectedPlaylists.length > 0;
+  const songSourcePicker = songScope !== 'legacy'
+    ? <SourcePicker key={serverUrl} providers={songSources} selected={selectedSongs} onToggle={toggleSongSource} />
+    : null;
   const videoRows = { videos, pendingId: videoLoadingId, available: roomActionsAvailable,
     onOpen: (video: BilibiliVideoSummary, trigger: HTMLButtonElement) => { void openVideo(video, trigger); } };
   const partsView = videoSelection && <BilibiliPartsView key={videoSelection.video.id}
     selection={videoSelection} available={roomActionsAvailable} onBack={backToVideos} onAddMany={onAddMany} />;
 
   if (workspace) return <WorkspaceMusicBrowser tab={tab} active={active} server={serverUrl} containerRef={contentRef} onScrollCapture={saveScroll} libraryViewState={libraryViewState}
-    source={{ value: legacyProvider, onChange: chooseLegacySource }}
-    songSources={songSources} playlistSources={playlistSources} chartSources={chartSources}
-    songDefaultLabel={defaultSongSources.length < songSources.length ? '默认音源' : providerLabel('all')}
+    chartSources={workspaceChartSources} playlistSourceKey={playlistSourceKey}
+    sourcePickers={{
+      songs: songSourcePicker,
+      playlists: <SourcePicker key={serverUrl} providers={playlistSources} selected={selectedPlaylists} onToggle={togglePlaylistSource} />,
+      hot: <SourcePicker key={serverUrl} providers={songSources} selected={selectedChartSources} onToggle={toggleChartSource} />,
+    }}
     songs={{ query: kw, onQueryChange: setKw, tracks: results, loading, error: err, searched, enabled: songSearchEnabled, onSearch: () => { void doSearch(); } }}
     videos={videoRows} videoError={videoError} partsView={partsView}
     playlists={{ query: plKw, onQueryChange: setPlKw, items: playlists, loading: plLoading, error: plErr, searched: playlistSearched,
@@ -360,7 +406,7 @@ export default function SearchPanel({ onPick, onAddMany, active = true, roomActi
       </div>
 
       <div hidden={tab !== 'hot'}>
-        <HotChartPanel providers={chartSources} serverUrl={serverUrl} active={active && tab === 'hot'} onPick={(track) => onAddMany([track])} disabled={!roomActionsAvailable} />
+        <HotChartPanel providers={legacyChartSources} serverUrl={serverUrl} active={active && tab === 'hot'} onPick={(track) => onAddMany([track])} disabled={!roomActionsAvailable} />
       </div>
 
       <div hidden={tab !== 'songs' || Boolean(videoSelection)}>
@@ -381,12 +427,12 @@ export default function SearchPanel({ onPick, onAddMany, active = true, roomActi
             >
               {loading ? '搜索中' : '搜索'}
             </button>
-            {useCompactSources && tab === 'songs' && <SourcePicker providers={songSources} selected={selectedCompactSources} onToggle={toggleSource} />}
+            {tab === 'songs' && songSourcePicker}
           </div>
 
           {err && <div className="mt-2 rounded-lg bg-rose-950/35 px-2 py-1.5 text-xs text-rose-200">{err}</div>}
           {videoError && <p className="mt-2 text-xs" role="alert">{videoError}</p>}
-          {useCompactSources && songSearchEnabled && searched && !loading && !err && !results.length && !videos.length &&
+          {windows && songSearchEnabled && searched && !loading && !err && !results.length && !videos.length &&
             <p className="mt-2 text-xs" role="status">没找到结果，试试其他关键词</p>}
 
           <ul data-scroll-key="songs" className="lune-scrollbar mt-2 max-h-72 overflow-y-auto pr-1">
